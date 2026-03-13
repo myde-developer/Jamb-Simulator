@@ -4,7 +4,7 @@ const cors = require('cors');
 const path = require('path');
 require('dotenv').config();
 
-const { createTables } = require('./config/database');
+const { createTables } = require('./config/database');  // ← This imports the function
 
 const app = express();
 
@@ -12,28 +12,27 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// ✅ ADD THIS LINE - Initialize database when server starts
+createTables().catch(console.error);
+
 // IMPORTANT: Only serve static files in development
-// In production, frontend comes from separate Static Site
 if (process.env.NODE_ENV !== 'production') {
-    // Only serve frontend locally for development
     app.use(express.static(path.join(__dirname, '../client')));
     
-    // Serve index.html for root route in development
     app.get('/', (req, res) => {
         res.sendFile(path.join(__dirname, '../client/index.html'));
     });
 }
 
-// API Routes - THESE ALWAYS WORK
+// API Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api', require('./routes/api'));
 app.use('/api/progress', require('./routes/progress'));
 app.use('/api/admin', require('./routes/admin'));
 
-// Health check endpoint - WHAT YOUR BACKEND SHOULD SHOW
+// Health check endpoint
 app.get('/', (req, res) => {
     if (process.env.NODE_ENV === 'production') {
-        // In production, return JSON to confirm backend is running
         res.json({
             status: 'success',
             message: 'JAMB Simulator API is running',
@@ -48,7 +47,7 @@ app.get('/', (req, res) => {
     }
 });
 
-// 404 handler for API routes
+// 404 handler
 app.use('/api/*', (req, res) => {
     res.status(404).json({ error: 'API endpoint not found' });
 });
