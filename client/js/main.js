@@ -3,7 +3,7 @@ const API_BASE = window.location.hostname === 'localhost' || window.location.hos
     ? 'http://localhost:5000'
     : 'https://jamb-simulator-api.onrender.com';
 
-// JAMB Subjects Data
+// JAMB Subjects Data - Only 5 Subjects
 const jambSubjects = [
     { id: 1, name: "Use of English", code: "ENG", compulsory: true },
     { id: 2, name: "Mathematics", code: "MTH", compulsory: false },
@@ -12,51 +12,63 @@ const jambSubjects = [
     { id: 5, name: "Biology", code: "BIO", compulsory: false }
 ];
 
+// State
 let selectedSubjects = [];
 
+// Check auth status on page load
 document.addEventListener('DOMContentLoaded', () => {
-    // Check if user is logged in (double-check)
-    const token = localStorage.getItem('token');
+    // Check session (not localStorage)
+    const token = sessionStorage.getItem('token');
+    
+    // If not logged in, redirect to auth page
     if (!token) {
-        window.location.replace('/auth.html');
+        window.location.href = '/auth.html';
         return;
     }
     
+    checkAuth();
     loadSubjects();
     checkAdminAccess();
-    displayUserInfo();
     
     document.getElementById('startExamBtn').addEventListener('click', startExam);
-    document.getElementById('logoutBtn').addEventListener('click', logout);
+    document.getElementById('authLink').addEventListener('click', handleAuthClick);
+    document.getElementById('logoutBtn')?.addEventListener('click', logout);
 });
 
-function displayUserInfo() {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const userInfo = document.getElementById('userInfo');
-    if (userInfo && user.full_name) {
-        userInfo.textContent = `Hi, ${user.full_name}`;
+function checkAuth() {
+    const token = sessionStorage.getItem('token');
+    const user = JSON.parse(sessionStorage.getItem('user') || '{}');
+    const authLink = document.getElementById('authLink');
+    
+    if (token && user) {
+        authLink.textContent = `Hi, ${user.full_name || 'User'}`;
+        authLink.href = '/progress.html';
     }
 }
 
 function checkAdminAccess() {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const user = JSON.parse(sessionStorage.getItem('user') || '{}');
     const adminLink = document.getElementById('adminLink');
-    if (adminLink && user.is_admin) {
+    
+    if (user.is_admin) {
         adminLink.style.display = 'block';
     }
 }
 
-function logout(e) {
+function handleAuthClick(e) {
     e.preventDefault();
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    window.location.replace('/auth.html');
+    // This is actually logout
+    logout();
+}
+
+function logout() {
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('user');
+    window.location.href = '/auth.html';
 }
 
 function loadSubjects() {
     const container = document.getElementById('subjectsContainer');
-    if (!container) return;
-    
     container.innerHTML = '';
     
     jambSubjects.forEach(subject => {
@@ -64,6 +76,7 @@ function loadSubjects() {
         container.appendChild(card);
     });
     
+    // Auto-select English
     const english = jambSubjects.find(s => s.compulsory);
     selectedSubjects.push(english);
     updateSelectionCount();
@@ -110,13 +123,12 @@ function toggleSubject(subject, card) {
 }
 
 function updateSelectionCount() {
-    const countEl = document.getElementById('selectedCount');
-    if (countEl) countEl.textContent = selectedSubjects.length;
+    document.getElementById('selectedCount').textContent = selectedSubjects.length;
 }
 
 function updateStartButton() {
     const startBtn = document.getElementById('startExamBtn');
-    if (startBtn) startBtn.disabled = selectedSubjects.length !== 4;
+    startBtn.disabled = selectedSubjects.length !== 4;
 }
 
 function startExam() {
@@ -125,11 +137,12 @@ function startExam() {
         return;
     }
     
+    // Verify English is included
     if (!selectedSubjects.find(s => s.compulsory)) {
         alert('English is compulsory!');
         return;
     }
     
-    localStorage.setItem('jambSelectedSubjects', JSON.stringify(selectedSubjects));
+    sessionStorage.setItem('jambSelectedSubjects', JSON.stringify(selectedSubjects));
     window.location.href = '/exam.html';
 }

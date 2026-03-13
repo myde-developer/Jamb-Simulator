@@ -1,4 +1,4 @@
-// API Base URL
+// API Base URL - automatically detects environment
 const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://localhost:5000'
     : 'https://jamb-simulator-api.onrender.com';
@@ -6,10 +6,9 @@ const API_BASE = window.location.hostname === 'localhost' || window.location.hos
 let isLogin = true;
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Check if user is already logged in
-    const token = localStorage.getItem('token');
+    // Check if user already has an active session
+    const token = sessionStorage.getItem('token');
     if (token) {
-        // If already logged in, redirect to appropriate page
         redirectBasedOnRole();
         return;
     }
@@ -19,11 +18,11 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function redirectBasedOnRole() {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const user = JSON.parse(sessionStorage.getItem('user') || '{}');
     if (user.is_admin) {
         window.location.href = '/admin.html';
     } else {
-        window.location.href = '/index.html';
+        window.location.href = '/home.html';
     }
 }
 
@@ -46,6 +45,8 @@ function toggleAuthMode(e) {
         'Already have an account? <a href="#" id="toggleAuth">Login here</a>';
     
     document.getElementById('nameGroup').style.display = isLogin ? 'none' : 'block';
+    
+    // Re-attach event listener
     document.getElementById('toggleAuth').addEventListener('click', toggleAuthMode);
 }
 
@@ -87,23 +88,25 @@ async function handleAuth(e) {
             throw new Error(data.error || 'Authentication failed');
         }
         
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
+        // Store in sessionStorage (clears when browser/tab closes)
+        sessionStorage.setItem('token', data.token);
+        sessionStorage.setItem('user', JSON.stringify(data.user));
         
         showSuccess(data.message);
         
-        // Handle redirect based on action
         setTimeout(() => {
-    if (isLogin) {
-        if (data.user.is_admin) {
-            window.location.href = '/admin.html';
-        } else {
-            window.location.href = '/home.html';  // ← NOW points to home.html
-        }
-    } else {
-        window.location.href = '/auth.html';
-    }
-}, 1500);
+            if (isLogin) {
+                // After login - go to appropriate page
+                if (data.user.is_admin) {
+                    window.location.href = '/admin.html';
+                } else {
+                    window.location.href = '/home.html';
+                }
+            } else {
+                // After registration - go back to login page
+                window.location.href = '/auth.html';
+            }
+        }, 1500);
         
     } catch (error) {
         showError(error.message);
@@ -125,7 +128,7 @@ async function createDefaultAdmin() {
                     fullName: 'System Administrator'
                 })
             });
-            console.log('✅ Default admin created');
+            console.log('✅ Default admin created - Email: admin@jamb.com, Password: Admin123!');
         }
     } catch (error) {
         console.error('Error creating default admin:', error);
@@ -136,6 +139,7 @@ function showError(message) {
     const errorDiv = document.getElementById('errorMessage');
     errorDiv.textContent = message;
     errorDiv.style.display = 'block';
+    
     setTimeout(() => {
         errorDiv.style.display = 'none';
     }, 3000);

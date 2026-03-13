@@ -1,21 +1,21 @@
-// API Base URL - automatically detects environment
+// API Base URL
 const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://localhost:5000'
-    : 'https://jamb-simulator-api.onrender.com'; // Empty for production (same domain)
+    : 'https://jamb-simulator-api.onrender.com';
 
 // Load results
 document.addEventListener('DOMContentLoaded', () => {
-    loadResults();
     checkAuth();
+    loadResults();
 });
 
 function checkAuth() {
-    const token = localStorage.getItem('token');
+    const token = sessionStorage.getItem('token');
     const logoutBtn = document.getElementById('logoutBtn');
     
     if (!token) {
         logoutBtn.textContent = 'Login';
-        logoutBtn.href = 'auth.html';
+        logoutBtn.href = '/auth.html';
     } else {
         logoutBtn.addEventListener('click', logout);
     }
@@ -23,16 +23,16 @@ function checkAuth() {
 
 function logout(e) {
     e.preventDefault();
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    window.location.href = 'index.html';
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('user');
+    window.location.href = '/auth.html';
 }
 
 function loadResults() {
-    const examResults = JSON.parse(localStorage.getItem('lastExamResults'));
+    const examResults = JSON.parse(sessionStorage.getItem('lastExamResults'));
     
     if (!examResults) {
-        window.location.href = 'index.html';
+        window.location.href = '/home.html';
         return;
     }
     
@@ -105,7 +105,6 @@ function displaySubjectBreakdown(results) {
         const subjectName = subject.name;
         const data = results.scores.subjectScores[subjectName] || { correct: 0, total: 0 };
         const percentage = data.total > 0 ? (data.correct / data.total) * 100 : 0;
-        const marksPerQuestion = subjectName === 'Use of English' ? '1.67' : '2.5';
         const jambScore = subjectName === 'Use of English' 
             ? (data.correct * 1.67).toFixed(2)
             : (data.correct * 2.5).toFixed(2);
@@ -266,7 +265,7 @@ function shareResults() {
 }
 
 function goHome() {
-    window.location.href = 'index.html';
+    window.location.href = '/home.html';
 }
 
 // Make functions global

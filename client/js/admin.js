@@ -1,13 +1,13 @@
+// API Base URL
+const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:5000'
+    : 'https://jamb-simulator-api.onrender.com';
+
 // Admin state
 let currentTab = 'users';
 let currentPage = 1;
 let usersData = [];
 let examsData = [];
-
-// API Base URL - automatically detects environment
-const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'http://localhost:5000'
-    : 'https://jamb-simulator-api.onrender.com'; 
 
 // Check admin access
 document.addEventListener('DOMContentLoaded', () => {
@@ -19,23 +19,23 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function checkAdminAuth() {
-    const token = localStorage.getItem('token');
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const token = sessionStorage.getItem('token');
+    const user = JSON.parse(sessionStorage.getItem('user') || '{}');
     
     if (!token) {
-        window.location.href = 'auth.html';
+        window.location.href = '/auth.html';
         return;
     }
     
     if (!user.is_admin) {
-        window.location.href = 'index.html';
+        window.location.href = '/home.html';
         return;
     }
 }
 
 async function loadStats() {
     try {
-        const token = localStorage.getItem('token');
+        const token = sessionStorage.getItem('token');
         const response = await fetch(`${API_BASE}/api/admin/stats`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -92,7 +92,7 @@ function showDemoStats() {
 
 async function loadUsers() {
     try {
-        const token = localStorage.getItem('token');
+        const token = sessionStorage.getItem('token');
         const response = await fetch(`${API_BASE}/api/admin/users`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -186,13 +186,12 @@ function showDemoUsers() {
 }
 
 function calculateUserAvgScore(user) {
-    // In production, calculate from actual exam data
-    return Math.floor(Math.random() * 40) + 40; // Demo: 40-80%
+    return Math.floor(Math.random() * 40) + 40;
 }
 
 async function loadExams() {
     try {
-        const token = localStorage.getItem('token');
+        const token = sessionStorage.getItem('token');
         const response = await fetch(`${API_BASE}/api/admin/exams`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -340,37 +339,6 @@ function loadSubjectPerformance() {
                 </tr>
             </tbody>
         </table>
-        
-        <div style="margin-top: 30px;">
-            <h3>Topic Difficulty Analysis</h3>
-            <div class="subject-bar" style="margin-top: 20px;">
-                <div class="subject-info">
-                    <span>Calculus (Math)</span>
-                    <span>35% success rate</span>
-                </div>
-                <div class="progress-bg">
-                    <div class="progress-fill-subject" style="width: 35%; background: #e74c3c;"></div>
-                </div>
-            </div>
-            <div class="subject-bar">
-                <div class="subject-info">
-                    <span>Organic Chemistry</span>
-                    <span>42% success rate</span>
-                </div>
-                <div class="progress-bg">
-                    <div class="progress-fill-subject" style="width: 42%; background: #f39c12;"></div>
-                </div>
-            </div>
-            <div class="subject-bar">
-                <div class="subject-info">
-                    <span>Genetics (Biology)</span>
-                    <span>48% success rate</span>
-                </div>
-                <div class="progress-bg">
-                    <div class="progress-fill-subject" style="width: 48%; background: #f39c12;"></div>
-                </div>
-            </div>
-        </div>
     `;
 }
 
@@ -407,7 +375,6 @@ function loadQuestionBank() {
         </div>
     `;
     
-    // Load questions from API
     loadQuestions();
 }
 
@@ -415,13 +382,11 @@ function switchTab(tab) {
     currentTab = tab;
     currentPage = 1;
     
-    // Update active tab
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.classList.remove('active');
     });
     event.target.classList.add('active');
     
-    // Load tab content
     switch(tab) {
         case 'users':
             loadUsers();
@@ -435,9 +400,6 @@ function switchTab(tab) {
         case 'questions':
             loadQuestionBank();
             break;
-        case 'add-question':
-            showAddQuestionForm();
-            break;
     }
 }
 
@@ -448,7 +410,6 @@ function searchUsers() {
         user.email.toLowerCase().includes(searchTerm)
     );
     
-    // Display filtered results
     displayFilteredUsers(filtered);
 }
 
@@ -531,36 +492,30 @@ function goToPage(page) {
         case 'exams':
             displayExams();
             break;
-        case 'questions':
-            displayQuestions();
-            break;
     }
 }
 
 function viewUserDetails(userId) {
     const user = usersData.find(u => u.id === userId);
     alert(`Viewing details for ${user.full_name}\nEmail: ${user.email}\nTotal Exams: ${user.exam_count || 0}`);
-    // In production, open modal with user details and exam history
 }
 
 function viewExamDetails(examId) {
     alert(`Viewing exam #${examId} details`);
-    // In production, open modal with full exam results
 }
 
 function toggleAdmin(userId) {
     if (confirm('Make this user an admin?')) {
-        // Call API to update user role
         fetch(`${API_BASE}/api/admin/users/${userId}/make-admin`, {
             method: 'PUT',
             headers: { 
-                'Authorization': `Bearer ${localStorage.getItem('token')}` 
+                'Authorization': `Bearer ${sessionStorage.getItem('token')}` 
             }
         })
         .then(response => response.json())
         .then(data => {
             alert('User role updated!');
-            loadUsers(); // Reload users list
+            loadUsers();
         })
         .catch(error => {
             console.error('Error:', error);
@@ -586,10 +541,7 @@ function exportData(type) {
             filename = 'export.csv';
     }
     
-    // Convert to CSV
     const csv = convertToCSV(data);
-    
-    // Download
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -619,9 +571,9 @@ function calculateTimeSpent(start, end) {
 }
 
 function logout() {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    window.location.href = 'index.html';
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('user');
+    window.location.href = '/auth.html';
 }
 
 // Question Bank Functions
@@ -631,7 +583,7 @@ let currentSubjectFilter = 'all';
 
 async function loadQuestions() {
     try {
-        const token = localStorage.getItem('token');
+        const token = sessionStorage.getItem('token');
         const response = await fetch(`${API_BASE}/api/admin/questions`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -650,15 +602,13 @@ async function loadQuestions() {
 function displayQuestions() {
     const container = document.getElementById('questionsList');
     
-    // Filter questions by subject
     let filteredQuestions = questionsData;
     if (currentSubjectFilter !== 'all') {
-        filteredQuestions = questionsData.filter(q => 
+   filteredQuestions = questionsData.filter(q => 
             q.subject_id === parseInt(currentSubjectFilter)
         );
     }
     
-    // Pagination
     const start = (currentQuestionPage - 1) * 15;
     const end = start + 15;
     const paginatedQuestions = filteredQuestions.slice(start, end);
@@ -706,7 +656,6 @@ function displayQuestions() {
     
     container.innerHTML = html;
     
-    // Update pagination
     const paginationContainer = document.getElementById('questionPagination');
     const totalPages = Math.ceil(filteredQuestions.length / 15);
     let paginationHtml = '';
@@ -739,7 +688,6 @@ function searchQuestions() {
         q.question_text.toLowerCase().includes(searchTerm)
     );
     
-    // Temporarily replace questionsData with filtered results
     const originalQuestions = questionsData;
     questionsData = filtered;
     displayQuestions();
@@ -876,7 +824,7 @@ async function saveQuestion(event) {
     };
     
     try {
-        const token = localStorage.getItem('token');
+        const token = sessionStorage.getItem('token');
         const response = await fetch(`${API_BASE}/api/admin/questions`, {
             method: 'POST',
             headers: {
@@ -899,7 +847,7 @@ async function saveQuestion(event) {
 
 async function editQuestion(questionId) {
     try {
-        const token = localStorage.getItem('token');
+        const token = sessionStorage.getItem('token');
         const response = await fetch(`${API_BASE}/api/admin/questions/${questionId}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -923,7 +871,8 @@ function showEditQuestionForm(question) {
             <h2>✏️ Edit Question #${question.id}</h2>
             <button onclick="switchTab('questions')" style="padding: 10px 20px; background: #95a5a6; color: white; border: none; border-radius: 5px;">← Back to Questions</button>
         </div>
-             <form id="editForm" onsubmit="updateQuestion(event, ${question.id})" style="background: white; padding: 30px; border-radius: 10px;">
+        
+        <form id="editForm" onsubmit="updateQuestion(event, ${question.id})" style="background: white; padding: 30px; border-radius: 10px;">
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                 <div>
                     <label style="display: block; margin-bottom: 5px; font-weight: 600;">Subject *</label>
@@ -1029,7 +978,7 @@ async function updateQuestion(event, questionId) {
     };
     
     try {
-        const token = localStorage.getItem('token');
+        const token = sessionStorage.getItem('token');
         const response = await fetch(`${API_BASE}/api/admin/questions/${questionId}`, {
             method: 'PUT',
             headers: {
@@ -1056,7 +1005,7 @@ async function deleteQuestion(questionId) {
     }
     
     try {
-        const token = localStorage.getItem('token');
+        const token = sessionStorage.getItem('token');
         const response = await fetch(`${API_BASE}/api/admin/questions/${questionId}`, {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${token}` }
@@ -1065,7 +1014,7 @@ async function deleteQuestion(questionId) {
         if (!response.ok) throw new Error('Failed to delete');
         
         alert('✅ Question deleted successfully!');
-        loadQuestions(); // Reload questions list
+        loadQuestions();
         
     } catch (error) {
         console.error('Error deleting question:', error);

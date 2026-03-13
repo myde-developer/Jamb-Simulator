@@ -1,7 +1,7 @@
-// API Base URL - automatically detects environment
+// API Base URL
 const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://localhost:5000'
-    : 'https://jamb-simulator-api.onrender.com'; // Empty for production (same domain)
+    : 'https://jamb-simulator-api.onrender.com';
 
 document.addEventListener('DOMContentLoaded', () => {
     checkAuth();
@@ -11,11 +11,11 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function checkAuth() {
-    const token = localStorage.getItem('token');
+    const token = sessionStorage.getItem('token');
     const logoutBtn = document.getElementById('logoutBtn');
     
     if (!token) {
-        window.location.href = 'auth.html';
+        window.location.href = '/auth.html';
     }
     
     logoutBtn.addEventListener('click', logout);
@@ -23,13 +23,13 @@ function checkAuth() {
 
 function logout(e) {
     e.preventDefault();
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    window.location.href = 'index.html';
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('user');
+    window.location.href = '/auth.html';
 }
 
 async function loadStats() {
-    const token = localStorage.getItem('token');
+    const token = sessionStorage.getItem('token');
     
     try {
         const response = await fetch(`${API_BASE}/api/progress/history`, {
@@ -95,7 +95,7 @@ function showDemoStats() {
 }
 
 async function loadSubjectStats() {
-    const token = localStorage.getItem('token');
+    const token = sessionStorage.getItem('token');
     
     try {
         const response = await fetch(`${API_BASE}/api/progress/stats/subjects`, {
@@ -174,7 +174,7 @@ function showDemoSubjectStats() {
 }
 
 async function loadRecentExams() {
-    const token = localStorage.getItem('token');
+    const token = sessionStorage.getItem('token');
     
     try {
         const response = await fetch(`${API_BASE}/api/progress/recent`, {
@@ -237,5 +237,5 @@ function showDemoRecentExams() {
 }
 
 function viewExam(examId) {
-    window.location.href = `results.html?id=${examId}`;
+    window.location.href = `/results.html?id=${examId}`;
 }

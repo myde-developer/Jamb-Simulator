@@ -1,3 +1,8 @@
+// API Base URL
+const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:5000'
+    : 'https://jamb-simulator-api.onrender.com';
+
 // Exam state
 let examState = {
     questions: [],
@@ -10,13 +15,15 @@ let examState = {
     startTime: null
 };
 
-// API Base URL - automatically detects environment
-const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'http://localhost:5000'
-    : 'https://jamb-simulator-api.onrender.com'; // Empty for production (same domain)
-
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+    // Check if user is logged in
+    const token = sessionStorage.getItem('token');
+    if (!token) {
+        window.location.href = '/auth.html';
+        return;
+    }
+    
     loadExamData();
     setupEventListeners();
     startTimer();
@@ -24,7 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function displayUserInfo() {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const user = JSON.parse(sessionStorage.getItem('user') || '{}');
     const userInfo = document.getElementById('userInfo');
     if (user.full_name) {
         userInfo.textContent = `Welcome, ${user.full_name}`;
@@ -32,7 +39,7 @@ function displayUserInfo() {
 }
 
 function loadExamData() {
-    const selectedSubjects = JSON.parse(localStorage.getItem('jambSelectedSubjects')) || [];
+    const selectedSubjects = JSON.parse(sessionStorage.getItem('jambSelectedSubjects')) || [];
     examState.subjects = selectedSubjects;
     examState.startTime = new Date().toISOString();
     
@@ -54,7 +61,7 @@ async function fetchExamQuestions(subjects) {
         document.getElementById('questionContainer').innerHTML = 
             '<div style="text-align: center; padding: 50px;">Loading 180 questions from 2,000+ database...</div>';
         
-        const token = localStorage.getItem('token');
+        const token = sessionStorage.getItem('token');
         const response = await fetch(`${API_BASE}/api/exam/questions`, {
             method: 'POST',
             headers: {
@@ -157,7 +164,7 @@ async function saveAnswerToServer(questionId, answer) {
     if (!examState.examId) return;
     
     try {
-        const token = localStorage.getItem('token');
+        const token = sessionStorage.getItem('token');
         await fetch(`${API_BASE}/api/exam/save-answer`, {
             method: 'POST',
             headers: {
@@ -295,7 +302,7 @@ function submitExam() {
     saveExamResults(results);
     
     // Store for results page
-    localStorage.setItem('lastExamResults', JSON.stringify({
+    sessionStorage.setItem('lastExamResults', JSON.stringify({
         questions: examState.questions,
         answers: examState.answers,
         scores: results,
@@ -303,7 +310,7 @@ function submitExam() {
         date: new Date().toISOString()
     }));
     
-    window.location.href = 'results.html';
+    window.location.href = '/results.html';
 }
 
 function calculateJAMBScores() {
@@ -356,7 +363,7 @@ function calculateJAMBScores() {
 
 async function saveExamResults(results) {
     try {
-        const token = localStorage.getItem('token');
+        const token = sessionStorage.getItem('token');
         await fetch(`${API_BASE}/api/exam/complete`, {
             method: 'POST',
             headers: {

@@ -33,14 +33,12 @@
     <p>Checking authentication...</p>
 
     <script>
-        // Check if user is logged in
-        const token = localStorage.getItem('token');
+        // Check session (not localStorage)
+        const token = sessionStorage.getItem('token');
         
         if (token) {
-            // Logged in - go to home page
             window.location.replace('/home.html');
         } else {
-            // Not logged in - go to login page
             window.location.replace('/auth.html');
         }
     </script>
