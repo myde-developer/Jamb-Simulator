@@ -9,7 +9,7 @@ INSERT INTO questions (subject_id, question_text, option_a, option_b, option_c, 
 
 (1, 'Select the word with a different stress pattern from others:',
  'CELEbrate', 'EDucate', 'DEvelop', 'proNOUNCE', 'D',
- 'Pronounce has stress on second syllable; others on first.', 'Oral English', 'hard'),
+ 'Pronounce has stress on second syllable, others on first.', 'Oral English', 'hard'),
 
 (1, 'Identify the word with the /θ/ sound as in "think":',
  'Breath', 'Breathe', 'Clothe', 'Smooth', 'A',

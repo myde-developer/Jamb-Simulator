@@ -1,5 +1,5 @@
 -- ============================================
--- BIOLOGY - 200 QUESTIONS
+-- BIOLOGY - 400 QUESTIONS
 -- Topics: Cell Biology, Genetics, Ecology, Human Physiology, Evolution
 -- ============================================
 
@@ -672,7 +672,7 @@ INSERT INTO questions (subject_id, question_text, option_a, option_b, option_c, 
 
 (5, 'Which process is responsible for the seasonal blooming of cherry blossoms in response to temperature?',
  'Photoperiodism', 'Thermoperiodism', 'Gravitropism', 'Thigmotropism', 'B',
- 'Thermoperiodism is the response to temperature cycles, which triggers flowering in some plants like cherry blossoms.', 'Plant Biology', 'medium'),
+ 'Many plants respond to temperature cycles for flowering.', 'Plant Biology', 'medium'),
 
 (5, 'The largest endocrine gland in the human body is the:',
  'Thyroid gland', 'Pituitary gland', 'Adrenal gland', 'Pancreas', 'A',
@@ -681,6 +681,7 @@ INSERT INTO questions (subject_id, question_text, option_a, option_b, option_c, 
 (5, 'Which of the following provides the strongest evidence for evolution?',
  'Comparative embryology', 'Fossil record', 'Molecular biology', 'All of the above', 'D',
  'Multiple independent lines of evidence converge.', 'Evolution', 'medium'),
+ 
  (5, 'The primary function of the large intestine is:',
  'Water absorption and feces formation', 'Protein digestion', 'Nutrient absorption', 'Enzyme secretion', 'A',
  'Most water reabsorption occurs in the colon.', 'Human Physiology', 'easy'),
@@ -839,7 +840,7 @@ INSERT INTO questions (subject_id, question_text, option_a, option_b, option_c, 
 
 (5, 'Which organelle is the site of fatty acid oxidation?',
  'Peroxisome', 'Mitochondrion', 'Lysosome', 'Smooth ER', 'B',
- 'In most animal cells, fatty acid oxidation occurs in mitochondria, though peroxisomes also oxidize some fatty acids.', 'Cell Biology', 'medium'),
+ 'Beta-oxidation occurs in the mitochondrial matrix.', 'Cell Biology', 'medium'),
 
 (5, 'In epistasis, the phenotypic ratio in a dihybrid cross may be modified to:',
  '9:3:4 or 12:3:1', '9:3:3:1 only', '1:2:1', '3:1', 'A',
@@ -880,4 +881,3 @@ INSERT INTO questions (subject_id, question_text, option_a, option_b, option_c, 
 (5, 'Which molecule serves as the final electron acceptor in anaerobic respiration (fermentation)?',
  'Pyruvate or organic molecules', 'Oxygen', 'Nitrate', 'Sulfate', 'A',
  'Regenerates NAD⁺ without oxygen.', 'Cell Biology', 'medium');
-

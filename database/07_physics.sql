@@ -82,7 +82,8 @@ INSERT INTO questions (subject_id, question_text, option_a, option_b, option_c, 
 
 (3, 'Which of these is a scalar quantity?',
  'Mass', 'Velocity', 'Force', 'Acceleration', 'A',
- 'Mass has magnitude only, no direction.', 'Mechanics', 'easy')
+ 'Mass has magnitude only, no direction.', 'Mechanics', 'easy'),
+ 
  (3, 'A projectile is launched at 30° to the horizontal with speed 20 m/s. What is the time of flight? (g = 10 m/s²)',
  '2 s', '√3 s', '4 s', '2√3 s', 'A',
  'Time of flight T = (2u sinθ)/g = (2 × 20 × sin30°)/10 = (40 × 0.5)/10 = 20/10 = 2 s.', 'Mechanics', 'medium'),
@@ -285,7 +286,8 @@ INSERT INTO questions (subject_id, question_text, option_a, option_b, option_c, 
 
 (3, 'The frequency of a stretched string depends on:',
  'Length, tension, linear density', 'Only length', 'Only tension', 'Only mass', 'A',
- 'f = (1/(2L)) √(T/μ).', 'Waves', 'medium')
+ 'f = (1/(2L)) √(T/μ).', 'Waves', 'medium'),
+ 
  (3, 'A satellite is in circular orbit around Earth. Its orbital velocity is:',
  '√(GM/R)', '√(2GM/R)', '√(GM/2R)', '√(gR)', 'A',
  'For circular orbit, v = √(GM/R), where R is orbital radius from center.', 'Mechanics', 'medium'),
@@ -392,7 +394,7 @@ INSERT INTO questions (subject_id, question_text, option_a, option_b, option_c, 
 
 (3, 'Which of the following is a dimensionless quantity?',
  'Refractive index', 'Density', 'Velocity', 'Force', 'A',
- 'n = c/v → ratio of speeds → dimensionless.', 'General Physics ', 'easy'),
+ 'n = c/v → ratio of speeds → dimensionless.', 'General', 'easy'),
 
 (3, 'The frequency of AC mains in most countries is:',
  '50 Hz or 60 Hz', '100 Hz', '25 Hz', '400 Hz', 'A',
@@ -454,7 +456,7 @@ INSERT INTO questions (subject_id, question_text, option_a, option_b, option_c, 
  'Number of protons + neutrons', 'Number of protons', 'Number of electrons', 'Atomic number', 'A',
  'A = Z + N (mass number = atomic number + neutron number).', 'Modern Physics', 'easy'),
 
-(3, 'The S.I unit of thermal conductivity ha:',
+(3, 'The thermal conductivity has unit:',
  'W/m·K', 'J/kg·K', 'J/s', 'cal/cm·s·°C', 'A',
  'k = Q / (A ΔT Δt / L) → W/(m·K).', 'Heat', 'medium'),
 
@@ -489,7 +491,8 @@ INSERT INTO questions (subject_id, question_text, option_a, option_b, option_c, 
 (3, 'The temperature at which all molecular motion ceases theoretically is:',
  'Absolute zero (0 K)', '-273°C', 'Both A and B', '273 K', 'C',
  '0 K = -273.15°C → theoretical zero kinetic energy.', 'Heat', 'easy'),
-(3, 'The angular momentum of a particle is conserved when:',
+ 
+ (3, 'The angular momentum of a particle is conserved when:',
  'Net external torque is zero', 'Net external force is zero', 'Net external work is zero', 'Velocity is constant', 'A',
  'Conservation of angular momentum holds when τ_ext = 0 (no external torque).', 'Mechanics', 'medium'),
 
@@ -539,7 +542,7 @@ INSERT INTO questions (subject_id, question_text, option_a, option_b, option_c, 
 
 (3, 'In Doppler effect, when source and observer move towards each other, frequency:',
  'Increases', 'Decreases', 'Remains same', 'Becomes zero', 'A',
- 'Apparent frequency increases when source and observer approach each other: f'' = f (v + v₀)/(v - vₛ) where v₀ and vₛ are speeds of observer and source respectively.', 'Waves', 'medium'),
+ 'Apparent frequency f' = f (v + vo)/(v - vs) when both approach.', 'Waves', 'medium'),
 
 (3, 'The SI unit of electric charge is:',
  'Coulomb', 'Ampere', 'Volt', 'Farad', 'A',
@@ -643,7 +646,7 @@ INSERT INTO questions (subject_id, question_text, option_a, option_b, option_c, 
 
 (3, 'The number of significant figures in 0.002340 is:',
  '4', '3', '5', '6', 'A',
- 'Leading zeros not significant; trailing zero after decimal is significant → 4 sig figs.', 'General Physics ', 'easy'),
+ 'Leading zeros not significant; trailing zero after decimal is significant → 4 sig figs.', 'General', 'easy'),
 
 (3, 'The work-energy theorem states that work done by net force equals:',
  'Change in kinetic energy', 'Change in potential energy', 'Total energy', 'Power', 'A',
@@ -700,6 +703,7 @@ INSERT INTO questions (subject_id, question_text, option_a, option_b, option_c, 
 (3, 'In SHM, total energy is proportional to:',
  'Amplitude squared', 'Frequency squared', 'Mass', 'Spring constant', 'A',
  'E = ½ k A² = ½ m ω² A² → E ∝ A².', 'Waves', 'easy'),
+ 
  (3, 'The escape velocity from a planet is proportional to:',
  '√(gR)', 'gR', '√(g/R)', 'g/R', 'A',
  'v_esc = √(2gR) → v_esc ∝ √(gR).', 'Mechanics', 'medium'),
@@ -784,7 +788,7 @@ INSERT INTO questions (subject_id, question_text, option_a, option_b, option_c, 
  'v = ω r', 'ω = v r', 'v = ω / r', 'ω = v / r²', 'A',
  'v = r ω (tangential speed).', 'Mechanics', 'easy'),
 
-(3, 'In Young’s experiment, if slit separation is increased, fringe width:',
+(3, 'In Young’s experiment, if slit width is increased, fringe width:',
  'Decreases', 'Increases', 'Remains same', 'Becomes zero', 'A',
  'Fringe width β = λD/d; d = slit separation, but wider slits reduce coherence and contrast, though formula uses separation.', 'Waves/Optics', 'medium'),
 
