@@ -1,7 +1,7 @@
-// API Base URL - automatically detects environment
+// API Base URL
 const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://localhost:5000'
-    : 'https://jamb-simulator-api.onrender.com'; // Empty for production (same domain)
+    : 'https://jamb-simulator-api.onrender.com'; // Your backend URL
 
 // JAMB Subjects Data - Only 5 Subjects
 const jambSubjects = [
@@ -15,8 +15,16 @@ const jambSubjects = [
 // State
 let selectedSubjects = [];
 
-// Check auth status
+// Check auth status - REDIRECT TO LOGIN IF NOT AUTHENTICATED
 document.addEventListener('DOMContentLoaded', () => {
+    const token = localStorage.getItem('token');
+    
+    // If not logged in, redirect to auth page
+    if (!token) {
+        window.location.href = '/auth.html';
+        return;
+    }
+    
     checkAuth();
     loadSubjects();
     checkAdminAccess();
@@ -32,10 +40,7 @@ function checkAuth() {
     
     if (token && user) {
         authLink.textContent = `Hi, ${user.full_name || 'User'}`;
-        authLink.href = 'progress.html';
-    } else {
-        authLink.textContent = 'Login';
-        authLink.href = 'auth.html';
+        authLink.href = '/progress.html';
     }
 }
 
@@ -50,12 +55,10 @@ function checkAdminAccess() {
 
 function handleAuthClick(e) {
     e.preventDefault();
-    const token = localStorage.getItem('token');
-    if (token) {
-        window.location.href = 'progress.html';
-    } else {
-        window.location.href = 'auth.html';
-    }
+    // Logout functionality
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = '/auth.html';
 }
 
 function loadSubjects() {
@@ -135,5 +138,5 @@ function startExam() {
     }
     
     localStorage.setItem('jambSelectedSubjects', JSON.stringify(selectedSubjects));
-    window.location.href = 'exam.html';
+    window.location.href = '/exam.html';
 }

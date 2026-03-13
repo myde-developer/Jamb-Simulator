@@ -1,22 +1,29 @@
-let isLogin = true;
-
 // API Base URL - automatically detects environment
 const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://localhost:5000'
-    : 'https://jamb-simulator-api.onrender.com'; // Empty for production (same domain)
+    : 'https://jamb-simulator-api.onrender.com'; // Your backend URL
+
+let isLogin = true;
 
 document.addEventListener('DOMContentLoaded', () => {
-    checkExistingSession();
-    setupEventListeners();
+    // Check if user is already logged in
+    const token = localStorage.getItem('token');
+    if (token) {
+        // If already logged in, redirect based on role
+        redirectBasedOnRole();
+        return;
+    }
     
-    // Create default admin if none exists
+    setupEventListeners();
     createDefaultAdmin();
 });
 
-function checkExistingSession() {
-    const token = localStorage.getItem('token');
-    if (token) {
-        window.location.href = 'index.html';
+function redirectBasedOnRole() {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    if (user.is_admin) {
+        window.location.href = '/admin.html';
+    } else {
+        window.location.href = '/index.html';
     }
 }
 
@@ -39,8 +46,6 @@ function toggleAuthMode(e) {
         'Already have an account? <a href="#" id="toggleAuth">Login here</a>';
     
     document.getElementById('nameGroup').style.display = isLogin ? 'none' : 'block';
-    
-    // Re-attach event listener
     document.getElementById('toggleAuth').addEventListener('click', toggleAuthMode);
 }
 
@@ -87,11 +92,18 @@ async function handleAuth(e) {
         
         showSuccess(data.message);
         
+        // Handle post-authentication redirect
         setTimeout(() => {
-            if (data.user.is_admin) {
-                window.location.href = 'admin.html';
+            if (isLogin) {
+                // After login - go to appropriate page
+                if (data.user.is_admin) {
+                    window.location.href = '/admin.html';
+                } else {
+                    window.location.href = '/index.html';
+                }
             } else {
-                window.location.href = 'index.html';
+                // After registration - go back to login page
+                window.location.href = '/auth.html';
             }
         }, 1500);
         
@@ -102,12 +114,10 @@ async function handleAuth(e) {
 
 async function createDefaultAdmin() {
     try {
-        // Check if admin exists
         const response = await fetch(`${API_BASE}/api/auth/check-admin`);
         const data = await response.json();
         
         if (!data.hasAdmin) {
-            // Create default admin
             await fetch(`${API_BASE}/api/auth/create-default-admin`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -117,7 +127,7 @@ async function createDefaultAdmin() {
                     fullName: 'System Administrator'
                 })
             });
-            console.log('Default admin created - Email: admin@jamb.com, Password: Admin123!');
+            console.log('✅ Default admin created - Email: admin@jamb.com, Password: Admin123!');
         }
     } catch (error) {
         console.error('Error creating default admin:', error);
@@ -128,7 +138,6 @@ function showError(message) {
     const errorDiv = document.getElementById('errorMessage');
     errorDiv.textContent = message;
     errorDiv.style.display = 'block';
-    
     setTimeout(() => {
         errorDiv.style.display = 'none';
     }, 3000);

@@ -4,9 +4,7 @@ const cors = require('cors');
 const path = require('path');
 require('dotenv').config();
 
-// Import database setup
-const { createTables, checkDatabase } = require('./config/database');
-const db = require('./db');
+const { createTables } = require('./config/database');
 
 const app = express();
 
@@ -14,47 +12,50 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Serve static frontend files
-app.use(express.static(path.join(__dirname, '../')));
-
-// Database setup - runs when server starts
-async function initializeDatabase() {
-    try {
-        // Check if database is connected
-        const isConnected = await checkDatabase();
-        if (!isConnected) {
-            console.error('❌ Cannot connect to database');
-            process.exit(1);
-        }
-        
-        // Create all tables automatically
-        await createTables();
-        
-        console.log('✅ Database initialized successfully');
-    } catch (error) {
-        console.error('❌ Failed to initialize database:', error);
-        process.exit(1);
-    }
+// IMPORTANT: Only serve static files in development
+// In production, frontend comes from separate Static Site
+if (process.env.NODE_ENV !== 'production') {
+    // Only serve frontend locally for development
+    app.use(express.static(path.join(__dirname, '../client')));
+    
+    // Serve index.html for root route in development
+    app.get('/', (req, res) => {
+        res.sendFile(path.join(__dirname, '../client/index.html'));
+    });
 }
 
-// Initialize database before starting server
-initializeDatabase();
-
-// Routes
+// API Routes - THESE ALWAYS WORK
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api', require('./routes/api'));
 app.use('/api/progress', require('./routes/progress'));
 app.use('/api/admin', require('./routes/admin'));
 
-// Serve index.html for root route
+// Health check endpoint - WHAT YOUR BACKEND SHOULD SHOW
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, '../index.html'));
+    if (process.env.NODE_ENV === 'production') {
+        // In production, return JSON to confirm backend is running
+        res.json({
+            status: 'success',
+            message: 'JAMB Simulator API is running',
+            endpoints: {
+                auth: '/api/auth',
+                exam: '/api/exam/questions',
+                progress: '/api/progress',
+                admin: '/api/admin'
+            },
+            documentation: 'Frontend is available at https://jamb-simulator-frontend.onrender.com'
+        });
+    }
+});
+
+// 404 handler for API routes
+app.use('/api/*', (req, res) => {
+    res.status(404).json({ error: 'API endpoint not found' });
 });
 
 const PORT = process.env.PORT || 5000;
-
 app.listen(PORT, () => {
-    console.log(`🚀 JAMB Simulator running on port ${PORT}`);
-    console.log(`📚 Database: ${process.env.NODE_ENV === 'production' ? 'Render PostgreSQL' : 'Local'}`);
-    console.log(`📝 Add questions via admin panel at /admin.html`);
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`🌎 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`📁 Frontend: ${process.env.NODE_ENV === 'production' ? 'Separate Static Site' : 'Served from /client'}`);
 });
