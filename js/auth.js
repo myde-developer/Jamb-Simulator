@@ -1,0 +1,136 @@
+let isLogin = true;
+
+document.addEventListener('DOMContentLoaded', () => {
+    checkExistingSession();
+    setupEventListeners();
+    
+    // Create default admin if none exists
+    createDefaultAdmin();
+});
+
+function checkExistingSession() {
+    const token = localStorage.getItem('token');
+    if (token) {
+        window.location.href = 'index.html';
+    }
+}
+
+function setupEventListeners() {
+    document.getElementById('toggleAuth').addEventListener('click', toggleAuthMode);
+    document.getElementById('authForm').addEventListener('submit', handleAuth);
+}
+
+function toggleAuthMode(e) {
+    e.preventDefault();
+    isLogin = !isLogin;
+    
+    document.getElementById('formTitle').textContent = isLogin ? 'Login' : 'Create Account';
+    document.getElementById('formSubtitle').textContent = isLogin ? 
+        'Welcome back! Login to continue' : 
+        'Sign up to start practicing for JAMB 2026';
+    document.getElementById('submitBtn').textContent = isLogin ? 'Login' : 'Register';
+    document.getElementById('toggleText').innerHTML = isLogin ?
+        'Don\'t have an account? <a href="#" id="toggleAuth">Register here</a>' :
+        'Already have an account? <a href="#" id="toggleAuth">Login here</a>';
+    
+    document.getElementById('nameGroup').style.display = isLogin ? 'none' : 'block';
+    
+    // Re-attach event listener
+    document.getElementById('toggleAuth').addEventListener('click', toggleAuthMode);
+}
+
+async function handleAuth(e) {
+    e.preventDefault();
+    
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    const fullName = document.getElementById('fullName')?.value;
+    
+    if (!email || !password) {
+        showError('Please fill all fields');
+        return;
+    }
+    
+    if (!isLogin && !fullName) {
+        showError('Full name is required');
+        return;
+    }
+    
+    const url = isLogin 
+        ? 'http://localhost:5000/api/auth/login'
+        : 'http://localhost:5000/api/auth/register';
+    
+    const body = isLogin 
+        ? { email, password }
+        : { email, password, fullName };
+    
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || 'Authentication failed');
+        }
+        
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        
+        showSuccess(data.message);
+        
+        setTimeout(() => {
+            if (data.user.is_admin) {
+                window.location.href = 'admin.html';
+            } else {
+                window.location.href = 'index.html';
+            }
+        }, 1500);
+        
+    } catch (error) {
+        showError(error.message);
+    }
+}
+
+async function createDefaultAdmin() {
+    try {
+        // Check if admin exists
+        const response = await fetch('http://localhost:5000/api/auth/check-admin');
+        const data = await response.json();
+        
+        if (!data.hasAdmin) {
+            // Create default admin
+            await fetch('http://localhost:5000/api/auth/create-default-admin', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: 'admin@jamb.com',
+                    password: 'Admin123!',
+                    fullName: 'System Administrator'
+                })
+            });
+            console.log('Default admin created - Email: admin@jamb.com, Password: Admin123!');
+        }
+    } catch (error) {
+        console.error('Error creating default admin:', error);
+    }
+}
+
+function showError(message) {
+    const errorDiv = document.getElementById('errorMessage');
+    errorDiv.textContent = message;
+    errorDiv.style.display = 'block';
+    
+    setTimeout(() => {
+        errorDiv.style.display = 'none';
+    }, 3000);
+}
+
+function showSuccess(message) {
+    const successDiv = document.getElementById('successMessage');
+    successDiv.textContent = message;
+    successDiv.style.display = 'block';
+}

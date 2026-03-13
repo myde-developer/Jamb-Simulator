@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JAMB Exam Simulator 2026</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header class="header">
+        <nav class="nav-container">
+            <div class="logo">📚 JAMB Simulator 2026</div>
+            <ul class="nav-menu">
+                <li><a href="index.html" class="active">Home</a></li>
+                <li><a href="progress.html">My Progress</a></li>
+                <li><a href="#" id="authLink">Login</a></li>
+                <li><a href="admin.html" id="adminLink" style="display: none;">Admin</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <section class="hero">
+            <h1>Prepare for JAMB UTME 2026</h1>
+            <p>Practice with 2,000+ past questions in 5 core subjects</p>
+            <p class="hero-small">English • Biology • Mathematics • Physics • Chemistry</p>
+            <p class="hero-small">Includes "The Lekki Headmaster" questions</p>
+        </section>
+
+        <section class="subject-section">
+            <h2>Select Your Subjects</h2>
+            <p class="instruction">English is compulsory. Choose 3 more subjects.</p>
+            
+            <div class="subjects-grid" id="subjectsContainer">
+                <!-- Subjects will be loaded here -->
+            </div>
+
+            <div class="selection-info">
+                <p>Selected: <span id="selectedCount">1</span>/4 subjects</p>
+                <p class="question-info">English: 60 questions | Others: 40 questions each</p>
+                <button id="startExamBtn" class="start-btn" disabled>Start Exam</button>
+            </div>
+        </section>
+
+        <section class="features">
+            <div class="feature-card">
+                <div class="feature-icon">📝</div>
+                <h3>2,000+ Questions</h3>
+                <p>400 questions per subject. Always fresh, always random.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📊</div>
+                <h3>JAMB Scoring</h3>
+                <p>English: 1.67 marks | Others: 2.5 marks | Total: 400</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📈</div>
+                <h3>Track Progress</h3>
+                <p>Monitor your performance across all subjects.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📚</div>
+                <h3>The Lekki Headmaster</h3>
+                <p>Official JAMB 2026 novel questions included.</p>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <p>&copy; 2026 JAMB Exam Simulator. All rights reserved.</p>
+        <p class="footer-small">For Science Students Only</p>
+    </footer>
+
+    <script src="js/main.js"></script>
+</body>
+</html>

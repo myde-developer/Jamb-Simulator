@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JAMB Exam Simulator - Exam in Progress</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .exam-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 0;
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .exam-container {
+            max-width: 900px;
+            margin: 100px auto 50px;
+            padding: 0 20px;
+        }
+
+        .exam-info {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .timer {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #e74c3c;
+            background: #fde8e7;
+            padding: 10px 20px;
+            border-radius: 50px;
+            display: inline-block;
+            font-family: monospace;
+        }
+
+        .timer.warning {
+            color: #f39c12;
+            background: #fef5e7;
+        }
+
+        .timer.danger {
+            color: #c0392b;
+            background: #f9e6e4;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .subjects-badge {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .subject-tag {
+            background: #f0f3ff;
+            color: #667eea;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background: #e0e0e0;
+            border-radius: 5px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.3s ease;
+        }
+
+        .question-container {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .question-number {
+            color: #666;
+            font-size: 1.1rem;
+            margin-bottom: 10px;
+        }
+
+        .question-subject {
+            display: inline-block;
+            background: #e8f0fe;
+            color: #4a6fa5;
+            padding: 3px 10px;
+            border-radius: 15px;
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+        }
+
+        .question-text {
+            font-size: 1.3rem;
+            color: #333;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
+        .options {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .option {
+            display: flex;
+            align-items: center;
+            padding: 15px 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .option:hover {
+            border-color: #667eea;
+            background: #f5f7ff;
+        }
+
+        .option.selected {
+            border-color: #667eea;
+            background: #f0f3ff;
+        }
+
+        .option-letter {
+            width: 35px;
+            height: 35px;
+            background: #f0f0f0;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 15px;
+            color: #666;
+        }
+
+        .option.selected .option-letter {
+            background: #667eea;
+            color: white;
+        }
+
+        .option-text {
+            font-size: 1.1rem;
+            color: #333;
+            flex: 1;
+        }
+
+        .navigation-buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+            gap: 15px;
+        }
+
+        .nav-btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            flex: 1;
+        }
+
+        .prev-btn {
+            background: #f0f0f0;
+            color: #666;
+        }
+
+        .prev-btn:hover:not(:disabled) {
+            background: #e0e0e0;
+        }
+
+        .next-btn {
+            background: #667eea;
+            color: white;
+        }
+
+        .next-btn:hover:not(:disabled) {
+            background: #5a6fd8;
+            transform: translateX(5px);
+        }
+
+        .submit-btn {
+            background: #27ae60;
+            color: white;
+        }
+
+        .submit-btn:hover {
+            background: #229954;
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .question-palette {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-top: 30px;
+        }
+
+        .palette-title {
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #444;
+        }
+
+        .palette-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+            gap: 10px;
+        }
+
+        .palette-item {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .palette-item.unanswered {
+            background: #f0f0f0;
+            color: #666;
+        }
+
+        .palette-item.answered {
+            background: #27ae60;
+            color: white;
+        }
+
+        .palette-item.current {
+            border: 3px solid #667eea;
+            transform: scale(1.1);
+        }
+
+        .warning-message {
+            background: #fef5e7;
+            color: #f39c12;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <header class="exam-header">
+        <nav class="nav-container">
+            <div class="logo">📚 JAMB Simulator 2026</div>
+            <div class="user-info" id="userInfo"></div>
+        </nav>
+    </header>
+
+    <div class="exam-container">
+        <div class="exam-info">
+            <div>
+                <h2 id="examTitle">JAMB UTME 2026 Mock Exam</h2>
+                <div class="subjects-badge" id="subjectsBadge"></div>
+            </div>
+            <div class="timer" id="timer">02:00:00</div>
+        </div>
+
+        <div class="warning-message" id="scoringWarning">
+            ⚡ English: 60 questions × 1.67 marks | Other subjects: 40 questions × 2.5 marks
+        </div>
+
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+        </div>
+
+        <div class="question-container" id="questionContainer">
+            <!-- Question will be loaded here -->
+        </div>
+
+        <div class="navigation-buttons">
+            <button class="nav-btn prev-btn" id="prevBtn" disabled>← Previous</button>
+            <button class="nav-btn next-btn" id="nextBtn">Next →</button>
+            <button class="nav-btn submit-btn" id="submitBtn" style="display: none;">Submit Exam</button>
+        </div>
+
+        <div class="question-palette">
+            <div class="palette-title">Question Palette</div>
+            <div class="palette-grid" id="paletteGrid"></div>
+        </div>
+    </div>
+
+    <script src="js/exam.js"></script>
+</body>
+</html>
