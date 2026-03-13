@@ -1,14 +1,15 @@
 // server/db.js
 const { Pool } = require('pg');
+require('dotenv').config();
 
 let pool;
 
 if (process.env.NODE_ENV === 'production') {
-    // Production: Use Render's internal connection string
+    // Production: Render database
     pool = new Pool({
         connectionString: process.env.DATABASE_URL,
         ssl: {
-            rejectUnauthorized: false // Required for Render
+            rejectUnauthorized: false
         }
     });
 } else {
