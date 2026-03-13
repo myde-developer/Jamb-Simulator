@@ -19,8 +19,8 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function checkAdminAuth() {
-    const token = sessionStorage.getItem('token');
-    const user = JSON.parse(sessionStorage.getItem('user') || '{}');
+    const token = localStorage.getItem('token');
+const user = JSON.parse(localStorage.getItem('user') || '{}');
     
     if (!token) {
         window.location.href = '/auth.html';
@@ -571,8 +571,8 @@ function calculateTimeSpent(start, end) {
 }
 
 function logout() {
-    sessionStorage.removeItem('token');
-    sessionStorage.removeItem('user');
+    localStorage.removeItem('token');      
+    localStorage.removeItem('user');      
     window.location.href = '/auth.html';
 }
 
