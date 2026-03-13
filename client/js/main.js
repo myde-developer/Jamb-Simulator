@@ -15,14 +15,13 @@ const jambSubjects = [
 let selectedSubjects = [];
 
 document.addEventListener('DOMContentLoaded', () => {
-    // CHECK AUTH FIRST - redirect to login if not authenticated
+    // Check if user is logged in (double-check)
     const token = localStorage.getItem('token');
     if (!token) {
-        window.location.href = '/auth.html';
+        window.location.replace('/auth.html');
         return;
     }
     
-    // User is logged in - load the page
     loadSubjects();
     checkAdminAccess();
     displayUserInfo();
@@ -51,7 +50,7 @@ function logout(e) {
     e.preventDefault();
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    window.location.href = '/auth.html';
+    window.location.replace('/auth.html');
 }
 
 function loadSubjects() {

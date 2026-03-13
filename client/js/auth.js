@@ -94,18 +94,16 @@ async function handleAuth(e) {
         
         // Handle redirect based on action
         setTimeout(() => {
-            if (isLogin) {
-                // After login - go to appropriate page
-                if (data.user.is_admin) {
-                    window.location.href = '/admin.html';
-                } else {
-                    window.location.href = '/index.html';
-                }
-            } else {
-                // After registration - go back to login page
-                window.location.href = '/auth.html';
-            }
-        }, 1500);
+    if (isLogin) {
+        if (data.user.is_admin) {
+            window.location.href = '/admin.html';
+        } else {
+            window.location.href = '/home.html';  // ← NOW points to home.html
+        }
+    } else {
+        window.location.href = '/auth.html';
+    }
+}, 1500);
         
     } catch (error) {
         showError(error.message);
