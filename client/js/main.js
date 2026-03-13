@@ -1,9 +1,9 @@
 // API Base URL
 const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://localhost:5000'
-    : 'https://jamb-simulator-api.onrender.com'; // Your backend URL
+    : 'https://jamb-simulator-api.onrender.com';
 
-// JAMB Subjects Data - Only 5 Subjects
+// JAMB Subjects Data
 const jambSubjects = [
     { id: 1, name: "Use of English", code: "ENG", compulsory: true },
     { id: 2, name: "Mathematics", code: "MTH", compulsory: false },
@@ -12,50 +12,43 @@ const jambSubjects = [
     { id: 5, name: "Biology", code: "BIO", compulsory: false }
 ];
 
-// State
 let selectedSubjects = [];
 
-// Check auth status - REDIRECT TO LOGIN IF NOT AUTHENTICATED
 document.addEventListener('DOMContentLoaded', () => {
+    // CHECK AUTH FIRST - redirect to login if not authenticated
     const token = localStorage.getItem('token');
-    
-    // If not logged in, redirect to auth page
     if (!token) {
         window.location.href = '/auth.html';
         return;
     }
     
-    checkAuth();
+    // User is logged in - load the page
     loadSubjects();
     checkAdminAccess();
+    displayUserInfo();
     
     document.getElementById('startExamBtn').addEventListener('click', startExam);
-    document.getElementById('authLink').addEventListener('click', handleAuthClick);
+    document.getElementById('logoutBtn').addEventListener('click', logout);
 });
 
-function checkAuth() {
-    const token = localStorage.getItem('token');
+function displayUserInfo() {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const authLink = document.getElementById('authLink');
-    
-    if (token && user) {
-        authLink.textContent = `Hi, ${user.full_name || 'User'}`;
-        authLink.href = '/progress.html';
+    const userInfo = document.getElementById('userInfo');
+    if (userInfo && user.full_name) {
+        userInfo.textContent = `Hi, ${user.full_name}`;
     }
 }
 
 function checkAdminAccess() {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const adminLink = document.getElementById('adminLink');
-    
-    if (user.is_admin) {
+    if (adminLink && user.is_admin) {
         adminLink.style.display = 'block';
     }
 }
 
-function handleAuthClick(e) {
+function logout(e) {
     e.preventDefault();
-    // Logout functionality
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     window.location.href = '/auth.html';
@@ -63,6 +56,8 @@ function handleAuthClick(e) {
 
 function loadSubjects() {
     const container = document.getElementById('subjectsContainer');
+    if (!container) return;
+    
     container.innerHTML = '';
     
     jambSubjects.forEach(subject => {
@@ -70,7 +65,6 @@ function loadSubjects() {
         container.appendChild(card);
     });
     
-    // Auto-select English
     const english = jambSubjects.find(s => s.compulsory);
     selectedSubjects.push(english);
     updateSelectionCount();
@@ -117,12 +111,13 @@ function toggleSubject(subject, card) {
 }
 
 function updateSelectionCount() {
-    document.getElementById('selectedCount').textContent = selectedSubjects.length;
+    const countEl = document.getElementById('selectedCount');
+    if (countEl) countEl.textContent = selectedSubjects.length;
 }
 
 function updateStartButton() {
     const startBtn = document.getElementById('startExamBtn');
-    startBtn.disabled = selectedSubjects.length !== 4;
+    if (startBtn) startBtn.disabled = selectedSubjects.length !== 4;
 }
 
 function startExam() {
@@ -131,7 +126,6 @@ function startExam() {
         return;
     }
     
-    // Verify English is included
     if (!selectedSubjects.find(s => s.compulsory)) {
         alert('English is compulsory!');
         return;

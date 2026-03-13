@@ -1,7 +1,7 @@
-// API Base URL - automatically detects environment
+// API Base URL
 const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://localhost:5000'
-    : 'https://jamb-simulator-api.onrender.com'; // Your backend URL
+    : 'https://jamb-simulator-api.onrender.com';
 
 let isLogin = true;
 
@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Check if user is already logged in
     const token = localStorage.getItem('token');
     if (token) {
-        // If already logged in, redirect based on role
+        // If already logged in, redirect to appropriate page
         redirectBasedOnRole();
         return;
     }
@@ -92,7 +92,7 @@ async function handleAuth(e) {
         
         showSuccess(data.message);
         
-        // Handle post-authentication redirect
+        // Handle redirect based on action
         setTimeout(() => {
             if (isLogin) {
                 // After login - go to appropriate page
@@ -127,7 +127,7 @@ async function createDefaultAdmin() {
                     fullName: 'System Administrator'
                 })
             });
-            console.log('✅ Default admin created - Email: admin@jamb.com, Password: Admin123!');
+            console.log('✅ Default admin created');
         }
     } catch (error) {
         console.error('Error creating default admin:', error);
