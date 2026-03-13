@@ -1,3 +1,8 @@
+// API Base URL - automatically detects environment
+const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:5000'
+    : ''; // Empty for production (same domain)
+
 document.addEventListener('DOMContentLoaded', () => {
     checkAuth();
     loadStats();
@@ -27,7 +32,7 @@ async function loadStats() {
     const token = localStorage.getItem('token');
     
     try {
-        const response = await fetch('http://localhost:5000/api/progress/history', {
+        const response = await fetch(`${API_BASE}/api/progress/history`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         
@@ -93,7 +98,7 @@ async function loadSubjectStats() {
     const token = localStorage.getItem('token');
     
     try {
-        const response = await fetch('http://localhost:5000/api/progress/stats/subjects', {
+        const response = await fetch(`${API_BASE}/api/progress/stats/subjects`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         
@@ -172,7 +177,7 @@ async function loadRecentExams() {
     const token = localStorage.getItem('token');
     
     try {
-        const response = await fetch('http://localhost:5000/api/progress/recent', {
+        const response = await fetch(`${API_BASE}/api/progress/recent`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         

@@ -10,6 +10,11 @@ let examState = {
     startTime: null
 };
 
+// API Base URL - automatically detects environment
+const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:5000'
+    : ''; // Empty for production (same domain)
+
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     loadExamData();
@@ -50,7 +55,7 @@ async function fetchExamQuestions(subjects) {
             '<div style="text-align: center; padding: 50px;">Loading 180 questions from 2,000+ database...</div>';
         
         const token = localStorage.getItem('token');
-        const response = await fetch('http://localhost:5000/api/exam/questions', {
+        const response = await fetch(`${API_BASE}/api/exam/questions`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -153,7 +158,7 @@ async function saveAnswerToServer(questionId, answer) {
     
     try {
         const token = localStorage.getItem('token');
-        await fetch('http://localhost:5000/api/exam/save-answer', {
+        await fetch(`${API_BASE}/api/exam/save-answer`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -352,7 +357,7 @@ function calculateJAMBScores() {
 async function saveExamResults(results) {
     try {
         const token = localStorage.getItem('token');
-        await fetch('http://localhost:5000/api/exam/complete', {
+        await fetch(`${API_BASE}/api/exam/complete`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

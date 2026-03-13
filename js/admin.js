@@ -4,6 +4,11 @@ let currentPage = 1;
 let usersData = [];
 let examsData = [];
 
+// API Base URL - automatically detects environment
+const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:5000'
+    : ''; // Empty for production (same domain)
+
 // Check admin access
 document.addEventListener('DOMContentLoaded', () => {
     checkAdminAuth();
@@ -31,7 +36,7 @@ function checkAdminAuth() {
 async function loadStats() {
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch('http://localhost:5000/api/admin/stats', {
+        const response = await fetch(`${API_BASE}/api/admin/stats`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         
@@ -88,7 +93,7 @@ function showDemoStats() {
 async function loadUsers() {
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch('http://localhost:5000/api/admin/users', {
+        const response = await fetch(`${API_BASE}/api/admin/users`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         
@@ -188,7 +193,7 @@ function calculateUserAvgScore(user) {
 async function loadExams() {
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch('http://localhost:5000/api/admin/exams', {
+        const response = await fetch(`${API_BASE}/api/admin/exams`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         
@@ -388,71 +393,22 @@ function loadQuestionBank() {
         </div>
         
         <div class="search-bar">
-            <input type="text" placeholder="Search questions...">
-            <button>🔍 Search</button>
-            <button style="background: #27ae60;">➕ Add Question</button>
+            <input type="text" id="questionSearch" placeholder="Search questions...">
+            <button onclick="searchQuestions()">🔍 Search</button>
+            <button style="background: #27ae60;" onclick="showAddQuestionForm()">➕ Add Question</button>
         </div>
         
-        <table>
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Subject</th>
-                    <th>Question</th>
-                    <th>Difficulty</th>
-                    <th>Topic</th>
-                    <th>Year</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>#001</td>
-                    <td><span class="badge" style="background: #667eea; color: white;">ENG</span></td>
-                    <td>In "The Lekki Headmaster", what was Mr. Bepo's challenge?...</td>
-                    <td><span style="color: #27ae60;">Easy</span></td>
-                    <td>Literature</td>
-                    <td>2026</td>
-                    <td>
-                        <button style="padding: 5px 8px;">✏️</button>
-                        <button style="padding: 5px 8px;">🗑️</button>
-                    </td>
-                </tr>
-                <tr>
-                    <td>#002</td>
-                    <td><span class="badge" style="background: #667eea; color: white;">ENG</span></td>
-                    <td>Choose the option opposite in meaning to DILIGENT...</td>
-                    <td><span style="color: #27ae60;">Easy</span></td>
-                    <td>Vocabulary</td>
-                    <td>2025</td>
-                    <td>
-                        <button style="padding: 5px 8px;">✏️</button>
-                        <button style="padding: 5px 8px;">🗑️</button>
-                    </td>
-                </tr>
-                <tr>
-                    <td>#003</td>
-                    <td><span class="badge" style="background: #e74c3c; color: white;">MTH</span></td>
-                    <td>Solve for x: 2x² - 5x + 3 = 0...</td>
-                    <td><span style="color: #f39c12;">Medium</span></td>
-                    <td>Quadratic</td>
-                    <td>2024</td>
-                    <td>
-                        <button style="padding: 5px 8px;">✏️</button>
-                        <button style="padding: 5px 8px;">🗑️</button>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
+        <div id="questionsList">
+            <!-- Questions will be loaded here -->
+        </div>
         
-        <div class="pagination">
-            <button class="page-btn">1</button>
-            <button class="page-btn active">2</button>
-            <button class="page-btn">3</button>
-            <button class="page-btn">4</button>
-            <button class="page-btn">5</button>
+        <div class="pagination" id="questionPagination">
+            <!-- Pagination will be loaded here -->
         </div>
     `;
+    
+    // Load questions from API
+    loadQuestions();
 }
 
 function switchTab(tab) {
@@ -478,6 +434,9 @@ function switchTab(tab) {
             break;
         case 'questions':
             loadQuestionBank();
+            break;
+        case 'add-question':
+            showAddQuestionForm();
             break;
     }
 }
@@ -555,7 +514,6 @@ function generatePagination(totalItems) {
     const totalPages = Math.ceil(totalItems / 10);
     let html = '';
 
-    
     for (let i = 1; i <= totalPages; i++) {
         html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
     }
@@ -573,6 +531,9 @@ function goToPage(page) {
         case 'exams':
             displayExams();
             break;
+        case 'questions':
+            displayQuestions();
+            break;
     }
 }
 
@@ -589,8 +550,22 @@ function viewExamDetails(examId) {
 
 function toggleAdmin(userId) {
     if (confirm('Make this user an admin?')) {
-        alert('User role updated!');
-        // In production, call API to update user role
+        // Call API to update user role
+        fetch(`${API_BASE}/api/admin/users/${userId}/make-admin`, {
+            method: 'PUT',
+            headers: { 
+                'Authorization': `Bearer ${localStorage.getItem('token')}` 
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert('User role updated!');
+            loadUsers(); // Reload users list
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to update user role');
+        });
     }
 }
 
@@ -649,6 +624,455 @@ function logout() {
     window.location.href = 'index.html';
 }
 
+// Question Bank Functions
+let questionsData = [];
+let currentQuestionPage = 1;
+let currentSubjectFilter = 'all';
+
+async function loadQuestions() {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE}/api/admin/questions`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (!response.ok) throw new Error('Failed to load questions');
+        
+        questionsData = await response.json();
+        displayQuestions();
+        
+    } catch (error) {
+        console.error('Error loading questions:', error);
+        showDemoQuestions();
+    }
+}
+
+function displayQuestions() {
+    const container = document.getElementById('questionsList');
+    
+    // Filter questions by subject
+    let filteredQuestions = questionsData;
+    if (currentSubjectFilter !== 'all') {
+        filteredQuestions = questionsData.filter(q => 
+            q.subject_id === parseInt(currentSubjectFilter)
+        );
+    }
+    
+    // Pagination
+    const start = (currentQuestionPage - 1) * 15;
+    const end = start + 15;
+    const paginatedQuestions = filteredQuestions.slice(start, end);
+    
+    let html = `
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Subject</th>
+                    <th>Question</th>
+                    <th>Correct</th>
+                    <th>Topic</th>
+                    <th>Difficulty</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+    
+    paginatedQuestions.forEach(q => {
+        const difficultyColor = q.difficulty === 'easy' ? '#27ae60' : 
+                                q.difficulty === 'medium' ? '#f39c12' : '#e74c3c';
+        
+        html += `
+            <tr>
+                <td>#${q.id}</td>
+                <td><span class="badge" style="background: #667eea; color: white;">${q.subject_code || 'ENG'}</span></td>
+                <td style="max-width: 300px;">${q.question_text.substring(0, 60)}...</td>
+                <td style="font-weight: bold; color: #27ae60;">${q.correct_answer}</td>
+                <td>${q.topic || 'General'}</td>
+                <td><span style="color: ${difficultyColor};">${q.difficulty || 'medium'}</span></td>
+                <td>
+                    <button onclick="editQuestion(${q.id})" style="padding: 5px 8px;">✏️</button>
+                    <button onclick="deleteQuestion(${q.id})" style="padding: 5px 8px;">🗑️</button>
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += `
+            </tbody>
+        </table>
+    `;
+    
+    container.innerHTML = html;
+    
+    // Update pagination
+    const paginationContainer = document.getElementById('questionPagination');
+    const totalPages = Math.ceil(filteredQuestions.length / 15);
+    let paginationHtml = '';
+    
+    for (let i = 1; i <= totalPages; i++) {
+        paginationHtml += `<button class="page-btn ${i === currentQuestionPage ? 'active' : ''}" onclick="goToQuestionPage(${i})">${i}</button>`;
+    }
+    
+    paginationContainer.innerHTML = paginationHtml;
+}
+
+function showDemoQuestions() {
+    questionsData = [
+        { id: 1, subject_id: 1, subject_code: 'ENG', question_text: 'In "The Lekki Headmaster", what was Mr. Bepo\'s primary challenge?', correct_answer: 'B', topic: 'Literature', difficulty: 'easy' },
+        { id: 2, subject_id: 1, subject_code: 'ENG', question_text: 'Choose the option opposite in meaning to DILIGENT', correct_answer: 'B', topic: 'Vocabulary', difficulty: 'easy' },
+        { id: 3, subject_id: 2, subject_code: 'MTH', question_text: 'Solve for x: 2x + 5 = 15', correct_answer: 'A', topic: 'Algebra', difficulty: 'easy' }
+    ];
+    displayQuestions();
+}
+
+function filterQuestions(subject) {
+    currentSubjectFilter = subject;
+    currentQuestionPage = 1;
+    displayQuestions();
+}
+
+function searchQuestions() {
+    const searchTerm = document.getElementById('questionSearch').value.toLowerCase();
+    const filtered = questionsData.filter(q => 
+        q.question_text.toLowerCase().includes(searchTerm)
+    );
+    
+    // Temporarily replace questionsData with filtered results
+    const originalQuestions = questionsData;
+    questionsData = filtered;
+    displayQuestions();
+    questionsData = originalQuestions;
+}
+
+function goToQuestionPage(page) {
+    currentQuestionPage = page;
+    displayQuestions();
+}
+
+function showAddQuestionForm() {
+    const panel = document.getElementById('adminPanel');
+    
+    panel.innerHTML = `
+        <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+            <h2>➕ Add New Question</h2>
+            <button onclick="switchTab('questions')" style="padding: 10px 20px; background: #95a5a6; color: white; border: none; border-radius: 5px;">← Back to Questions</button>
+        </div>
+        
+        <form id="questionForm" onsubmit="saveQuestion(event)" style="background: white; padding: 30px; border-radius: 10px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Subject *</label>
+                    <select id="subject_id" required style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;">
+                        <option value="">Select Subject</option>
+                        <option value="1">📖 Use of English</option>
+                        <option value="2">🔢 Mathematics</option>
+                        <option value="3">⚡ Physics</option>
+                        <option value="4">🧪 Chemistry</option>
+                        <option value="5">🧬 Biology</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Topic</label>
+                    <input type="text" id="topic" placeholder="e.g., Algebra, Cell Biology" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;">
+                </div>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: 600;">Question Text *</label>
+                <textarea id="question_text" rows="3" required placeholder="Enter the question here..." 
+                          style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;"></textarea>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Option A *</label>
+                    <input type="text" id="option_a" required placeholder="Option A" 
+                           style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;">
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Option B *</label>
+                    <input type="text" id="option_b" required placeholder="Option B" 
+                           style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;">
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Option C *</label>
+                    <input type="text" id="option_c" required placeholder="Option C" 
+                           style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;">
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Option D *</label>
+                    <input type="text" id="option_d" required placeholder="Option D" 
+                           style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;">
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-top: 20px;">
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Correct Answer *</label>
+                    <select id="correct_answer" required style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;">
+                        <option value="">Select</option>
+                        <option value="A">A</option>
+                        <option value="B">B</option>
+                        <option value="C">C</option>
+                        <option value="D">D</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Difficulty</label>
+                    <select id="difficulty" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;">
+                        <option value="easy">Easy</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="hard">Hard</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Year</label>
+                    <input type="text" id="year" placeholder="2024" 
+                           style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;">
+                </div>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: 600;">Explanation (Optional)</label>
+                <textarea id="explanation" rows="2" placeholder="Explain why the correct answer is right..." 
+                          style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;"></textarea>
+            </div>
+            
+            <div style="margin-top: 30px; display: flex; gap: 15px;">
+                <button type="submit" style="flex: 1; padding: 15px; background: #27ae60; color: white; border: none; border-radius: 5px; font-size: 1.1rem;">
+                    💾 Save Question
+                </button>
+                <button type="button" onclick="switchTab('questions')" style="flex: 1; padding: 15px; background: #95a5a6; color: white; border: none; border-radius: 5px; font-size: 1.1rem;">
+                    ❌ Cancel
+                </button>
+            </div>
+        </form>
+    `;
+}
+
+async function saveQuestion(event) {
+    event.preventDefault();
+    
+    const questionData = {
+        subject_id: document.getElementById('subject_id').value,
+        question_text: document.getElementById('question_text').value,
+        option_a: document.getElementById('option_a').value,
+        option_b: document.getElementById('option_b').value,
+        option_c: document.getElementById('option_c').value,
+        option_d: document.getElementById('option_d').value,
+        correct_answer: document.getElementById('correct_answer').value,
+        explanation: document.getElementById('explanation').value,
+        topic: document.getElementById('topic').value,
+        difficulty: document.getElementById('difficulty').value,
+        year: document.getElementById('year').value
+    };
+    
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE}/api/admin/questions`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(questionData)
+        });
+        
+        if (!response.ok) throw new Error('Failed to save');
+        
+        alert('✅ Question added successfully!');
+        switchTab('questions');
+        
+    } catch (error) {
+        console.error('Error saving question:', error);
+        alert('❌ Failed to save question. Check console for details.');
+    }
+}
+
+async function editQuestion(questionId) {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE}/api/admin/questions/${questionId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (!response.ok) throw new Error('Failed to load question');
+        
+        const question = await response.json();
+        showEditQuestionForm(question);
+        
+    } catch (error) {
+        console.error('Error loading question:', error);
+        alert('Failed to load question details');
+    }
+}
+
+function showEditQuestionForm(question) {
+    const panel = document.getElementById('adminPanel');
+    
+    panel.innerHTML = `
+        <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+            <h2>✏️ Edit Question #${question.id}</h2>
+            <button onclick="switchTab('questions')" style="padding: 10px 20px; background: #95a5a6; color: white; border: none; border-radius: 5px;">← Back to Questions</button>
+        </div>
+             <form id="editForm" onsubmit="updateQuestion(event, ${question.id})" style="background: white; padding: 30px; border-radius: 10px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Subject *</label>
+                    <select id="subject_id" required style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;">
+                        <option value="1" ${question.subject_id === 1 ? 'selected' : ''}>📖 Use of English</option>
+                        <option value="2" ${question.subject_id === 2 ? 'selected' : ''}>🔢 Mathematics</option>
+                        <option value="3" ${question.subject_id === 3 ? 'selected' : ''}>⚡ Physics</option>
+                        <option value="4" ${question.subject_id === 4 ? 'selected' : ''}>🧪 Chemistry</option>
+                        <option value="5" ${question.subject_id === 5 ? 'selected' : ''}>🧬 Biology</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Topic</label>
+                    <input type="text" id="topic" value="${question.topic || ''}" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;">
+                </div>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: 600;">Question Text *</label>
+                <textarea id="question_text" rows="3" required style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;">${question.question_text}</textarea>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Option A *</label>
+                    <input type="text" id="option_a" required value="${question.option_a}" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;">
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Option B *</label>
+                    <input type="text" id="option_b" required value="${question.option_b}" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;">
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Option C *</label>
+                    <input type="text" id="option_c" required value="${question.option_c}" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;">
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Option D *</label>
+                    <input type="text" id="option_d" required value="${question.option_d}" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;">
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-top: 20px;">
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Correct Answer *</label>
+                    <select id="correct_answer" required style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;">
+                        <option value="A" ${question.correct_answer === 'A' ? 'selected' : ''}>A</option>
+                        <option value="B" ${question.correct_answer === 'B' ? 'selected' : ''}>B</option>
+                        <option value="C" ${question.correct_answer === 'C' ? 'selected' : ''}>C</option>
+                        <option value="D" ${question.correct_answer === 'D' ? 'selected' : ''}>D</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Difficulty</label>
+                    <select id="difficulty" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;">
+                        <option value="easy" ${question.difficulty === 'easy' ? 'selected' : ''}>Easy</option>
+                        <option value="medium" ${question.difficulty === 'medium' ? 'selected' : ''}>Medium</option>
+                        <option value="hard" ${question.difficulty === 'hard' ? 'selected' : ''}>Hard</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Year</label>
+                    <input type="text" id="year" value="${question.year || ''}" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;">
+                </div>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: 600;">Explanation</label>
+                <textarea id="explanation" rows="2" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;">${question.explanation || ''}</textarea>
+            </div>
+            
+            <div style="margin-top: 30px; display: flex; gap: 15px;">
+                <button type="submit" style="flex: 1; padding: 15px; background: #3498db; color: white; border: none; border-radius: 5px; font-size: 1.1rem;">
+                    💾 Update Question
+                </button>
+                <button type="button" onclick="switchTab('questions')" style="flex: 1; padding: 15px; background: #95a5a6; color: white; border: none; border-radius: 5px; font-size: 1.1rem;">
+                    ❌ Cancel
+                </button>
+            </div>
+        </form>
+    `;
+}
+
+async function updateQuestion(event, questionId) {
+    event.preventDefault();
+    
+    const questionData = {
+        question_text: document.getElementById('question_text').value,
+        option_a: document.getElementById('option_a').value,
+        option_b: document.getElementById('option_b').value,
+        option_c: document.getElementById('option_c').value,
+        option_d: document.getElementById('option_d').value,
+        correct_answer: document.getElementById('correct_answer').value,
+        explanation: document.getElementById('explanation').value,
+        topic: document.getElementById('topic').value,
+        difficulty: document.getElementById('difficulty').value,
+        year: document.getElementById('year').value
+    };
+    
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE}/api/admin/questions/${questionId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(questionData)
+        });
+        
+        if (!response.ok) throw new Error('Failed to update');
+        
+        alert('✅ Question updated successfully!');
+        switchTab('questions');
+        
+    } catch (error) {
+        console.error('Error updating question:', error);
+        alert('❌ Failed to update question. Check console for details.');
+    }
+}
+
+async function deleteQuestion(questionId) {
+    if (!confirm('Are you sure you want to delete this question?')) {
+        return;
+    }
+    
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE}/api/admin/questions/${questionId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (!response.ok) throw new Error('Failed to delete');
+        
+        alert('✅ Question deleted successfully!');
+        loadQuestions(); // Reload questions list
+        
+    } catch (error) {
+        console.error('Error deleting question:', error);
+        alert('❌ Failed to delete question. Check console for details.');
+    }
+}
+
 // Make functions global
 window.switchTab = switchTab;
 window.searchUsers = searchUsers;
@@ -659,3 +1083,9 @@ window.toggleAdmin = toggleAdmin;
 window.goToPage = goToPage;
 window.logout = logout;
 window.filterQuestions = filterQuestions;
+window.searchQuestions = searchQuestions;
+window.showAddQuestionForm = showAddQuestionForm;
+window.saveQuestion = saveQuestion;
+window.editQuestion = editQuestion;
+window.deleteQuestion = deleteQuestion;
+window.goToQuestionPage = goToQuestionPage;

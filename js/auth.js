@@ -1,5 +1,10 @@
 let isLogin = true;
 
+// API Base URL - automatically detects environment
+const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:5000'
+    : ''; // Empty for production (same domain)
+
 document.addEventListener('DOMContentLoaded', () => {
     checkExistingSession();
     setupEventListeners();
@@ -57,8 +62,8 @@ async function handleAuth(e) {
     }
     
     const url = isLogin 
-        ? 'http://localhost:5000/api/auth/login'
-        : 'http://localhost:5000/api/auth/register';
+        ? `${API_BASE}/api/auth/login`
+        : `${API_BASE}/api/auth/register`;
     
     const body = isLogin 
         ? { email, password }
@@ -98,12 +103,12 @@ async function handleAuth(e) {
 async function createDefaultAdmin() {
     try {
         // Check if admin exists
-        const response = await fetch('http://localhost:5000/api/auth/check-admin');
+        const response = await fetch(`${API_BASE}/api/auth/check-admin`);
         const data = await response.json();
         
         if (!data.hasAdmin) {
             // Create default admin
-            await fetch('http://localhost:5000/api/auth/create-default-admin', {
+            await fetch(`${API_BASE}/api/auth/create-default-admin`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
