@@ -91,6 +91,13 @@ const ACHIEVEMENTS = [
         condition: (stats) => stats.flashcards >= 100
     }
 ];
+function logout(e) {
+    e.preventDefault();
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('is_admin');
+    window.location.href = '/auth.html';
+}
 
 class AchievementManager {
     constructor() {

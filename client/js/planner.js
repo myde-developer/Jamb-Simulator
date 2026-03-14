@@ -12,6 +12,14 @@ let plannerState = {
     }
 };
 
+function logout(e) {
+    e.preventDefault();
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('is_admin');
+    window.location.href = '/auth.html';
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     checkAuth();
     loadTasks();

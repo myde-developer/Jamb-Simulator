@@ -6,6 +6,13 @@ let calculator = {
     memory: 0,
     shouldReset: false
 };
+function logout(e) {
+    e.preventDefault();
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('is_admin');
+    window.location.href = '/auth.html';
+}
 
 // Display elements
 const expressionDisplay = document.getElementById('expression');
