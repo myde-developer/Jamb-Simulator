@@ -50,6 +50,8 @@ document.addEventListener('DOMContentLoaded', () => {
     setupSubjectListener();
     displayUserInfo();
     if (window.studyStreak) studyStreak.init();
+
+ document.getElementById('logoutBtn').addEventListener('click', logout);
 });
 
 function checkAuth() {

@@ -25,6 +25,8 @@ document.addEventListener('DOMContentLoaded', () => {
     checkAuth();
     loadLeaderboardData();
     if (window.studyStreak) studyStreak.init();
+
+ document.getElementById('logoutBtn').addEventListener('click', logout);
 });
 
 function checkAuth() {

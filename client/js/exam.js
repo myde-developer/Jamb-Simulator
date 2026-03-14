@@ -46,6 +46,8 @@ document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
     startTimer();
     displayUserInfo();
+
+ document.getElementById('logoutBtn').addEventListener('click', logout);
 });
 
 function displayUserInfo() {
