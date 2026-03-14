@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JAMB Simulator - Study Planner</title>
     <!-- PWA Meta Tags -->
+<link rel="stylesheet" href="/css/responsive.css">
 <link rel="manifest" href="/manifest.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -374,36 +375,6 @@
             color: #666;
         }
 
-        @media (max-width: 768px) {
-             .header{
-                position: relative;
-            }
-            body {
-                padding-top: 0;
-            }
-            
-            .planner-container {
-                margin-top: 20px;
-            }
-            
-            .planner-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .calendar-header {
-                flex-direction: column;
-                gap: 15px;
-            }
-            
-            .study-item {
-                flex-direction: column;
-                align-items: flex-start;
-            }
-            
-            .study-actions {
-                align-self: flex-end;
-            }
-        }
     </style>
     
     <!-- Auth Check Script -->

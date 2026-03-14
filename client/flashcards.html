@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JAMB Simulator - Flashcards</title>
     <!-- PWA Meta Tags -->
+<link rel="stylesheet" href="/css/responsive.css">
 <link rel="manifest" href="/manifest.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -340,31 +341,6 @@
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
-        }
-
-        @media (max-width: 768px) {
-  .header{
-                position: relative;
-            }
-            body {
-                padding-top: 0;
-            }
-            
-            .flashcards-container {
-                margin-top: 20px;
-            }
-            
-            .flashcard-setup {
-                flex-direction: column;
-            }
-            
-            .flashcard-actions {
-                flex-direction: column;
-            }
-            
-            .summary-stats {
-                grid-template-columns: 1fr;
-            }
         }
     </style>
     

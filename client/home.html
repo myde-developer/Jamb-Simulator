@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JAMB Exam Simulator 2026 - Home</title>
     <!-- PWA Meta Tags -->
+<link rel="stylesheet" href="/css/responsive.css">
 <link rel="manifest" href="/manifest.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -281,64 +282,7 @@
             margin-left: 15px;
             box-shadow: 0 2px 10px rgba(243, 156, 18, 0.3);
         }
-@media (max-width: 768px) {
-    /* Remove the padding-top - header will scroll naturally */
-    body {
-        padding-top: 0;              /* ← Changed from 120px to 0 */
-    }
-    
-    main {
-        margin-top: 20px;             /* ← Changed from 140px to 20px */
-    }
-    
-    /* Make header scroll on mobile */
-    .header {
-        position: relative;           /* ← ADD THIS - makes header scroll */
-        /* Keep all other header styles */
-    }
-    
-    /* Rest of your mobile styles stay the same */
-    .nav-container {
-        flex-direction: column;
-        padding: 1rem;
-    }
-    
-    .nav-menu {
-        flex-direction: column;
-        width: 100%;
-        gap: 0.5rem;
-        margin-top: 1rem;
-    }
-    
-    .nav-menu li {
-        width: 100%;
-        text-align: center;
-    }
-    
-    .nav-menu a {
-        display: block;
-        padding: 0.5rem;
-    }
-    
-    .hero h1 {
-        font-size: 1.8rem;
-    }
-    
-    .subjects-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .features {
-        grid-template-columns: 1fr;
-    }
-    
-    .streak-display {
-        margin-left: 0;
-        margin-top: 10px;
-        width: 100%;
-        justify-content: center;
-    }
-}
+
     </style>
     
     <!-- Auth Check Script -->

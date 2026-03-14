@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JAMB Simulator - Practice Mode</title>
     <!-- PWA Meta Tags -->
+<link rel="stylesheet" href="/css/responsive.css">
 <link rel="manifest" href="/manifest.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -500,50 +501,6 @@
             to { opacity: 1; }
         }
 
-        @media (max-width: 768px) {
-              .header{
-                position: relative;
-            }
-            body {
-                padding-top: 0;
-            }
-            
-            .practice-container {
-                margin-top: 20px;
-            }
-            
-            .practice-header {
-                flex-direction: column;
-                text-align: center;
-            }
-            
-            .practice-controls {
-                flex-direction: column;
-            }
-            
-            .practice-controls select,
-            .practice-controls button {
-                width: 100%;
-            }
-            
-            .practice-stats {
-                flex-direction: column;
-                gap: 10px;
-            }
-            
-            .summary-stats {
-                grid-template-columns: 1fr;
-            }
-            
-            .practice-navigation {
-                flex-direction: column;
-            }
-            
-            .calculator-modal-content {
-                margin: 10% auto;
-                width: 95%;
-            }
-        }
     </style>
     
     <!-- Auth Check Script -->
