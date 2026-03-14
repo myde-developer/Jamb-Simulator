@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JAMB Simulator - My Progress</title>
     <!-- PWA Meta Tags -->
-<link rel="stylesheet" href="/css/responsive.css">
 <link rel="manifest" href="/manifest.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -196,6 +195,32 @@
             color: #999;
         }
 
+        @media (max-width: 768px) {
+              .header{
+                position: relative;
+            }
+            body {
+                padding-top: 0;
+            }
+            
+            .progress-container {
+                margin-top: 20px;
+            }
+            
+            .progress-header h1 {
+                font-size: 2rem;
+            }
+            
+            .exam-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
     
     <!-- Auth Check Script -->

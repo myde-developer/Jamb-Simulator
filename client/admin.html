@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JAMB Simulator - Admin Panel</title>
     <!-- PWA Meta Tags -->
-<link rel="stylesheet" href="/css/responsive.css">
 <link rel="manifest" href="/manifest.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -344,6 +343,68 @@
         .table-responsive {
             overflow-x: auto;
         }
+
+@media (max-width: 768px) {
+    body {
+        padding-top: 0;              /* ← Changed from 120px to 0 */
+    }
+    
+    .admin-container {
+        margin-top: 20px;             /* ← Changed from 140px to 20px */
+    }
+    
+    .header {
+        position: relative;           /* ← ADD THIS - makes header scroll */
+    }
+    
+    .nav-container {
+        flex-direction: column;
+        padding: 1rem;
+    }
+    
+    .nav-menu {
+        flex-direction: column;
+        width: 100%;
+        gap: 0.5rem;
+        margin-top: 1rem;
+    }
+    
+    .nav-menu li {
+        width: 100%;
+        text-align: center;
+    }
+    
+    .nav-menu a {
+        display: block;
+    }
+    
+    .admin-header {
+        flex-direction: column;
+        text-align: center;
+        gap: 1rem;
+    }
+    
+    .stats-cards {
+        grid-template-columns: 1fr;
+    }
+    
+    .admin-tabs {
+        flex-direction: column;
+    }
+    
+    .tab-btn {
+        width: 100%;
+    }
+    
+    .search-bar {
+        flex-direction: column;
+    }
+    
+    .search-bar button,
+    .export-btn {
+        width: 100%;
+    }
+}
     </style>
     
     <!-- Admin Protection Script -->
