@@ -1,3 +1,4 @@
+// server/routes/admin.js
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
@@ -67,26 +68,45 @@ router.get('/exams', adminAuth, async (req, res) => {
     }
 });
 
-// Get subject performance
-router.get('/subject-performance', adminAuth, async (req, res) => {
+// ✅ FIXED: Add question route
+router.post('/questions', adminAuth, async (req, res) => {
     try {
+        const { 
+            subject_id, 
+            question_text, 
+            option_a, 
+            option_b, 
+            option_c, 
+            option_d, 
+            correct_answer, 
+            explanation, 
+            topic, 
+            difficulty,
+            year 
+        } = req.body;
+        
+        // Validate required fields
+        if (!subject_id || !question_text || !option_a || !option_b || !option_c || !option_d || !correct_answer) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+        
+        // Insert question into database
         const result = await db.query(
-            `SELECT s.id, s.name, s.code,
-                    COUNT(q.id) as total_questions,
-                    COUNT(ua.id) as times_answered,
-                    SUM(CASE WHEN ua.is_correct THEN 1 ELSE 0 END) as correct_answers
-             FROM subjects s
-             LEFT JOIN questions q ON q.subject_id = s.id
-             LEFT JOIN user_answers ua ON ua.question_id = q.id
-             GROUP BY s.id, s.name, s.code
-             ORDER BY s.name`
+            `INSERT INTO questions 
+             (subject_id, question_text, option_a, option_b, option_c, option_d, correct_answer, explanation, topic, difficulty, year) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) 
+             RETURNING *`,
+            [subject_id, question_text, option_a, option_b, option_c, option_d, correct_answer, explanation, topic, difficulty, year]
         );
         
-        res.json(result.rows);
+        res.status(201).json({ 
+            message: 'Question added successfully', 
+            question: result.rows[0] 
+        });
         
     } catch (error) {
-        console.error('Error fetching subject performance:', error);
-        res.status(500).json({ error: 'Failed to fetch subject performance' });
+        console.error('Error adding question:', error);
+        res.status(500).json({ error: 'Failed to add question: ' + error.message });
     }
 });
 
@@ -97,7 +117,7 @@ router.get('/questions', adminAuth, async (req, res) => {
             `SELECT q.*, s.name as subject_name, s.code as subject_code
              FROM questions q
              JOIN subjects s ON s.id = q.subject_id
-             ORDER BY q.id`
+             ORDER BY q.id DESC`
         );
         
         res.json(result.rows);
@@ -108,23 +128,21 @@ router.get('/questions', adminAuth, async (req, res) => {
     }
 });
 
-// Add question
-router.post('/questions', adminAuth, async (req, res) => {
+// Get single question
+router.get('/questions/:id', adminAuth, async (req, res) => {
     try {
-        const { subject_id, question_text, option_a, option_b, option_c, option_d, correct_answer, explanation, topic, difficulty } = req.body;
+        const { id } = req.params;
+        const result = await db.query('SELECT * FROM questions WHERE id = $1', [id]);
         
-        const result = await db.query(
-            `INSERT INTO questions (subject_id, question_text, option_a, option_b, option_c, option_d, correct_answer, explanation, topic, difficulty)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-             RETURNING *`,
-            [subject_id, question_text, option_a, option_b, option_c, option_d, correct_answer, explanation, topic, difficulty]
-        );
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Question not found' });
+        }
         
         res.json(result.rows[0]);
         
     } catch (error) {
-        console.error('Error adding question:', error);
-        res.status(500).json({ error: 'Failed to add question' });
+        console.error('Error fetching question:', error);
+        res.status(500).json({ error: 'Failed to fetch question' });
     }
 });
 
@@ -132,17 +150,33 @@ router.post('/questions', adminAuth, async (req, res) => {
 router.put('/questions/:id', adminAuth, async (req, res) => {
     try {
         const { id } = req.params;
-        const { question_text, option_a, option_b, option_c, option_d, correct_answer, explanation, topic, difficulty } = req.body;
+        const { 
+            question_text, 
+            option_a, 
+            option_b, 
+            option_c, 
+            option_d, 
+            correct_answer, 
+            explanation, 
+            topic, 
+            difficulty,
+            year 
+        } = req.body;
         
-        await db.query(
+        const result = await db.query(
             `UPDATE questions 
              SET question_text = $1, option_a = $2, option_b = $3, option_c = $4, option_d = $5,
-                 correct_answer = $6, explanation = $7, topic = $8, difficulty = $9
-             WHERE id = $10`,
-            [question_text, option_a, option_b, option_c, option_d, correct_answer, explanation, topic, difficulty, id]
+                 correct_answer = $6, explanation = $7, topic = $8, difficulty = $9, year = $10
+             WHERE id = $11
+             RETURNING *`,
+            [question_text, option_a, option_b, option_c, option_d, correct_answer, explanation, topic, difficulty, year, id]
         );
         
-        res.json({ success: true });
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Question not found' });
+        }
+        
+        res.json({ message: 'Question updated successfully', question: result.rows[0] });
         
     } catch (error) {
         console.error('Error updating question:', error);
@@ -155,9 +189,13 @@ router.delete('/questions/:id', adminAuth, async (req, res) => {
     try {
         const { id } = req.params;
         
-        await db.query('DELETE FROM questions WHERE id = $1', [id]);
+        const result = await db.query('DELETE FROM questions WHERE id = $1 RETURNING id', [id]);
         
-        res.json({ success: true });
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Question not found' });
+        }
+        
+        res.json({ message: 'Question deleted successfully' });
         
     } catch (error) {
         console.error('Error deleting question:', error);
@@ -177,33 +215,6 @@ router.put('/users/:id/make-admin', adminAuth, async (req, res) => {
     } catch (error) {
         console.error('Error updating user:', error);
         res.status(500).json({ error: 'Failed to update user' });
-    }
-});
-
-// Export data
-router.get('/export/:type', adminAuth, async (req, res) => {
-    try {
-        const { type } = req.params;
-        let data;
-        
-        switch(type) {
-            case 'users':
-                data = await db.query('SELECT id, email, full_name, is_admin, created_at FROM users');
-                break;
-            case 'exams':
-                data = await db.query(
-                    'SELECT es.*, u.email FROM exam_sessions es JOIN users u ON u.id = es.user_id'
-                );
-                break;
-            default:
-                return res.status(400).json({ error: 'Invalid export type' });
-        }
-        
-        res.json(data.rows);
-        
-    } catch (error) {
-        console.error('Error exporting data:', error);
-        res.status(500).json({ error: 'Failed to export data' });
     }
 });
 
