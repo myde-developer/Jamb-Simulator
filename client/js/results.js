@@ -3,14 +3,14 @@ const API_BASE = window.location.hostname === 'localhost' || window.location.hos
     ? 'http://localhost:5000'
     : 'https://jamb-simulator-api.onrender.com';
 
-// Load results
 document.addEventListener('DOMContentLoaded', () => {
     checkAuth();
     loadResults();
+    if (window.studyStreak) studyStreak.init();
 });
 
 function checkAuth() {
-    const token = sessionStorage.getItem('token');
+    const token = localStorage.getItem('token');
     const logoutBtn = document.getElementById('logoutBtn');
     
     if (!token) {
@@ -23,13 +23,13 @@ function checkAuth() {
 
 function logout(e) {
     e.preventDefault();
-    sessionStorage.removeItem('token');
-    sessionStorage.removeItem('user');
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
     window.location.href = '/auth.html';
 }
 
 function loadResults() {
-    const examResults = JSON.parse(sessionStorage.getItem('lastExamResults'));
+    const examResults = JSON.parse(localStorage.getItem('lastExamResults'));
     
     if (!examResults) {
         window.location.href = '/home.html';
@@ -38,6 +38,10 @@ function loadResults() {
     
     displayResults(examResults);
     window.reviewData = examResults;
+    
+    if (window.MotivationalMessages) {
+        showMotivation();
+    }
 }
 
 function displayResults(results) {
@@ -76,17 +80,14 @@ function displaySummaryCards(results) {
             <div class="summary-value">${totalQuestions}</div>
             <div>180 Total</div>
         </div>
-        
         <div class="summary-card">
             <h3>Answered</h3>
             <div class="summary-value">${answeredCount}</div>
         </div>
-        
         <div class="summary-card">
             <h3>Correct</h3>
             <div class="summary-value" style="color: #27ae60;">${correctCount}</div>
         </div>
-        
         <div class="summary-card">
             <h3>JAMB Score</h3>
             <div class="summary-value">${results.scores.total}</div>
@@ -128,7 +129,6 @@ function displaySubjectBreakdown(results) {
         `;
     });
     
-    // Total row
     html += `
         <div class="subject-row" style="border-top: 2px solid #667eea; margin-top: 20px; padding-top: 20px;">
             <div class="subject-name" style="font-weight: bold;">TOTAL JAMB SCORE</div>
@@ -142,6 +142,48 @@ function displaySubjectBreakdown(results) {
     `;
     
     breakdown.innerHTML = html;
+}
+
+function showMotivation() {
+    const examResults = JSON.parse(localStorage.getItem('lastExamResults'));
+    if (!examResults) return;
+    
+    const correct = Object.values(examResults.scores.subjectScores)
+        .reduce((sum, s) => sum + s.correct, 0);
+    const total = examResults.questions.length;
+    
+    const message = MotivationalMessages.getMessage(correct, total, true);
+    
+    if ((correct / total) * 100 >= 80) {
+        createConfetti();
+    }
+    
+    document.getElementById('motivationEmoji').textContent = message.emoji;
+    document.getElementById('motivationQuote').textContent = message.quote;
+    document.getElementById('motivationMessage').textContent = message.message;
+    document.getElementById('motivationModal').style.display = 'flex';
+    
+    setTimeout(closeMotivation, 5000);
+}
+
+function createConfetti() {
+    for (let i = 0; i < 50; i++) {
+        setTimeout(() => {
+            const confetti = document.createElement('div');
+            confetti.className = 'confetti';
+            confetti.style.left = Math.random() * 100 + 'vw';
+            confetti.style.background = `hsl(${Math.random() * 360}, 100%, 50%)`;
+            confetti.style.width = Math.random() * 10 + 5 + 'px';
+            confetti.style.height = confetti.style.width;
+            confetti.style.animationDuration = Math.random() * 2 + 2 + 's';
+            document.body.appendChild(confetti);
+            setTimeout(() => confetti.remove(), 3000);
+        }, i * 50);
+    }
+}
+
+function closeMotivation() {
+    document.getElementById('motivationModal').style.display = 'none';
 }
 
 function toggleReview() {
@@ -187,11 +229,8 @@ function loadReviewQuestions() {
                         const isCorrectChoice = q.correctAnswer === letter;
                         let optionClass = '';
                         
-                        if (isCorrectChoice) {
-                            optionClass = 'correct-answer';
-                        } else if (isUserChoice && !isCorrect) {
-                            optionClass = 'wrong-answer';
-                        }
+                        if (isCorrectChoice) optionClass = 'correct-answer';
+                        else if (isUserChoice && !isCorrect) optionClass = 'wrong-answer';
                         
                         return `
                             <div class="review-option ${optionClass}">
@@ -215,10 +254,7 @@ function loadReviewQuestions() {
 }
 
 function filterQuestions(filter) {
-    // Update active button
-    document.querySelectorAll('.filter-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
+    document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
     event.target.classList.add('active');
     
     const questions = document.querySelectorAll('.review-question');
@@ -228,23 +264,10 @@ function filterQuestions(filter) {
         const isCorrect = q.dataset.correct === 'true';
         
         switch(filter) {
-            case 'all':
-                q.style.display = 'block';
-                break;
-            case 'correct':
-                q.style.display = isCorrect ? 'block' : 'none';
-                break;
-            case 'incorrect':
-                q.style.display = !isCorrect ? 'block' : 'none';
-                break;
-            case 'english':
-                q.style.display = subject === 'Use of English' ? 'block' : 'none';
-                break;
-            case 'lekki':
-                q.style.display = subject === 'Use of English' && 
-                    q.querySelector('.review-question-text').textContent.includes('Lekki') 
-                    ? 'block' : 'none';
-                break;
+            case 'all': q.style.display = 'block'; break;
+            case 'correct': q.style.display = isCorrect ? 'block' : 'none'; break;
+            case 'incorrect': q.style.display = !isCorrect ? 'block' : 'none'; break;
+            case 'english': q.style.display = subject === 'Use of English' ? 'block' : 'none'; break;
         }
     });
 }
@@ -254,22 +277,60 @@ function shareResults() {
     const text = `📚 JAMB UTME 2026 Mock Exam\nScore: ${data.scores.total}/400 (${data.scores.percentage}%)\n\nPractice with JAMB Simulator!`;
     
     if (navigator.share) {
-        navigator.share({
-            title: 'My JAMB Mock Exam Results',
-            text: text,
-            url: window.location.href
-        });
+        navigator.share({ title: 'My JAMB Mock Exam Results', text });
     } else {
         prompt('Copy to share:', text);
     }
+}
+
+function showShareOptions() {
+    const examResults = JSON.parse(localStorage.getItem('lastExamResults'));
+    if (!examResults) return;
+    
+    document.getElementById('sharePreview').textContent = ShareManager.formatExamMessage(examResults);
+    document.getElementById('shareModal').style.display = 'flex';
+}
+
+function closeShareModal() {
+    document.getElementById('shareModal').style.display = 'none';
+}
+
+function shareOnWhatsApp() {
+    const examResults = JSON.parse(localStorage.getItem('lastExamResults'));
+    ShareManager.shareExamResults(examResults);
+    closeShareModal();
+}
+
+function copyResults() {
+    const examResults = JSON.parse(localStorage.getItem('lastExamResults'));
+    ShareManager.copyResults(examResults);
+    closeShareModal();
+}
+
+function shareOnTwitter() {
+    const examResults = JSON.parse(localStorage.getItem('lastExamResults'));
+    ShareManager.shareOnTwitter(examResults);
+    closeShareModal();
+}
+
+function shareAsImage() {
+    const examResults = JSON.parse(localStorage.getItem('lastExamResults'));
+    ShareManager.shareCustomMessage('My JAMB Results', ShareManager.formatExamMessage(examResults));
+    closeShareModal();
 }
 
 function goHome() {
     window.location.href = '/home.html';
 }
 
-// Make functions global
 window.toggleReview = toggleReview;
 window.filterQuestions = filterQuestions;
 window.shareResults = shareResults;
 window.goHome = goHome;
+window.closeMotivation = closeMotivation;
+window.showShareOptions = showShareOptions;
+window.closeShareModal = closeShareModal;
+window.shareOnWhatsApp = shareOnWhatsApp;
+window.copyResults = copyResults;
+window.shareOnTwitter = shareOnTwitter;
+window.shareAsImage = shareAsImage;

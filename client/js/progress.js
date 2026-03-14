@@ -8,28 +8,26 @@ document.addEventListener('DOMContentLoaded', () => {
     loadStats();
     loadSubjectStats();
     loadRecentExams();
+    if (window.studyStreak) studyStreak.init();
 });
 
 function checkAuth() {
-    const token = sessionStorage.getItem('token');
+    const token = localStorage.getItem('token');
+    if (!token) window.location.href = '/auth.html';
+    
     const logoutBtn = document.getElementById('logoutBtn');
-    
-    if (!token) {
-        window.location.href = '/auth.html';
-    }
-    
-    logoutBtn.addEventListener('click', logout);
+    if (logoutBtn) logoutBtn.addEventListener('click', logout);
 }
 
 function logout(e) {
     e.preventDefault();
-    sessionStorage.removeItem('token');
-    sessionStorage.removeItem('user');
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
     window.location.href = '/auth.html';
 }
 
 async function loadStats() {
-    const token = sessionStorage.getItem('token');
+    const token = localStorage.getItem('token');
     
     try {
         const response = await fetch(`${API_BASE}/api/progress/history`, {
@@ -68,7 +66,6 @@ async function loadStats() {
         `;
         
     } catch (error) {
-        console.log('Using demo stats');
         showDemoStats();
     }
 }
@@ -95,7 +92,7 @@ function showDemoStats() {
 }
 
 async function loadSubjectStats() {
-    const token = sessionStorage.getItem('token');
+    const token = localStorage.getItem('token');
     
     try {
         const response = await fetch(`${API_BASE}/api/progress/stats/subjects`, {
@@ -174,7 +171,7 @@ function showDemoSubjectStats() {
 }
 
 async function loadRecentExams() {
-    const token = sessionStorage.getItem('token');
+    const token = localStorage.getItem('token');
     
     try {
         const response = await fetch(`${API_BASE}/api/progress/recent`, {
@@ -237,5 +234,5 @@ function showDemoRecentExams() {
 }
 
 function viewExam(examId) {
-    window.location.href = `/results.html?id=${examId}`;
+    window.location.href = `results.html?id=${examId}`;
 }

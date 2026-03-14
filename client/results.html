@@ -4,8 +4,72 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JAMB Exam Simulator - Results</title>
-    <link rel="stylesheet" href="css/style.css">
+    <!-- PWA Meta Tags -->
+<link rel="manifest" href="/manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="JAMB Simulator">
+<link rel="apple-touch-icon" href="/icons/icon-152x152.png">
+<meta name="theme-color" content="#667eea">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Sticky Header Fix and Styles -->
     <style>
+        /* Sticky Header */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        body {
+            padding-top: 80px;
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fa;
+        }
+
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .nav-menu {
+            display: flex;
+            list-style: none;
+            gap: 2rem;
+            align-items: center;
+            margin: 0;
+            padding: 0;
+        }
+
+        .nav-menu a {
+            color: white;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            transition: background 0.3s;
+        }
+
+        .nav-menu a:hover,
+        .nav-menu a.active {
+            background: rgba(255,255,255,0.2);
+        }
+
         .results-container {
             max-width: 1000px;
             margin: 100px auto 50px;
@@ -19,6 +83,11 @@
             border-radius: 15px;
             margin-bottom: 30px;
             text-align: center;
+        }
+
+        .results-header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
         }
 
         .score-circle {
@@ -152,6 +221,11 @@
             color: #666;
         }
 
+        .whatsapp-btn {
+            background: #25D366;
+            color: white;
+        }
+
         .share-btn {
             background: #25D366;
             color: white;
@@ -258,14 +332,232 @@
             border-radius: 5px;
             margin-top: 15px;
         }
+
+        /* Share Modal */
+        .share-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            animation: fadeIn 0.3s;
+        }
+
+        .share-modal-content {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .share-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .share-preview {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+            border-left: 4px solid #25D366;
+        }
+
+        .share-options {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .share-option-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            padding: 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .share-option-btn:hover {
+            border-color: #25D366;
+            transform: translateY(-3px);
+        }
+
+        .share-option-icon {
+            font-size: 2rem;
+        }
+
+        .share-toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: #333;
+            color: white;
+            padding: 12px 25px;
+            border-radius: 50px;
+            z-index: 10001;
+            transition: transform 0.3s;
+        }
+
+        .share-toast.show {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* Motivation Modal */
+        .motivation-modal {
+            position: fixed;
+            z-index: 9999;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .motivation-modal-content {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            border-radius: 20px;
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            animation: slideUp 0.4s;
+        }
+
+        .motivation-emoji {
+            font-size: 5rem;
+            margin-bottom: 20px;
+            animation: bounce 2s infinite;
+        }
+
+        .motivation-btn {
+            background: white;
+            color: #667eea;
+            border: none;
+            padding: 12px 40px;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 20px;
+        }
+
+        .motivation-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @media (max-width: 768px) {
+             .header{
+                position: relative;
+            }
+            body {
+                padding-top: 0;
+            }
+            
+            .results-container {
+                margin-top: 20px;
+            }
+            
+            .results-header h1 {
+                font-size: 2rem;
+            }
+            
+            .score-circle {
+                width: 150px;
+                height: 150px;
+            }
+            
+            .score-number {
+                font-size: 3rem;
+            }
+            
+            .subject-row {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            
+            .subject-name {
+                width: 100%;
+            }
+            
+            .subject-score-bar {
+                width: 100%;
+                margin: 10px 0;
+            }
+            
+            .subject-stats {
+                width: 100%;
+                text-align: left;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+            }
+            
+            .share-options {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
+    
+    <!-- Auth Check Script -->
+    <script>
+        (function() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.replace('/auth.html');
+                return;
+            }
+        })();
+    </script>
 </head>
 <body>
     <header class="header">
         <nav class="nav-container">
             <div class="logo">📚 JAMB Simulator 2026</div>
             <ul class="nav-menu">
-                <li><a href="index.html">Home</a></li>
+                <li><a href="home.html">Home</a></li>
                 <li><a href="progress.html">My Progress</a></li>
                 <li><a href="#" id="logoutBtn">Logout</a></li>
             </ul>
@@ -282,7 +574,8 @@
         <div class="action-buttons">
             <button class="action-btn review-btn" onclick="toggleReview()">📝 Review Answers</button>
             <button class="action-btn home-btn" onclick="goHome()">🏠 Back to Home</button>
-            <button class="action-btn share-btn" onclick="shareResults()">📱 Share Results</button>
+            <button class="action-btn whatsapp-btn" onclick="shareResults()">📱 Share on WhatsApp</button>
+            <button class="action-btn share-btn" onclick="showShareOptions()">📋 More Options</button>
         </div>
 
         <div class="review-container" id="reviewSection">
@@ -293,13 +586,56 @@
                 <button class="filter-btn" onclick="filterQuestions('correct')">Correct</button>
                 <button class="filter-btn" onclick="filterQuestions('incorrect')">Incorrect</button>
                 <button class="filter-btn" onclick="filterQuestions('english')">English</button>
-                <button class="filter-btn" onclick="filterQuestions('lekki')">Lekki Headmaster</button>
             </div>
 
             <div id="reviewQuestions"></div>
         </div>
     </div>
 
+    <!-- Motivation Modal -->
+    <div id="motivationModal" class="motivation-modal" style="display: none;">
+        <div class="motivation-modal-content">
+            <div class="motivation-emoji" id="motivationEmoji">🌟</div>
+            <h3 id="motivationQuote">You're doing great!</h3>
+            <p id="motivationMessage">Keep up the amazing work!</p>
+            <button class="motivation-btn" onclick="closeMotivation()">Thanks! 🙏</button>
+        </div>
+    </div>
+
+    <!-- Share Modal -->
+    <div id="shareModal" class="share-modal" style="display: none;">
+        <div class="share-modal-content">
+            <div class="share-modal-header">
+                <h3>📱 Share Your Results</h3>
+                <button onclick="closeShareModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">✖</button>
+            </div>
+            
+            <div class="share-preview" id="sharePreview"></div>
+            
+            <div class="share-options">
+                <button class="share-option-btn" onclick="shareOnWhatsApp()">
+                    <span class="share-option-icon">📱</span>
+                    <span>WhatsApp</span>
+                </button>
+                <button class="share-option-btn" onclick="copyResults()">
+                    <span class="share-option-icon">📋</span>
+                    <span>Copy</span>
+                </button>
+                <button class="share-option-btn" onclick="shareOnTwitter()">
+                    <span class="share-option-icon">🐦</span>
+                    <span>Twitter</span>
+                </button>
+                <button class="share-option-btn" onclick="shareAsImage()">
+                    <span class="share-option-icon">🖼️</span>
+                    <span>As Image</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/streak.js"></script>
+    <script src="js/motivation.js"></script>
+    <script src="js/share.js"></script>
     <script src="js/results.js"></script>
 </body>
 </html>

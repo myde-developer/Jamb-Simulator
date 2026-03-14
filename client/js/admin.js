@@ -3,15 +3,13 @@ const API_BASE = window.location.hostname === 'localhost' || window.location.hos
     ? 'http://localhost:5000'
     : 'https://jamb-simulator-api.onrender.com';
 
-// Admin state
 let currentTab = 'users';
 let currentPage = 1;
 let usersData = [];
 let examsData = [];
 
-// Check admin access
 document.addEventListener('DOMContentLoaded', () => {
-    checkAdminAuth();
+    if (!checkAdminAuth()) return;
     loadStats();
     loadUsers();
     
@@ -23,23 +21,10 @@ function checkAdminAuth() {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const adminFlag = localStorage.getItem('is_admin');
     
-    console.log('Admin auth check:', { 
-        hasToken: !!token, 
-        isAdmin: user.is_admin, 
-        adminFlag: adminFlag 
-    });
-    
-    if (!token) {
-        window.location.href = '/auth.html';
-        return false;
-    }
-    
-    if (!user.is_admin || adminFlag !== 'true') {
-        localStorage.removeItem('is_admin');
+    if (!token || !user.is_admin || adminFlag !== 'true') {
         window.location.href = '/home.html';
         return false;
     }
-    
     return true;
 }
 
@@ -75,29 +60,10 @@ async function loadStats() {
         
     } catch (error) {
         console.error('Error loading stats:', error);
-        document.getElementById('statsCards').innerHTML = `
-            <div class="stat-card">
-                <h3>Total Users</h3>
-                <div class="number">0</div>
-            </div>
-            <div class="stat-card">
-                <h3>Total Exams</h3>
-                <div class="number">0</div>
-            </div>
-            <div class="stat-card">
-                <h3>Questions</h3>
-                <div class="number">0</div>
-            </div>
-            <div class="stat-card">
-                <h3>Avg Score</h3>
-                <div class="number">0%</div>
-            </div>
-        `;
     }
 }
 
 async function loadUsers() {
-    // Show loading state
     document.getElementById('adminPanel').innerHTML = `
         <div style="text-align: center; padding: 3rem;">
             <div class="loading-spinner"></div>
@@ -123,7 +89,6 @@ async function loadUsers() {
         displayUsers();
         
     } catch (error) {
-        console.error('Error loading users:', error);
         document.getElementById('adminPanel').innerHTML = `
             <div class="error-message">
                 <p>❌ Failed to load users. Please try again.</p>
@@ -166,7 +131,6 @@ function displayUsers() {
     
     paginatedUsers.forEach(user => {
         const avgScore = calculateUserAvgScore(user);
-        const scoreClass = avgScore >= 70 ? 'score-high' : avgScore >= 50 ? 'score-medium' : 'score-low';
         
         html += `
             <tr>
@@ -179,7 +143,7 @@ function displayUsers() {
                     </span>
                 </td>
                 <td>${user.exam_count || 0}</td>
-                <td class="${scoreClass}">${avgScore}%</td>
+                <td>${avgScore}%</td>
                 <td>${new Date(user.created_at).toLocaleDateString()}</td>
                 <td>
                     <button onclick="viewUserDetails(${user.id})" class="action-btn">👁️</button>
@@ -206,7 +170,6 @@ function calculateUserAvgScore(user) {
 }
 
 async function loadExams() {
-    // Show loading state
     document.getElementById('adminPanel').innerHTML = `
         <div style="text-align: center; padding: 3rem;">
             <div class="loading-spinner"></div>
@@ -232,7 +195,6 @@ async function loadExams() {
         displayExams();
         
     } catch (error) {
-        console.error('Error loading exams:', error);
         document.getElementById('adminPanel').innerHTML = `
             <div class="error-message">
                 <p>❌ Failed to load exams. Please try again.</p>
@@ -274,15 +236,14 @@ function displayExams() {
     
     paginatedExams.forEach(exam => {
         const percentage = exam.percentage || ((exam.score / exam.total_questions) * 100).toFixed(1);
-        const scoreClass = percentage >= 70 ? 'score-high' : percentage >= 50 ? 'score-medium' : 'score-low';
         
         html += `
             <tr>
                 <td>${new Date(exam.completed_at || exam.started_at).toLocaleString()}</td>
                 <td><strong>${exam.user_name || 'Unknown'}</strong></td>
                 <td>${exam.subjects?.join(', ') || 'JAMB Exam'}</td>
-                <td class="${scoreClass}">${exam.score || 0}/${exam.total_questions || 180}</td>
-                <td class="${scoreClass}">${percentage}%</td>
+                <td>${exam.score || 0}/${exam.total_questions || 180}</td>
+                <td>${percentage}%</td>
                 <td>${calculateTimeSpent(exam.started_at, exam.completed_at)}</td>
                 <td>
                     <button onclick="viewExamDetails(${exam.id})" class="action-btn">👁️</button>
@@ -304,9 +265,7 @@ function displayExams() {
 }
 
 function loadSubjectPerformance() {
-    const panel = document.getElementById('adminPanel');
-    
-    panel.innerHTML = `
+    document.getElementById('adminPanel').innerHTML = `
         <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
             <h2>Subject Performance Analysis</h2>
             <button class="export-btn" onclick="exportData('subjects')">📥 Export CSV</button>
@@ -321,7 +280,6 @@ function loadSubjectPerformance() {
                         <th>Times Answered</th>
                         <th>Correct Answers</th>
                         <th>Success Rate</th>
-                        <th>Most Missed Topic</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -331,7 +289,6 @@ function loadSubjectPerformance() {
                         <td>2,847</td>
                         <td>1,823</td>
                         <td class="score-medium">64%</td>
-                        <td>Oral English</td>
                     </tr>
                     <tr>
                         <td><strong>Mathematics</strong></td>
@@ -339,7 +296,6 @@ function loadSubjectPerformance() {
                         <td>2,156</td>
                         <td>1,294</td>
                         <td class="score-medium">60%</td>
-                        <td>Calculus</td>
                     </tr>
                     <tr>
                         <td><strong>Physics</strong></td>
@@ -347,7 +303,6 @@ function loadSubjectPerformance() {
                         <td>1,984</td>
                         <td>1,190</td>
                         <td class="score-medium">60%</td>
-                        <td>Electricity</td>
                     </tr>
                     <tr>
                         <td><strong>Chemistry</strong></td>
@@ -355,7 +310,6 @@ function loadSubjectPerformance() {
                         <td>2,023</td>
                         <td>1,294</td>
                         <td class="score-medium">64%</td>
-                        <td>Organic Chemistry</td>
                     </tr>
                     <tr>
                         <td><strong>Biology</strong></td>
@@ -363,7 +317,6 @@ function loadSubjectPerformance() {
                         <td>2,312</td>
                         <td>1,618</td>
                         <td class="score-medium">70%</td>
-                        <td>Genetics</td>
                     </tr>
                 </tbody>
             </table>
@@ -372,9 +325,7 @@ function loadSubjectPerformance() {
 }
 
 function loadQuestionBank() {
-    const panel = document.getElementById('adminPanel');
-    
-    panel.innerHTML = `
+    document.getElementById('adminPanel').innerHTML = `
         <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
             <h2>Question Bank Management</h2>
             <button class="export-btn" onclick="exportData('questions')">📥 Export CSV</button>
@@ -395,13 +346,8 @@ function loadQuestionBank() {
             <button style="background: #27ae60;" onclick="showAddQuestionForm()">➕ Add Question</button>
         </div>
         
-        <div id="questionsList">
-            <!-- Questions will be loaded here -->
-        </div>
-        
-        <div class="pagination" id="questionPagination">
-            <!-- Pagination will be loaded here -->
-        </div>
+        <div id="questionsList"></div>
+        <div class="pagination" id="questionPagination"></div>
     `;
     
     loadQuestions();
@@ -417,18 +363,10 @@ function switchTab(tab) {
     event.target.classList.add('active');
     
     switch(tab) {
-        case 'users':
-            loadUsers();
-            break;
-        case 'exams':
-            loadExams();
-            break;
-        case 'subjects':
-            loadSubjectPerformance();
-            break;
-        case 'questions':
-            loadQuestionBank();
-            break;
+        case 'users': loadUsers(); break;
+        case 'exams': loadExams(); break;
+        case 'subjects': loadSubjectPerformance(); break;
+        case 'questions': loadQuestionBank(); break;
     }
 }
 
@@ -438,7 +376,6 @@ function searchUsers() {
         user.full_name?.toLowerCase().includes(searchTerm) ||
         user.email.toLowerCase().includes(searchTerm)
     );
-    
     displayFilteredUsers(filtered);
 }
 
@@ -470,8 +407,6 @@ function displayFilteredUsers(users) {
     `;
     
     users.forEach(user => {
-        const avgScore = calculateUserAvgScore(user);
-        
         html += `
             <tr>
                 <td>#${user.id}</td>
@@ -483,7 +418,7 @@ function displayFilteredUsers(users) {
                     </span>
                 </td>
                 <td>${user.exam_count || 0}</td>
-                <td>${avgScore}%</td>
+                <td>${calculateUserAvgScore(user)}%</td>
                 <td>${new Date(user.created_at).toLocaleDateString()}</td>
                 <td>
                     <button onclick="viewUserDetails(${user.id})" class="action-btn">👁️</button>
@@ -505,25 +440,16 @@ function displayFilteredUsers(users) {
 function generatePagination(totalItems) {
     const totalPages = Math.ceil(totalItems / 10);
     let html = '';
-
     for (let i = 1; i <= totalPages; i++) {
         html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
     }
-    
     return html;
 }
 
 function goToPage(page) {
     currentPage = page;
-    
-    switch(currentTab) {
-        case 'users':
-            displayUsers();
-            break;
-        case 'exams':
-            displayExams();
-            break;
-    }
+    if (currentTab === 'users') displayUsers();
+    else if (currentTab === 'exams') displayExams();
 }
 
 function viewUserDetails(userId) {
@@ -539,12 +465,10 @@ function toggleAdmin(userId) {
     if (confirm('Make this user an admin?')) {
         fetch(`${API_BASE}/api/admin/users/${userId}/make-admin`, {
             method: 'PUT',
-            headers: { 
-                'Authorization': `Bearer ${localStorage.getItem('token')}` 
-            }
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
         })
         .then(response => response.json())
-        .then(data => {
+        .then(() => {
             alert('User role updated!');
             loadUsers();
         })
@@ -583,21 +507,14 @@ function exportData(type) {
 
 function convertToCSV(data) {
     if (data.length === 0) return '';
-    
     const headers = Object.keys(data[0]).join(',');
     const rows = data.map(obj => Object.values(obj).join(','));
-    
     return [headers, ...rows].join('\n');
 }
 
 function calculateTimeSpent(start, end) {
     if (!start || !end) return 'N/A';
-    
-    const startTime = new Date(start);
-    const endTime = new Date(end);
-    const diffMs = endTime - startTime;
-    const diffMins = Math.floor(diffMs / 60000);
-    
+    const diffMins = Math.floor((new Date(end) - new Date(start)) / 60000);
     return `${diffMins} mins`;
 }
 
@@ -608,7 +525,6 @@ function logout() {
     window.location.href = '/auth.html';
 }
 
-// Question Bank Functions
 let questionsData = [];
 let currentQuestionPage = 1;
 let currentSubjectFilter = 'all';
@@ -626,7 +542,6 @@ async function loadQuestions() {
         displayQuestions();
         
     } catch (error) {
-        console.error('Error loading questions:', error);
         document.getElementById('questionsList').innerHTML = '<p class="no-data">No questions found</p>';
     }
 }
@@ -636,9 +551,7 @@ function displayQuestions() {
     
     let filteredQuestions = questionsData;
     if (currentSubjectFilter !== 'all') {
-        filteredQuestions = questionsData.filter(q => 
-            q.subject_id === parseInt(currentSubjectFilter)
-        );
+        filteredQuestions = questionsData.filter(q => q.subject_id === parseInt(currentSubjectFilter));
     }
     
     if (filteredQuestions.length === 0) {
@@ -687,22 +600,15 @@ function displayQuestions() {
         `;
     });
     
-    html += `
-                </tbody>
-            </table>
-        </div>
-    `;
-    
+    html += `</tbody></table></div>`;
     container.innerHTML = html;
     
     const paginationContainer = document.getElementById('questionPagination');
     const totalPages = Math.ceil(filteredQuestions.length / 15);
     let paginationHtml = '';
-    
     for (let i = 1; i <= totalPages; i++) {
         paginationHtml += `<button class="page-btn ${i === currentQuestionPage ? 'active' : ''}" onclick="goToQuestionPage(${i})">${i}</button>`;
     }
-    
     paginationContainer.innerHTML = paginationHtml;
 }
 
@@ -714,10 +620,7 @@ function filterQuestions(subject) {
 
 function searchQuestions() {
     const searchTerm = document.getElementById('questionSearch').value.toLowerCase();
-    const filtered = questionsData.filter(q => 
-        q.question_text.toLowerCase().includes(searchTerm)
-    );
-    
+    const filtered = questionsData.filter(q => q.question_text.toLowerCase().includes(searchTerm));
     const originalQuestions = questionsData;
     questionsData = filtered;
     displayQuestions();
@@ -730,9 +633,7 @@ function goToQuestionPage(page) {
 }
 
 function showAddQuestionForm() {
-    const panel = document.getElementById('adminPanel');
-    
-    panel.innerHTML = `
+    document.getElementById('adminPanel').innerHTML = `
         <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
             <h2>➕ Add New Question</h2>
             <button onclick="switchTab('questions')" style="padding: 10px 20px; background: #95a5a6; color: white; border: none; border-radius: 5px;">← Back to Questions</button>
@@ -741,7 +642,7 @@ function showAddQuestionForm() {
         <form id="questionForm" onsubmit="saveQuestion(event)" style="background: white; padding: 30px; border-radius: 10px;">
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                 <div>
-                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Subject *</label>
+                    <label>Subject *</label>
                     <select id="subject_id" required style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;">
                         <option value="">Select Subject</option>
                         <option value="1">📖 Use of English</option>
@@ -751,48 +652,30 @@ function showAddQuestionForm() {
                         <option value="5">🧬 Biology</option>
                     </select>
                 </div>
-                
                 <div>
-                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Topic</label>
-                    <input type="text" id="topic" placeholder="e.g., Algebra, Cell Biology" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;">
+                    <label>Topic</label>
+                    <input type="text" id="topic" placeholder="e.g., Algebra" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;">
                 </div>
             </div>
             
             <div style="margin-top: 20px;">
-                <label style="display: block; margin-bottom: 5px; font-weight: 600;">Question Text *</label>
-                <textarea id="question_text" rows="3" required placeholder="Enter the question here..." 
-                          style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;"></textarea>
+                <label>Question Text *</label>
+                <textarea id="question_text" rows="3" required placeholder="Enter the question here..." style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;"></textarea>
             </div>
             
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
-                <div>
-                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Option A *</label>
-                    <input type="text" id="option_a" required placeholder="Option A" 
-                           style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;">
-                </div>
-                <div>
-                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Option B *</label>
-                    <input type="text" id="option_b" required placeholder="Option B" 
-                           style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;">
-                </div>
+                <div><label>Option A *</label><input type="text" id="option_a" required placeholder="Option A" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;"></div>
+                <div><label>Option B *</label><input type="text" id="option_b" required placeholder="Option B" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;"></div>
             </div>
             
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
-                <div>
-                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Option C *</label>
-                    <input type="text" id="option_c" required placeholder="Option C" 
-                           style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;">
-                </div>
-                <div>
-                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Option D *</label>
-                    <input type="text" id="option_d" required placeholder="Option D" 
-                           style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;">
-                </div>
+                <div><label>Option C *</label><input type="text" id="option_c" required placeholder="Option C" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;"></div>
+                <div><label>Option D *</label><input type="text" id="option_d" required placeholder="Option D" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;"></div>
             </div>
             
             <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-top: 20px;">
                 <div>
-                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Correct Answer *</label>
+                    <label>Correct Answer *</label>
                     <select id="correct_answer" required style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;">
                         <option value="">Select</option>
                         <option value="A">A</option>
@@ -801,36 +684,27 @@ function showAddQuestionForm() {
                         <option value="D">D</option>
                     </select>
                 </div>
-                
                 <div>
-                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Difficulty</label>
+                    <label>Difficulty</label>
                     <select id="difficulty" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;">
                         <option value="easy">Easy</option>
                         <option value="medium" selected>Medium</option>
                         <option value="hard">Hard</option>
                     </select>
                 </div>
-                
                 <div>
-                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Year</label>
-                    <input type="text" id="year" placeholder="2024" 
-                           style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;">
+                    <label>Year</label>
+                    <input type="text" id="year" placeholder="2024" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;">
                 </div>
             </div>
             
             <div style="margin-top: 20px;">
-                <label style="display: block; margin-bottom: 5px; font-weight: 600;">Explanation (Optional)</label>
-                <textarea id="explanation" rows="2" placeholder="Explain why the correct answer is right..." 
-                          style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;"></textarea>
+                <label>Explanation</label>
+                <textarea id="explanation" rows="2" placeholder="Explain why the correct answer is right..." style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;"></textarea>
             </div>
             
-            <div style="margin-top: 30px; display: flex; gap: 15px;">
-                <button type="submit" style="flex: 1; padding: 15px; background: #27ae60; color: white; border: none; border-radius: 5px; font-size: 1.1rem;">
-                    💾 Save Question
-                </button>
-                <button type="button" onclick="switchTab('questions')" style="flex: 1; padding: 15px; background: #95a5a6; color: white; border: none; border-radius: 5px; font-size: 1.1rem;">
-                    ❌ Cancel
-                </button>
+            <div style="margin-top: 30px;">
+                <button type="submit" style="width: 100%; padding: 15px; background: #27ae60; color: white; border: none; border-radius: 5px; font-size: 1.1rem;">💾 Save Question</button>
             </div>
         </form>
     `;
@@ -852,19 +726,13 @@ async function saveQuestion(event) {
         year: document.getElementById('year').value || new Date().getFullYear().toString()
     };
     
-    if (!questionData.subject_id) {
-        alert('Please select a subject');
-        return;
-    }
-    
-    if (!questionData.question_text) {
-        alert('Please enter question text');
+    if (!questionData.subject_id || !questionData.question_text) {
+        alert('Please fill all required fields');
         return;
     }
     
     try {
         const token = localStorage.getItem('token');
-        
         const response = await fetch(`${API_BASE}/api/admin/questions`, {
             method: 'POST',
             headers: {
@@ -874,84 +742,38 @@ async function saveQuestion(event) {
             body: JSON.stringify(questionData)
         });
         
-        const data = await response.json();
-        
-        if (!response.ok) {
-            throw new Error(data.error || 'Failed to save');
-        }
+        if (!response.ok) throw new Error('Failed to save');
         
         alert('✅ Question added successfully!');
         switchTab('questions');
         
     } catch (error) {
-        console.error('Error saving question:', error);
         alert(`❌ Failed to save question: ${error.message}`);
     }
 }
 
 async function editQuestion(questionId) {
-    try {
-        const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE}/api/admin/questions/${questionId}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
-        if (!response.ok) throw new Error('Failed to load question');
-        
-        const question = await response.json();
-        showEditQuestionForm(question);
-        
-    } catch (error) {
-        console.error('Error loading question:', error);
-        alert('Failed to load question details');
-    }
-}
-
-function showEditQuestionForm(question) {
-    const panel = document.getElementById('adminPanel');
-    
-    panel.innerHTML = `
-        <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
-            <h2>✏️ Edit Question #${question.id}</h2>
-            <button onclick="switchTab('questions')" style="padding: 10px 20px; background: #95a5a6; color: white; border: none; border-radius: 5px;">← Back to Questions</button>
-        </div>
-        
-        <form id="editForm" onsubmit="updateQuestion(event, ${question.id})" style="background: white; padding: 30px; border-radius: 10px;">
-            <!-- Form fields pre-filled with question data -->
-        </form>
-    `;
-}
-
-async function updateQuestion(event, questionId) {
-    event.preventDefault();
-    // Similar to saveQuestion but with PUT method
-    alert('Update functionality - implement as needed');
+    alert('Edit functionality - implement as needed');
 }
 
 async function deleteQuestion(questionId) {
-    if (!confirm('Are you sure you want to delete this question?')) {
-        return;
-    }
+    if (!confirm('Delete this question?')) return;
     
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE}/api/admin/questions/${questionId}`, {
+        await fetch(`${API_BASE}/api/admin/questions/${questionId}`, {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${token}` }
         });
         
-        if (!response.ok) throw new Error('Failed to delete');
-        
-        alert('✅ Question deleted successfully!');
+        alert('✅ Question deleted!');
         loadQuestions();
         
     } catch (error) {
-        console.error('Error deleting question:', error);
         alert('❌ Failed to delete question');
     }
 }
 
-// Make functions global
 window.switchTab = switchTab;
 window.searchUsers = searchUsers;
 window.exportData = exportData;

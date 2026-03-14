@@ -6,7 +6,6 @@ const API_BASE = window.location.hostname === 'localhost' || window.location.hos
 let isLogin = true;
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Check if user already has an active session
     const token = localStorage.getItem('token');
     if (token) {
         redirectBasedOnRole();
@@ -45,8 +44,6 @@ function toggleAuthMode(e) {
         'Already have an account? <a href="#" id="toggleAuth">Login here</a>';
     
     document.getElementById('nameGroup').style.display = isLogin ? 'none' : 'block';
-    
-    // Re-attach event listener
     document.getElementById('toggleAuth').addEventListener('click', toggleAuthMode);
 }
 
@@ -88,30 +85,23 @@ async function handleAuth(e) {
             throw new Error(data.error || 'Authentication failed');
         }
         
-        // Store in localStorage
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
         
-        // ✅ IMPORTANT: Set admin flag if user is admin
         if (data.user.is_admin) {
             localStorage.setItem('is_admin', 'true');
-            console.log('✅ Admin flag set');
-        } else {
-            localStorage.removeItem('is_admin');
         }
         
         showSuccess(data.message);
         
         setTimeout(() => {
             if (isLogin) {
-                // After login - go to appropriate page
                 if (data.user.is_admin) {
                     window.location.href = '/admin.html';
                 } else {
                     window.location.href = '/home.html';
                 }
             } else {
-                // After registration - go back to login page
                 window.location.href = '/auth.html';
             }
         }, 1500);
@@ -136,7 +126,7 @@ async function createDefaultAdmin() {
                     fullName: 'System Administrator'
                 })
             });
-            console.log('✅ Default admin created - Email: admin@jamb.com, Password: Admin123!');
+            console.log('✅ Default admin created');
         }
     } catch (error) {
         console.error('Error creating default admin:', error);

@@ -15,13 +15,7 @@ const jambSubjects = [
 let selectedSubjects = [];
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Double-check authentication (the HTML script already did this)
-    const token = localStorage.getItem('token');
-    if (!token) {
-        window.location.href = '/auth.html';
-        return;
-    }
-    
+    checkAuth();
     loadSubjects();
     checkAdminAccess();
     displayUserInfo();
@@ -29,6 +23,14 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('startExamBtn').addEventListener('click', startExam);
     document.getElementById('logoutBtn').addEventListener('click', logout);
 });
+
+function checkAuth() {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location.href = '/auth.html';
+        return;
+    }
+}
 
 function displayUserInfo() {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -51,6 +53,7 @@ function logout(e) {
     e.preventDefault();
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('is_admin');
     window.location.href = '/auth.html';
 }
 

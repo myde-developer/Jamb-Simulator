@@ -4,53 +4,79 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JAMB Simulator - Admin Panel</title>
-    
-    <!-- ========== ENHANCED ADMIN PROTECTION SCRIPT ========== -->
-    <script>
-        // IMMEDIATE ADMIN CHECK - runs before ANYTHING loads
-        (function() {
-            console.log('🔒 Admin page protection active');
-            
-            // Get auth data
-            const token = localStorage.getItem('token');
-            const user = JSON.parse(localStorage.getItem('user') || '{}');
-            const adminFlag = localStorage.getItem('is_admin');
-            
-            console.log('Admin check:', { 
-                hasToken: !!token, 
-                isAdmin: user.is_admin, 
-                adminFlag: adminFlag 
-            });
-            
-            // MULTI-LAYER SECURITY CHECK
-            if (!token) {
-                console.log('❌ No token - redirecting to login');
-                window.location.replace('/auth.html');
-                return;
-            }
-            
-            if (!user.is_admin || adminFlag !== 'true') {
-                console.log('❌ Not admin - redirecting to home');
-                // Clean up invalid data
-                localStorage.removeItem('is_admin');
-                window.location.replace('/home.html');
-                return;
-            }
-            
-            console.log('✅ Admin authenticated - loading panel');
-        })();
-    </script>
-    <!-- ========== END ADMIN PROTECTION ========== -->
-    
-    <link rel="stylesheet" href="css/style.css">
+    <!-- PWA Meta Tags -->
+<link rel="manifest" href="/manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="JAMB Simulator">
+<link rel="apple-touch-icon" href="/icons/icon-152x152.png">
+<meta name="theme-color" content="#667eea">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Sticky Header Fix -->
     <style>
-        /* Admin Panel Specific Styles */
+    /* Sticky Header */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        body {
+            padding-top: 80px;
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fa;
+        }
+
         .admin-container {
             max-width: 1200px;
-            margin: 100px auto 50px;
+            margin: 20px auto 50px;
             padding: 0 20px;
         }
 
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .nav-menu {
+            display: flex;
+            list-style: none;
+            gap: 2rem;
+            align-items: center;
+            margin: 0;
+            padding: 0;
+        }
+
+        .nav-menu a {
+            color: white;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            transition: background 0.3s;
+        }
+
+        .nav-menu a:hover,
+        .nav-menu a.active {
+            background: rgba(255,255,255,0.2);
+        }
+
+        /* Admin Header */
         .admin-header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -60,6 +86,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
         }
 
         .admin-title h1 {
@@ -258,19 +285,141 @@
             margin-left: auto;
         }
 
-        @media (max-width: 768px) {
-            table {
-                display: block;
-                overflow-x: auto;
-            }
-            
-            .admin-header {
-                flex-direction: column;
-                text-align: center;
-                gap: 15px;
-            }
+        .action-btn {
+            padding: 5px 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            background: #f0f0f0;
+            margin: 0 2px;
+            transition: all 0.3s;
         }
+
+        .action-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 3rem;
+            color: #999;
+            font-size: 1.1rem;
+        }
+
+        .error-message {
+            background: #fee;
+            color: #c00;
+            padding: 2rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .error-message button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 0.8rem 2rem;
+            border-radius: 5px;
+            margin-top: 1rem;
+            cursor: pointer;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .table-responsive {
+            overflow-x: auto;
+        }
+
+@media (max-width: 768px) {
+    body {
+        padding-top: 0;              /* ← Changed from 120px to 0 */
+    }
+    
+    .admin-container {
+        margin-top: 20px;             /* ← Changed from 140px to 20px */
+    }
+    
+    .header {
+        position: relative;           /* ← ADD THIS - makes header scroll */
+    }
+    
+    .nav-container {
+        flex-direction: column;
+        padding: 1rem;
+    }
+    
+    .nav-menu {
+        flex-direction: column;
+        width: 100%;
+        gap: 0.5rem;
+        margin-top: 1rem;
+    }
+    
+    .nav-menu li {
+        width: 100%;
+        text-align: center;
+    }
+    
+    .nav-menu a {
+        display: block;
+    }
+    
+    .admin-header {
+        flex-direction: column;
+        text-align: center;
+        gap: 1rem;
+    }
+    
+    .stats-cards {
+        grid-template-columns: 1fr;
+    }
+    
+    .admin-tabs {
+        flex-direction: column;
+    }
+    
+    .tab-btn {
+        width: 100%;
+    }
+    
+    .search-bar {
+        flex-direction: column;
+    }
+    
+    .search-bar button,
+    .export-btn {
+        width: 100%;
+    }
+}
     </style>
+    
+    <!-- Admin Protection Script -->
+    <script>
+        (function() {
+            const token = localStorage.getItem('token');
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            const adminFlag = localStorage.getItem('is_admin');
+            
+            if (!token || !user.is_admin || adminFlag !== 'true') {
+                window.location.replace('/home.html');
+                return;
+            }
+        })();
+    </script>
 </head>
 <body>
     <header class="header">
@@ -294,9 +443,7 @@
             <button class="admin-logout" onclick="logout()">Logout</button>
         </div>
 
-        <div class="stats-cards" id="statsCards">
-            <!-- Stats will be loaded here -->
-        </div>
+        <div class="stats-cards" id="statsCards"></div>
 
         <div class="admin-tabs">
             <button class="tab-btn active" onclick="switchTab('users')">👥 Users</button>
@@ -305,9 +452,7 @@
             <button class="tab-btn" onclick="switchTab('questions')">❓ Question Bank</button>
         </div>
 
-        <div class="admin-panel" id="adminPanel">
-            <!-- Content will be loaded here -->
-        </div>
+        <div class="admin-panel" id="adminPanel"></div>
     </div>
 
     <script src="js/admin.js"></script>

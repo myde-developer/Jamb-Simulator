@@ -4,15 +4,34 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JAMB Simulator - Login/Register</title>
-    <link rel="stylesheet" href="css/style.css">
+    <!-- PWA Meta Tags -->
+<link rel="manifest" href="/manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="JAMB Simulator">
+<link rel="apple-touch-icon" href="/icons/icon-152x152.png">
+<meta name="theme-color" content="#667eea">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        .auth-container {
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             padding: 20px;
+        }
+        
+        .auth-container {
+            width: 100%;
+            max-width: 400px;
         }
         
         .auth-card {
@@ -20,8 +39,19 @@
             border-radius: 15px;
             padding: 40px;
             width: 100%;
-            max-width: 400px;
             box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            animation: slideUp 0.5s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
         }
         
         .auth-header {
@@ -32,6 +62,7 @@
         .auth-header h2 {
             color: #333;
             margin-bottom: 10px;
+            font-size: 2rem;
         }
         
         .auth-header p {
@@ -61,6 +92,7 @@
         .form-group input:focus {
             outline: none;
             border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102,126,234,0.1);
         }
         
         .auth-btn {
@@ -73,11 +105,12 @@
             font-size: 1.1rem;
             font-weight: 600;
             cursor: pointer;
-            transition: transform 0.3s ease;
+            transition: all 0.3s ease;
         }
         
         .auth-btn:hover {
             transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102,126,234,0.4);
         }
         
         .auth-footer {
@@ -90,30 +123,54 @@
             color: #667eea;
             text-decoration: none;
             font-weight: 600;
+            transition: color 0.3s;
+        }
+        
+        .auth-footer a:hover {
+            color: #764ba2;
+            text-decoration: underline;
         }
         
         .error-message {
             background: #fde8e7;
             color: #e74c3c;
-            padding: 10px;
+            padding: 12px;
             border-radius: 5px;
             margin-bottom: 20px;
             display: none;
+            text-align: center;
+            border-left: 4px solid #e74c3c;
         }
         
         .success-message {
             background: #d4edda;
             color: #155724;
-            padding: 10px;
+            padding: 12px;
             border-radius: 5px;
             margin-bottom: 20px;
             display: none;
+            text-align: center;
+            border-left: 4px solid #27ae60;
+        }
+
+        .logo-large {
+            text-align: center;
+            font-size: 4rem;
+            margin-bottom: 20px;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
         }
     </style>
 </head>
 <body>
     <div class="auth-container">
         <div class="auth-card">
+            <div class="logo-large">📚</div>
+            
             <div class="auth-header">
                 <h2 id="formTitle">Login</h2>
                 <p id="formSubtitle">Welcome back! Login to continue</p>

@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JAMB Simulator - Calculator</title>
+    <!-- PWA Meta Tags -->
+<link rel="manifest" href="/manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="JAMB Simulator">
+<link rel="apple-touch-icon" href="/icons/icon-152x152.png">
+<meta name="theme-color" content="#667eea">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Sticky Header Fix and Styles -->
+    <style>
+        /* Sticky Header */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        body {
+            padding-top: 80px;
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fa;
+        }
+
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .nav-menu {
+            display: flex;
+            list-style: none;
+            gap: 2rem;
+            align-items: center;
+            margin: 0;
+            padding: 0;
+        }
+
+        .nav-menu a {
+            color: white;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            transition: background 0.3s;
+        }
+
+        .nav-menu a:hover,
+        .nav-menu a.active {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .calculator-container {
+            max-width: 500px;
+            margin: 100px auto 50px;
+            padding: 0 20px;
+        }
+
+        .calculator-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .calculator {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .display {
+            background: #f5f7fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: right;
+            min-height: 100px;
+        }
+
+        .expression {
+            font-size: 1.2rem;
+            color: #666;
+            margin-bottom: 5px;
+            min-height: 30px;
+        }
+
+        .result {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #333;
+            font-family: monospace;
+        }
+
+        .memory-display {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0 10px;
+            text-align: center;
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .memory-value {
+            font-family: monospace;
+            font-size: 1.5rem;
+        }
+
+        .memory-buttons {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .memory-btn {
+            padding: 15px;
+            background: #f8f9fa;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+
+        .memory-btn:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .buttons {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+
+        .calc-btn {
+            padding: 20px;
+            font-size: 1.5rem;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+
+        .calc-btn.number {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .calc-btn.number:hover {
+            background: #667eea;
+            color: white;
+            transform: scale(0.95);
+        }
+
+        .calc-btn.operator {
+            background: #667eea;
+            color: white;
+        }
+
+        .calc-btn.operator:hover {
+            background: #5a6fd8;
+            transform: scale(0.95);
+        }
+
+        .calc-btn.equals {
+            background: #27ae60;
+            color: white;
+            grid-column: span 2;
+        }
+
+        .calc-btn.clear {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .calc-btn.backspace {
+            background: #f39c12;
+            color: white;
+        }
+
+        .scientific-buttons {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .sci-btn {
+            padding: 15px;
+            background: #f8f9fa;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+
+        .sci-btn:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        @media (max-width: 480px) {
+              .header{
+                position: relative;
+            }
+            body {
+                padding-top: 0;
+            }
+            
+            .calculator-container {
+                margin-top: 20px;
+            }
+            
+            .calc-btn {
+                padding: 15px;
+                font-size: 1.2rem;
+            }
+            
+            .memory-buttons {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .scientific-buttons {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+    
+    <!-- Auth Check Script -->
+    <script>
+        (function() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.replace('/auth.html');
+                return;
+            }
+        })();
+    </script>
+</head>
+<body>
+    <header class="header">
+        <nav class="nav-container">
+            <div class="logo">📚 JAMB Simulator 2026</div>
+            <ul class="nav-menu">
+                <li><a href="home.html">Home</a></li>
+                <li><a href="practice.html">🎯 Practice</a></li>
+                <li><a href="flashcards.html">📇 Flashcards</a></li>
+                <li><a href="progress.html">📊 Progress</a></li>
+                <li><a href="planner.html">📅 Planner</a></li>
+                <li><a href="achievements.html">🏆 Achievements</a></li>
+                <li><a href="leaderboard.html">📊 Leaderboard</a></li>
+                <li><a href="calculator.html" class="active">🧮 Calculator</a></li>
+                <li><a href="#" id="adminLink" style="display: none;">Admin</a></li>
+                <li><a href="#" id="logoutBtn">Logout</a></li>
+                <li><span id="userInfo"></span></li>
+                <li><div id="streakDisplay" class="streak-display"></div></li>
+            </ul>
+        </nav>
+    </header>
+
+    <div class="calculator-container">
+        <div class="calculator-header">
+            <h1>🧮 Scientific Calculator</h1>
+            <p>Use this calculator during your practice exams</p>
+        </div>
+        
+        <div class="calculator">
+            <div class="memory-display">
+                <span>Memory: </span>
+                <span class="memory-value" id="memoryValue">0</span>
+            </div>
+            
+            <div class="display">
+                <div class="expression" id="expression"></div>
+                <div class="result" id="result">0</div>
+            </div>
+            
+            <div class="memory-buttons">
+                <button class="memory-btn" onclick="memoryClear()">MC</button>
+                <button class="memory-btn" onclick="memoryRecall()">MR</button>
+                <button class="memory-btn" onclick="memoryAdd()">M+</button>
+                <button class="memory-btn" onclick="memorySubtract()">M-</button>
+            </div>
+            
+            <div class="buttons">
+                <button class="calc-btn clear" onclick="clearAll()">C</button>
+                <button class="calc-btn backspace" onclick="backspace()">⌫</button>
+                <button class="calc-btn operator" onclick="appendOperator('%')">%</button>
+                <button class="calc-btn operator" onclick="appendOperator('/')">÷</button>
+                
+                <button class="calc-btn number" onclick="appendNumber('7')">7</button>
+                <button class="calc-btn number" onclick="appendNumber('8')">8</button>
+                <button class="calc-btn number" onclick="appendNumber('9')">9</button>
+                <button class="calc-btn operator" onclick="appendOperator('*')">×</button>
+                
+                <button class="calc-btn number" onclick="appendNumber('4')">4</button>
+                <button class="calc-btn number" onclick="appendNumber('5')">5</button>
+                <button class="calc-btn number" onclick="appendNumber('6')">6</button>
+                <button class="calc-btn operator" onclick="appendOperator('-')">−</button>
+                
+                <button class="calc-btn number" onclick="appendNumber('1')">1</button>
+                <button class="calc-btn number" onclick="appendNumber('2')">2</button>
+                <button class="calc-btn number" onclick="appendNumber('3')">3</button>
+                <button class="calc-btn operator" onclick="appendOperator('+')">+</button>
+                
+                <button class="calc-btn number" onclick="appendNumber('0')">0</button>
+                <button class="calc-btn number" onclick="appendNumber('.')">.</button>
+                <button class="calc-btn equals" colspan="2" onclick="calculate()">=</button>
+            </div>
+            
+            <div class="scientific-buttons">
+                <button class="sci-btn" onclick="scientific('sin')">sin</button>
+                <button class="sci-btn" onclick="scientific('cos')">cos</button>
+                <button class="sci-btn" onclick="scientific('tan')">tan</button>
+                <button class="sci-btn" onclick="scientific('log')">log</button>
+                <button class="sci-btn" onclick="scientific('ln')">ln</button>
+                <button class="sci-btn" onclick="scientific('sqrt')">√</button>
+                <button class="sci-btn" onclick="scientific('square')">x²</button>
+                <button class="sci-btn" onclick="scientific('fact')">n!</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/calculator.js"></script>
+</body>
+</html>

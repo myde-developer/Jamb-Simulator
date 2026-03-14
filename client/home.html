@@ -4,31 +4,353 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JAMB Exam Simulator 2026 - Home</title>
+    <!-- PWA Meta Tags -->
+<link rel="manifest" href="/manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="JAMB Simulator">
+<link rel="apple-touch-icon" href="/icons/icon-152x152.png">
+<meta name="theme-color" content="#667eea">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Sticky Header Fix and Styles -->
+    <style>
+        /* Sticky Header */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        body {
+            padding-top: 80px;
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fa;
+        }
+
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .nav-menu {
+            display: flex;
+            list-style: none;
+            gap: 2rem;
+            align-items: center;
+            margin: 0;
+            padding: 0;
+        }
+
+        .nav-menu a {
+            color: white;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            transition: background 0.3s;
+        }
+
+        .nav-menu a:hover,
+        .nav-menu a.active {
+            background: rgba(255,255,255,0.2);
+        }
+
+        #userInfo {
+            color: white;
+            font-weight: 600;
+        }
+
+        main {
+            max-width: 1200px;
+            margin: 100px auto 50px;
+            padding: 0 20px;
+        }
+
+        .hero {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            text-align: center;
+            padding: 4rem 2rem;
+            border-radius: 15px;
+            margin-bottom: 3rem;
+        }
+
+        .hero h1 {
+            font-size: 2.5rem;
+            color: #333;
+            margin-bottom: 1rem;
+        }
+
+        .hero p {
+            font-size: 1.2rem;
+            color: #666;
+        }
+
+        .hero-small {
+            font-size: 1rem;
+            color: #667eea;
+            margin-top: 10px;
+        }
+
+        .subject-section {
+            margin: 3rem 0;
+        }
+
+        .subject-section h2 {
+            text-align: center;
+            margin-bottom: 1rem;
+            color: #444;
+        }
+
+        .instruction {
+            text-align: center;
+            color: #666;
+            margin-bottom: 2rem;
+        }
+
+        .subjects-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .subject-card {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .subject-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border-color: #667eea;
+        }
+
+        .subject-card.selected {
+            border-color: #667eea;
+            background: #f0f3ff;
+        }
+
+        .subject-card.english {
+            background: #e8f0fe;
+            border-color: #4a6fa5;
+        }
+
+        .subject-name {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+
+        .subject-code {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .check-icon {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: #667eea;
+            font-size: 1.2rem;
+            display: none;
+        }
+
+        .subject-card.selected .check-icon {
+            display: block;
+        }
+
+        .selection-info {
+            text-align: center;
+            margin-top: 2rem;
+            padding: 1rem;
+            background: #f5f5f5;
+            border-radius: 8px;
+        }
+
+        #selectedCount {
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .question-info {
+            text-align: center;
+            color: #667eea;
+            font-weight: 600;
+            margin: 10px 0;
+        }
+
+        .start-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 1rem 3rem;
+            font-size: 1.2rem;
+            border-radius: 50px;
+            cursor: pointer;
+            margin-top: 1rem;
+            transition: all 0.3s;
+        }
+
+        .start-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .start-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin: 4rem 0;
+        }
+
+        .feature-card {
+            text-align: center;
+            padding: 2rem;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .feature-card h3 {
+            margin-bottom: 1rem;
+            color: #444;
+        }
+
+        .feature-card p {
+            color: #666;
+            font-size: 0.95rem;
+        }
+
+        .footer {
+            background: #333;
+            color: white;
+            text-align: center;
+            padding: 2rem;
+            margin-top: 4rem;
+        }
+
+        .footer-small {
+            font-size: 0.9rem;
+            opacity: 0.8;
+            margin-top: 10px;
+        }
+
+        .streak-display {
+            display: inline-flex;
+            align-items: center;
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+            color: white;
+            padding: 5px 15px;
+            border-radius: 50px;
+            margin-left: 15px;
+            box-shadow: 0 2px 10px rgba(243, 156, 18, 0.3);
+        }
+@media (max-width: 768px) {
+    /* Remove the padding-top - header will scroll naturally */
+    body {
+        padding-top: 0;              /* ← Changed from 120px to 0 */
+    }
     
-    <!-- ========== ADD THIS SECURITY CHECK ========== -->
+    main {
+        margin-top: 20px;             /* ← Changed from 140px to 20px */
+    }
+    
+    /* Make header scroll on mobile */
+    .header {
+        position: relative;           /* ← ADD THIS - makes header scroll */
+        /* Keep all other header styles */
+    }
+    
+    /* Rest of your mobile styles stay the same */
+    .nav-container {
+        flex-direction: column;
+        padding: 1rem;
+    }
+    
+    .nav-menu {
+        flex-direction: column;
+        width: 100%;
+        gap: 0.5rem;
+        margin-top: 1rem;
+    }
+    
+    .nav-menu li {
+        width: 100%;
+        text-align: center;
+    }
+    
+    .nav-menu a {
+        display: block;
+        padding: 0.5rem;
+    }
+    
+    .hero h1 {
+        font-size: 1.8rem;
+    }
+    
+    .subjects-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .features {
+        grid-template-columns: 1fr;
+    }
+    
+    .streak-display {
+        margin-left: 0;
+        margin-top: 10px;
+        width: 100%;
+        justify-content: center;
+    }
+}
+    </style>
+    
+    <!-- Auth Check Script -->
     <script>
-        // IMMEDIATE AUTH CHECK - runs before page loads
         (function() {
             const token = localStorage.getItem('token');
-            
-            // If no token, redirect to login page immediately
             if (!token) {
                 window.location.replace('/auth.html');
                 return;
             }
-            
-            // Optional: Check if user is admin and redirect
-            const user = JSON.parse(localStorage.getItem('user') || '{}');
-            if (user.is_admin) {
-                // Comment this out if you want admins to access home page too
-                // window.location.replace('/admin.html');
-                // return;
-            }
         })();
     </script>
-    <!-- ========== END SECURITY CHECK ========== -->
-    
-    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
     <header class="header">
@@ -36,10 +358,16 @@
             <div class="logo">📚 JAMB Simulator 2026</div>
             <ul class="nav-menu">
                 <li><a href="home.html" class="active">Home</a></li>
-                <li><a href="progress.html">My Progress</a></li>
+                <li><a href="practice.html">🎯 Practice</a></li>
+                <li><a href="flashcards.html">📇 Flashcards</a></li>
+                <li><a href="progress.html">📊 Progress</a></li>
+                <li><a href="planner.html">📅 Planner</a></li>
+                <li><a href="achievements.html">🏆 Achievements</a></li>
+                <li><a href="leaderboard.html">📊 Leaderboard</a></li>
                 <li><a href="#" id="adminLink" style="display: none;">Admin</a></li>
                 <li><a href="#" id="logoutBtn">Logout</a></li>
                 <li><span id="userInfo"></span></li>
+                <li><div id="streakDisplay" class="streak-display"></div></li>
             </ul>
         </nav>
     </header>
@@ -56,9 +384,7 @@
             <h2>Select Your Subjects</h2>
             <p class="instruction">English is compulsory. Choose 3 more subjects.</p>
             
-            <div class="subjects-grid" id="subjectsContainer">
-                <!-- Subjects will be loaded here -->
-            </div>
+            <div class="subjects-grid" id="subjectsContainer"></div>
 
             <div class="selection-info">
                 <p>Selected: <span id="selectedCount">1</span>/4 subjects</p>
@@ -96,6 +422,7 @@
         <p class="footer-small">For Science Students Only</p>
     </footer>
 
+    <script src="js/streak.js"></script>
     <script src="js/main.js"></script>
 </body>
 </html>

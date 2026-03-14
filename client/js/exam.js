@@ -8,22 +8,32 @@ let examState = {
     questions: [],
     currentIndex: 0,
     answers: {},
-    timeRemaining: 7200, // 2 hours
+    timeRemaining: 7200,
     timerInterval: null,
     subjects: [],
     examId: null,
     startTime: null
 };
 
+// Calculator state
+let examCalculator = {
+    currentInput: '',
+    previousInput: '',
+    operator: null,
+    memory: 0,
+    shouldReset: false
+};
+
 // Initialize
-document.addEventListener('DOMContentLoaded', () => {
-    // Check if user is logged in
-    const token = sessionStorage.getItem('token');
+(function() {
+    const token = localStorage.getItem('token');
     if (!token) {
-        window.location.href = '/auth.html';
+        window.location.replace('/auth.html');
         return;
     }
-    
+})();
+
+document.addEventListener('DOMContentLoaded', () => {
     loadExamData();
     setupEventListeners();
     startTimer();
@@ -31,26 +41,33 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function displayUserInfo() {
-    const user = JSON.parse(sessionStorage.getItem('user') || '{}');
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
     const userInfo = document.getElementById('userInfo');
-    if (user.full_name) {
+    if (userInfo && user.full_name) {
         userInfo.textContent = `Welcome, ${user.full_name}`;
     }
 }
 
 function loadExamData() {
-    const selectedSubjects = JSON.parse(sessionStorage.getItem('jambSelectedSubjects')) || [];
+    const selectedSubjects = JSON.parse(localStorage.getItem('jambSelectedSubjects'));
+    
+    if (!selectedSubjects || selectedSubjects.length === 0) {
+        alert('No subjects selected. Please go back and select subjects.');
+        window.location.href = '/home.html';
+        return;
+    }
+    
     examState.subjects = selectedSubjects;
     examState.startTime = new Date().toISOString();
     
     displaySubjectsBadge(selectedSubjects);
-    
-    // Try API first, fallback to sample data
     fetchExamQuestions(selectedSubjects);
 }
 
 function displaySubjectsBadge(subjects) {
     const badgeContainer = document.getElementById('subjectsBadge');
+    if (!badgeContainer) return;
+    
     badgeContainer.innerHTML = subjects.map(s => 
         `<span class="subject-tag">${s.code}</span>`
     ).join('');
@@ -59,21 +76,21 @@ function displaySubjectsBadge(subjects) {
 async function fetchExamQuestions(subjects) {
     try {
         document.getElementById('questionContainer').innerHTML = 
-            '<div style="text-align: center; padding: 50px;">Loading 180 questions from 2,000+ database...</div>';
+            '<div style="text-align: center; padding: 50px;">Loading 180 questions...</div>';
         
-        const token = sessionStorage.getItem('token');
+        const token = localStorage.getItem('token');
         const response = await fetch(`${API_BASE}/api/exam/questions`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': token ? `Bearer ${token}` : ''
+                'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({
                 subjects: subjects.map(s => ({ id: s.id, name: s.name }))
             })
         });
         
-        if (!response.ok) throw new Error('API failed');
+        if (!response.ok) throw new Error('Failed to fetch questions');
         
         const questions = await response.json();
         examState.questions = questions;
@@ -83,45 +100,20 @@ async function fetchExamQuestions(subjects) {
         renderPalette();
         
     } catch (error) {
-        console.log('Using local questions:', error);
-        loadLocalQuestions();
+        document.getElementById('questionContainer').innerHTML = `
+            <div style="text-align: center; padding: 50px; color: #e74c3c;">
+                ❌ Failed to load questions. Please try again.
+                <br><br>
+                <button onclick="location.reload()" style="padding: 10px 20px;">Retry</button>
+            </div>
+        `;
     }
-}
-
-function loadLocalQuestions() {
-    // Sample questions for demo (in production, these come from DB)
-    const questions = [];
-    const subjects = examState.subjects;
-    
-    subjects.forEach(subject => {
-        const count = subject.name === 'Use of English' ? 60 : 40;
-        for (let i = 1; i <= count; i++) {
-            questions.push({
-                id: `${subject.id}-${i}`,
-                subjectId: subject.id,
-                subject: subject.name,
-                question: `${subject.name} Question ${i}: This is a sample JAMB-style question to test your knowledge.`,
-                options: {
-                    A: 'First option',
-                    B: 'Second option', 
-                    C: 'Third option',
-                    D: 'Fourth option'
-                },
-                correctAnswer: ['A', 'B', 'C', 'D'][Math.floor(Math.random() * 4)],
-                explanation: 'This is a sample explanation for the correct answer.'
-            });
-        }
-    });
-    
-    examState.questions = shuffleArray(questions);
-    examState.examId = generateExamId();
-    
-    renderQuestion(0);
-    renderPalette();
 }
 
 function renderQuestion(index) {
     const question = examState.questions[index];
+    if (!question) return;
+    
     const container = document.getElementById('questionContainer');
     const savedAnswer = examState.answers[question.id];
     
@@ -149,7 +141,8 @@ function selectAnswer(questionId, answer) {
     examState.answers[questionId] = answer;
     
     document.querySelectorAll('.option').forEach(opt => {
-        if (opt.querySelector('.option-letter').textContent === answer) {
+        const letter = opt.querySelector('.option-letter').textContent;
+        if (letter === answer) {
             opt.classList.add('selected');
         } else {
             opt.classList.remove('selected');
@@ -157,33 +150,12 @@ function selectAnswer(questionId, answer) {
     });
     
     updatePaletteItem(questionId);
-    saveAnswerToServer(questionId, answer);
-}
-
-async function saveAnswerToServer(questionId, answer) {
-    if (!examState.examId) return;
-    
-    try {
-        const token = sessionStorage.getItem('token');
-        await fetch(`${API_BASE}/api/exam/save-answer`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': token ? `Bearer ${token}` : ''
-            },
-            body: JSON.stringify({
-                examId: examState.examId,
-                questionId: questionId,
-                selectedAnswer: answer
-            })
-        });
-    } catch (error) {
-        // Silently fail - answers saved locally
-    }
 }
 
 function renderPalette() {
     const palette = document.getElementById('paletteGrid');
+    if (!palette) return;
+    
     palette.innerHTML = examState.questions.map((q, index) => {
         const answered = examState.answers[q.id] ? 'answered' : 'unanswered';
         const current = index === examState.currentIndex ? 'current' : '';
@@ -223,6 +195,8 @@ function updateNavButtons() {
     const nextBtn = document.getElementById('nextBtn');
     const submitBtn = document.getElementById('submitBtn');
     
+    if (!prevBtn || !nextBtn || !submitBtn) return;
+    
     prevBtn.disabled = examState.currentIndex === 0;
     
     if (examState.currentIndex === examState.questions.length - 1) {
@@ -237,7 +211,10 @@ function updateNavButtons() {
 function updateProgress() {
     const answeredCount = Object.keys(examState.answers).length;
     const progress = (answeredCount / examState.questions.length) * 100;
-    document.getElementById('progressFill').style.width = `${progress}%`;
+    const progressFill = document.getElementById('progressFill');
+    if (progressFill) {
+        progressFill.style.width = `${progress}%`;
+    }
 }
 
 function startTimer() {
@@ -259,6 +236,8 @@ function updateTimerDisplay() {
     const seconds = examState.timeRemaining % 60;
     
     const timerElement = document.getElementById('timer');
+    if (!timerElement) return;
+    
     timerElement.textContent = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
     
     if (examState.timeRemaining < 300) {
@@ -269,21 +248,21 @@ function updateTimerDisplay() {
 }
 
 function setupEventListeners() {
-    document.getElementById('prevBtn').addEventListener('click', () => {
+    document.getElementById('prevBtn')?.addEventListener('click', () => {
         if (examState.currentIndex > 0) {
             examState.currentIndex--;
             renderQuestion(examState.currentIndex);
         }
     });
     
-    document.getElementById('nextBtn').addEventListener('click', () => {
+    document.getElementById('nextBtn')?.addEventListener('click', () => {
         if (examState.currentIndex < examState.questions.length - 1) {
             examState.currentIndex++;
             renderQuestion(examState.currentIndex);
         }
     });
     
-    document.getElementById('submitBtn').addEventListener('click', submitExam);
+    document.getElementById('submitBtn')?.addEventListener('click', submitExam);
 }
 
 function submitExam() {
@@ -295,14 +274,9 @@ function submitExam() {
     
     clearInterval(examState.timerInterval);
     
-    // Calculate JAMB scores
     const results = calculateJAMBScores();
     
-    // Save results
-    saveExamResults(results);
-    
-    // Store for results page
-    sessionStorage.setItem('lastExamResults', JSON.stringify({
+    localStorage.setItem('lastExamResults', JSON.stringify({
         questions: examState.questions,
         answers: examState.answers,
         scores: results,
@@ -318,7 +292,6 @@ function calculateJAMBScores() {
     let englishTotal = 0;
     let otherCorrect = 0;
     let otherTotal = 0;
-    
     const subjectScores = {};
     
     examState.questions.forEach(q => {
@@ -361,42 +334,197 @@ function calculateJAMBScores() {
     };
 }
 
-async function saveExamResults(results) {
-    try {
-        const token = sessionStorage.getItem('token');
-        await fetch(`${API_BASE}/api/exam/complete`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': token ? `Bearer ${token}` : ''
-            },
-            body: JSON.stringify({
-                examId: examState.examId,
-                subjects: examState.subjects.map(s => s.id),
-                score: results.total,
-                percentage: results.percentage,
-                answers: examState.answers,
-                startTime: examState.startTime,
-                endTime: new Date().toISOString()
-            })
-        });
-    } catch (error) {
-        console.log('Results saved locally');
-    }
-}
-
 function generateExamId() {
     return 'EXAM_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 }
 
-function shuffleArray(array) {
-    for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
+// Calculator functions
+function toggleCalculator() {
+    const modal = document.getElementById('calculatorModal');
+    const btn = document.getElementById('calculatorToggle');
+    
+    if (modal.style.display === 'none') {
+        modal.style.display = 'block';
+        btn.textContent = '🧮 Hide Calculator';
+        renderCalculator();
+    } else {
+        modal.style.display = 'none';
+        btn.textContent = '🧮 Show Calculator';
     }
-    return array;
 }
 
-// Make functions global for onclick handlers
+function renderCalculator() {
+    const container = document.getElementById('examCalculator');
+    
+    container.innerHTML = `
+        <div class="calc-display">
+            <div class="calc-expression" id="calcExpression"></div>
+            <div class="calc-result" id="calcResult">0</div>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 10px;">
+            <button class="calc-btn operator" onclick="calculatorMemory('clear')">MC</button>
+            <button class="calc-btn operator" onclick="calculatorMemory('recall')">MR</button>
+            <button class="calc-btn operator" onclick="calculatorMemory('add')">M+</button>
+            <button class="calc-btn operator" onclick="calculatorMemory('subtract')">M-</button>
+        </div>
+        
+        <div class="calc-grid">
+            <button class="calc-btn clear" onclick="calculatorClear()">C</button>
+            <button class="calc-btn operator" onclick="calculatorAppend('%')">%</button>
+            <button class="calc-btn operator" onclick="calculatorAppend('/')">÷</button>
+            <button class="calc-btn operator" onclick="calculatorBackspace()">⌫</button>
+            
+            <button class="calc-btn number" onclick="calculatorAppend('7')">7</button>
+            <button class="calc-btn number" onclick="calculatorAppend('8')">8</button>
+            <button class="calc-btn number" onclick="calculatorAppend('9')">9</button>
+            <button class="calc-btn operator" onclick="calculatorAppend('*')">×</button>
+            
+            <button class="calc-btn number" onclick="calculatorAppend('4')">4</button>
+            <button class="calc-btn number" onclick="calculatorAppend('5')">5</button>
+            <button class="calc-btn number" onclick="calculatorAppend('6')">6</button>
+            <button class="calc-btn operator" onclick="calculatorAppend('-')">−</button>
+            
+            <button class="calc-btn number" onclick="calculatorAppend('1')">1</button>
+            <button class="calc-btn number" onclick="calculatorAppend('2')">2</button>
+            <button class="calc-btn number" onclick="calculatorAppend('3')">3</button>
+            <button class="calc-btn operator" onclick="calculatorAppend('+')">+</button>
+            
+            <button class="calc-btn number" onclick="calculatorAppend('0')">0</button>
+            <button class="calc-btn number" onclick="calculatorAppend('.')">.</button>
+            <button class="calc-btn equals" colspan="2" onclick="calculatorCalculate()">=</button>
+        </div>
+        
+        <div style="margin-top: 15px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
+            <button class="calc-btn operator" onclick="calculatorScientific('sqrt')">√</button>
+            <button class="calc-btn operator" onclick="calculatorScientific('square')">x²</button>
+            <button class="calc-btn operator" onclick="calculatorScientific('sin')">sin</button>
+            <button class="calc-btn operator" onclick="calculatorScientific('cos')">cos</button>
+        </div>
+    `;
+    
+    updateCalculatorDisplay();
+}
+
+function calculatorAppend(value) {
+    if (value === '.' && examCalculator.currentInput.includes('.')) return;
+    examCalculator.currentInput += value;
+    updateCalculatorDisplay();
+}
+
+function calculatorOperator(op) {
+    if (examCalculator.previousInput !== '' && examCalculator.currentInput !== '') {
+        calculatorCalculate();
+    }
+    examCalculator.operator = op;
+    if (examCalculator.currentInput !== '') {
+        examCalculator.previousInput = examCalculator.currentInput;
+        examCalculator.currentInput = '';
+    }
+    updateCalculatorDisplay();
+}
+
+function calculatorCalculate() {
+    if (!examCalculator.operator || examCalculator.previousInput === '' || examCalculator.currentInput === '') return;
+    
+    let result;
+    const prev = parseFloat(examCalculator.previousInput);
+    const curr = parseFloat(examCalculator.currentInput);
+    
+    switch(examCalculator.operator) {
+        case '+': result = prev + curr; break;
+        case '-': result = prev - curr; break;
+        case '*': result = prev * curr; break;
+        case '/': 
+            if (curr === 0) {
+                alert('Cannot divide by zero!');
+                return;
+            }
+            result = prev / curr; 
+            break;
+        case '%': result = prev % curr; break;
+        default: return;
+    }
+    
+    examCalculator.currentInput = result.toString();
+    examCalculator.operator = null;
+    examCalculator.previousInput = '';
+    updateCalculatorDisplay();
+}
+
+function calculatorScientific(func) {
+    if (examCalculator.currentInput === '') return;
+    
+    let value = parseFloat(examCalculator.currentInput);
+    let result;
+    
+    switch(func) {
+        case 'sqrt': result = Math.sqrt(value); break;
+        case 'square': result = Math.pow(value, 2); break;
+        case 'sin': result = Math.sin(value * Math.PI / 180); break;
+        case 'cos': result = Math.cos(value * Math.PI / 180); break;
+        default: return;
+    }
+    
+    examCalculator.currentInput = result.toString();
+    updateCalculatorDisplay();
+}
+
+function calculatorMemory(action) {
+    switch(action) {
+        case 'clear': examCalculator.memory = 0; break;
+        case 'recall': 
+            examCalculator.currentInput = examCalculator.memory.toString();
+            break;
+        case 'add': 
+            if (examCalculator.currentInput !== '') {
+                examCalculator.memory += parseFloat(examCalculator.currentInput);
+            }
+            break;
+        case 'subtract':
+            if (examCalculator.currentInput !== '') {
+                examCalculator.memory -= parseFloat(examCalculator.currentInput);
+            }
+            break;
+    }
+    updateCalculatorDisplay();
+}
+
+function calculatorClear() {
+    examCalculator.currentInput = '';
+    examCalculator.previousInput = '';
+    examCalculator.operator = null;
+    updateCalculatorDisplay();
+}
+
+function calculatorBackspace() {
+    examCalculator.currentInput = examCalculator.currentInput.slice(0, -1);
+    updateCalculatorDisplay();
+}
+
+function updateCalculatorDisplay() {
+    const expression = document.getElementById('calcExpression');
+    const result = document.getElementById('calcResult');
+    
+    if (expression) {
+        if (examCalculator.operator && examCalculator.previousInput) {
+            expression.textContent = `${examCalculator.previousInput} ${examCalculator.operator}`;
+        } else {
+            expression.textContent = '';
+        }
+    }
+    if (result) {
+        result.textContent = examCalculator.currentInput || '0';
+    }
+}
+
 window.selectAnswer = selectAnswer;
 window.jumpToQuestion = jumpToQuestion;
+window.toggleCalculator = toggleCalculator;
+window.calculatorAppend = calculatorAppend;
+window.calculatorOperator = calculatorOperator;
+window.calculatorCalculate = calculatorCalculate;
+window.calculatorClear = calculatorClear;
+window.calculatorBackspace = calculatorBackspace;
+window.calculatorMemory = calculatorMemory;
+window.calculatorScientific = calculatorScientific;
