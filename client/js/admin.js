@@ -710,8 +710,15 @@ function showAddQuestionForm() {
     `;
 }
 async function saveQuestion(event) {
-    event.preventDefault();
+    // ✅ FIX: Check if event exists
+    if (!event) {
+        console.error('No event object received');
+        return;
+    }
     
+    event.preventDefault(); // Now safe to call
+    
+    // Get form values
     const questionData = {
         subject_id: parseInt(document.getElementById('subject_id').value),
         question_text: document.getElementById('question_text').value,
@@ -726,13 +733,32 @@ async function saveQuestion(event) {
         year: document.getElementById('year').value || new Date().getFullYear().toString()
     };
     
-    if (!questionData.subject_id || !questionData.question_text) {
-        alert('Please fill all required fields');
+    // Validate required fields
+    if (!questionData.subject_id) {
+        alert('Please select a subject');
+        return;
+    }
+    
+    if (!questionData.question_text) {
+        alert('Please enter question text');
+        return;
+    }
+    
+    if (!questionData.option_a || !questionData.option_b || !questionData.option_c || !questionData.option_d) {
+        alert('Please fill all options');
+        return;
+    }
+    
+    if (!questionData.correct_answer) {
+        alert('Please select the correct answer');
         return;
     }
     
     try {
         const token = localStorage.getItem('token');
+        
+        console.log('Saving question:', questionData); // Debug log
+        
         const response = await fetch(`${API_BASE}/api/admin/questions`, {
             method: 'POST',
             headers: {
@@ -742,12 +768,17 @@ async function saveQuestion(event) {
             body: JSON.stringify(questionData)
         });
         
-        if (!response.ok) throw new Error('Failed to save');
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to save');
+        }
         
         alert('✅ Question added successfully!');
-        switchTab('questions');
+        switchTab('questions'); // Go back to questions list
         
     } catch (error) {
+        console.error('Error saving question:', error);
         alert(`❌ Failed to save question: ${error.message}`);
     }
 }
