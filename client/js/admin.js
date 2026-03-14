@@ -580,13 +580,14 @@ function displayQuestions() {
                 <tbody>
     `;
     
-    paginatedQuestions.forEach(q => {
+    paginatedQuestions.forEach((q, index) => {
         const difficultyColor = q.difficulty === 'easy' ? '#27ae60' : 
                                 q.difficulty === 'medium' ? '#f39c12' : '#e74c3c';
         
+        // The ID now matches the sequential number from database
         html += `
             <tr>
-                <td>#${q.id}</td>
+                <td><strong>${q.id}</strong></td>  <!-- This will now be sequential -->
                 <td><span class="badge" style="background: #667eea; color: white;">${q.subject_code || 'ENG'}</span></td>
                 <td style="max-width: 300px;">${q.question_text.substring(0, 60)}...</td>
                 <td style="font-weight: bold; color: #27ae60;">${q.correct_answer}</td>
@@ -603,6 +604,7 @@ function displayQuestions() {
     html += `</tbody></table></div>`;
     container.innerHTML = html;
     
+    // Update pagination
     const paginationContainer = document.getElementById('questionPagination');
     const totalPages = Math.ceil(filteredQuestions.length / 15);
     let paginationHtml = '';
@@ -783,25 +785,240 @@ async function saveQuestion(event) {
     }
 }
 
+// ============================================
+// EDIT QUESTION FUNCTIONALITY
+// ============================================
+
 async function editQuestion(questionId) {
-    alert('Edit functionality - implement as needed');
+    try {
+        const token = localStorage.getItem('token');
+        
+        // Show loading
+        document.getElementById('adminPanel').innerHTML = `
+            <div style="text-align: center; padding: 3rem;">
+                <div class="loading-spinner"></div>
+                <p>Loading question details...</p>
+            </div>
+        `;
+        
+        const response = await fetch(`${API_BASE}/api/admin/questions/${questionId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (!response.ok) throw new Error('Failed to load question');
+        
+        const question = await response.json();
+        showEditQuestionForm(question);
+        
+    } catch (error) {
+        console.error('Error loading question:', error);
+        alert('❌ Failed to load question details. Please try again.');
+        switchTab('questions');
+    }
 }
 
-async function deleteQuestion(questionId) {
-    if (!confirm('Delete this question?')) return;
+function showEditQuestionForm(question) {
+    const panel = document.getElementById('adminPanel');
+    
+    panel.innerHTML = `
+        <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+            <h2>✏️ Edit Question #${question.id}</h2>
+            <button onclick="switchTab('questions')" style="padding: 10px 20px; background: #95a5a6; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                ← Back to Questions
+            </button>
+        </div>
+        
+        <form id="editQuestionForm" onsubmit="updateQuestion(event, ${question.id})" style="background: white; padding: 30px; border-radius: 10px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Subject *</label>
+                    <select id="edit_subject_id" required style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;">
+                        <option value="1" ${question.subject_id === 1 ? 'selected' : ''}>📖 Use of English</option>
+                        <option value="2" ${question.subject_id === 2 ? 'selected' : ''}>🔢 Mathematics</option>
+                        <option value="3" ${question.subject_id === 3 ? 'selected' : ''}>⚡ Physics</option>
+                        <option value="4" ${question.subject_id === 4 ? 'selected' : ''}>🧪 Chemistry</option>
+                        <option value="5" ${question.subject_id === 5 ? 'selected' : ''}>🧬 Biology</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Topic</label>
+                    <input type="text" id="edit_topic" value="${question.topic || ''}" placeholder="e.g., Algebra" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;">
+                </div>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: 600;">Question Text *</label>
+                <textarea id="edit_question_text" rows="3" required style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;">${question.question_text}</textarea>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Option A *</label>
+                    <input type="text" id="edit_option_a" required value="${question.option_a}" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;">
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Option B *</label>
+                    <input type="text" id="edit_option_b" required value="${question.option_b}" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;">
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Option C *</label>
+                    <input type="text" id="edit_option_c" required value="${question.option_c}" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;">
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Option D *</label>
+                    <input type="text" id="edit_option_d" required value="${question.option_d}" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;">
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-top: 20px;">
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Correct Answer *</label>
+                    <select id="edit_correct_answer" required style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;">
+                        <option value="A" ${question.correct_answer === 'A' ? 'selected' : ''}>A</option>
+                        <option value="B" ${question.correct_answer === 'B' ? 'selected' : ''}>B</option>
+                        <option value="C" ${question.correct_answer === 'C' ? 'selected' : ''}>C</option>
+                        <option value="D" ${question.correct_answer === 'D' ? 'selected' : ''}>D</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Difficulty</label>
+                    <select id="edit_difficulty" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;">
+                        <option value="easy" ${question.difficulty === 'easy' ? 'selected' : ''}>Easy</option>
+                        <option value="medium" ${question.difficulty === 'medium' ? 'selected' : ''}>Medium</option>
+                        <option value="hard" ${question.difficulty === 'hard' ? 'selected' : ''}>Hard</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Year</label>
+                    <input type="text" id="edit_year" value="${question.year || ''}" placeholder="2024" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;">
+                </div>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: 600;">Explanation</label>
+                <textarea id="edit_explanation" rows="2" placeholder="Explain why the correct answer is right..." style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 5px;">${question.explanation || ''}</textarea>
+            </div>
+            
+            <div style="margin-top: 30px; display: flex; gap: 15px;">
+                <button type="submit" style="flex: 1; padding: 15px; background: #3498db; color: white; border: none; border-radius: 5px; font-size: 1.1rem; cursor: pointer;">
+                    💾 Update Question
+                </button>
+                <button type="button" onclick="switchTab('questions')" style="flex: 1; padding: 15px; background: #95a5a6; color: white; border: none; border-radius: 5px; font-size: 1.1rem; cursor: pointer;">
+                    ❌ Cancel
+                </button>
+            </div>
+        </form>
+    `;
+}
+
+async function updateQuestion(event, questionId) {
+    event.preventDefault();
+    
+    // Get form values
+    const questionData = {
+        subject_id: parseInt(document.getElementById('edit_subject_id').value),
+        question_text: document.getElementById('edit_question_text').value,
+        option_a: document.getElementById('edit_option_a').value,
+        option_b: document.getElementById('edit_option_b').value,
+        option_c: document.getElementById('edit_option_c').value,
+        option_d: document.getElementById('edit_option_d').value,
+        correct_answer: document.getElementById('edit_correct_answer').value,
+        explanation: document.getElementById('edit_explanation').value,
+        topic: document.getElementById('edit_topic').value || 'General',
+        difficulty: document.getElementById('edit_difficulty').value,
+        year: document.getElementById('edit_year').value || new Date().getFullYear().toString()
+    };
+    
+    // Validate required fields
+    if (!questionData.subject_id) {
+        alert('Please select a subject');
+        return;
+    }
+    
+    if (!questionData.question_text) {
+        alert('Please enter question text');
+        return;
+    }
+    
+    if (!questionData.option_a || !questionData.option_b || !questionData.option_c || !questionData.option_d) {
+        alert('Please fill all options');
+        return;
+    }
+    
+    if (!questionData.correct_answer) {
+        alert('Please select the correct answer');
+        return;
+    }
+    
+    // Show saving indicator
+    const submitBtn = event.target.querySelector('button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    submitBtn.textContent = '⏳ Updating...';
+    submitBtn.disabled = true;
     
     try {
         const token = localStorage.getItem('token');
-        await fetch(`${API_BASE}/api/admin/questions/${questionId}`, {
+        
+        const response = await fetch(`${API_BASE}/api/admin/questions/${questionId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(questionData)
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to update');
+        }
+        
+        alert('✅ Question updated successfully!');
+        switchTab('questions'); // Go back to questions list
+        
+    } catch (error) {
+        console.error('Error updating question:', error);
+        alert(`❌ Failed to update question: ${error.message}`);
+    } finally {
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+    }
+}
+
+async function deleteQuestion(questionId) {
+    if (!confirm('⚠️ Are you sure you want to delete this question?\n\nThis will renumber all remaining questions.')) {
+        return;
+    }
+    
+    try {
+        const token = localStorage.getItem('token');
+        
+        const response = await fetch(`${API_BASE}/api/admin/questions/${questionId}`, {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${token}` }
         });
         
-        alert('✅ Question deleted!');
-        loadQuestions();
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to delete');
+        }
+        
+        alert(`✅ Question deleted successfully!\nAll questions have been renumbered.`);
+        
+        // Refresh the questions list - IDs will be sequential now
+        await loadQuestions();
         
     } catch (error) {
-        alert('❌ Failed to delete question');
+        console.error('Error deleting question:', error);
+        alert('❌ Failed to delete question. Please try again.');
     }
 }
 

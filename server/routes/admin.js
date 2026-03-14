@@ -110,14 +110,14 @@ router.post('/questions', adminAuth, async (req, res) => {
     }
 });
 
-// Get all questions
+// Get all questions (ordered by ID)
 router.get('/questions', adminAuth, async (req, res) => {
     try {
         const result = await db.query(
             `SELECT q.*, s.name as subject_name, s.code as subject_code
              FROM questions q
              JOIN subjects s ON s.id = q.subject_id
-             ORDER BY q.id DESC`
+             ORDER BY q.id ASC`  // Ensure ascending order
         );
         
         res.json(result.rows);
@@ -184,22 +184,65 @@ router.put('/questions/:id', adminAuth, async (req, res) => {
     }
 });
 
-// Delete question
+// DELETE question with reordering
 router.delete('/questions/:id', adminAuth, async (req, res) => {
+    const client = await db.pool.connect();
+    
     try {
         const { id } = req.params;
         
-        const result = await db.query('DELETE FROM questions WHERE id = $1 RETURNING id', [id]);
+        await client.query('BEGIN');
         
-        if (result.rows.length === 0) {
+        // 1. First, check if question exists
+        const checkResult = await client.query(
+            'SELECT id FROM questions WHERE id = $1',
+            [id]
+        );
+        
+        if (checkResult.rows.length === 0) {
+            await client.query('ROLLBACK');
             return res.status(404).json({ error: 'Question not found' });
         }
         
-        res.json({ message: 'Question deleted successfully' });
+        // 2. Delete the question
+        await client.query('DELETE FROM questions WHERE id = $1', [id]);
+        
+        // 3. Reorder all remaining questions to have sequential IDs
+        // Get all remaining questions ordered by current ID
+        const remainingQuestions = await client.query(
+            'SELECT * FROM questions ORDER BY id'
+        );
+        
+        // 4. Update each question's ID to be sequential
+        let newId = 1;
+        for (const question of remainingQuestions.rows) {
+            if (question.id !== newId) {
+                await client.query(
+                    'UPDATE questions SET id = $1 WHERE id = $2',
+                    [newId, question.id]
+                );
+            }
+            newId++;
+        }
+        
+        // 5. Reset the sequence to continue from the max ID
+        await client.query(
+            'SELECT setval(\'questions_id_seq\', (SELECT COALESCE(MAX(id), 0) FROM questions))'
+        );
+        
+        await client.query('COMMIT');
+        
+        res.json({ 
+            message: 'Question deleted and IDs reordered successfully',
+            deletedId: parseInt(id)
+        });
         
     } catch (error) {
+        await client.query('ROLLBACK');
         console.error('Error deleting question:', error);
         res.status(500).json({ error: 'Failed to delete question' });
+    } finally {
+        client.release();
     }
 });
 
