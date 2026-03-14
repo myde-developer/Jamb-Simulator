@@ -1,3 +1,4 @@
+
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
@@ -27,7 +28,7 @@ router.post('/register', async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
         
-        // Create user
+        // Create user - include is_admin field
         const result = await db.query(
             `INSERT INTO users (email, password_hash, full_name, is_admin) 
              VALUES ($1, $2, $3, $4) RETURNING id, email, full_name, is_admin`,
@@ -36,16 +37,26 @@ router.post('/register', async (req, res) => {
         
         const user = result.rows[0];
         
-        // Generate token
+        // Generate token - include is_admin in token payload
         const token = jwt.sign(
-            { id: user.id, email: user.email, is_admin: user.is_admin },
+            { 
+                id: user.id, 
+                email: user.email, 
+                is_admin: user.is_admin  // ← CRITICAL: Include is_admin in token
+            },
             process.env.JWT_SECRET,
             { expiresIn: '7d' }
         );
         
+        // ✅ Send complete user object with is_admin to frontend
         res.json({
             message: 'Registration successful',
-            user,
+            user: {
+                id: user.id,
+                email: user.email,
+                full_name: user.full_name,
+                is_admin: user.is_admin  // ← MUST be here!
+            },
             token
         });
         
@@ -77,20 +88,25 @@ router.post('/login', async (req, res) => {
             return res.status(401).json({ error: 'Invalid email or password' });
         }
         
-        // Generate token
+        // Generate token - include is_admin in token payload
         const token = jwt.sign(
-            { id: user.id, email: user.email, is_admin: user.is_admin },
+            { 
+                id: user.id, 
+                email: user.email, 
+                is_admin: user.is_admin  // ← CRITICAL: Include is_admin in token
+            },
             process.env.JWT_SECRET,
             { expiresIn: '7d' }
         );
         
+        // ✅ Send complete user object with is_admin to frontend
         res.json({
             message: 'Login successful',
             user: {
                 id: user.id,
                 email: user.email,
                 full_name: user.full_name,
-                is_admin: user.is_admin
+                is_admin: user.is_admin  // ← MUST be here!
             },
             token
         });
@@ -108,6 +124,7 @@ router.get('/check-admin', async (req, res) => {
         const hasAdmin = parseInt(result.rows[0].count) > 0;
         res.json({ hasAdmin });
     } catch (error) {
+        console.error('Check admin error:', error);
         res.status(500).json({ error: 'Check failed' });
     }
 });
@@ -128,17 +145,54 @@ router.post('/create-default-admin', async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, salt);
         
         // Create admin
-        await db.query(
+        const result = await db.query(
             `INSERT INTO users (email, password_hash, full_name, is_admin) 
-             VALUES ($1, $2, $3, $4)`,
+             VALUES ($1, $2, $3, $4) RETURNING id, email, full_name, is_admin`,
             [email, hashedPassword, fullName, true]
         );
         
-        res.json({ message: 'Default admin created' });
+        const user = result.rows[0];
+        
+        res.json({ 
+            message: 'Default admin created',
+            user: {
+                id: user.id,
+                email: user.email,
+                full_name: user.full_name,
+                is_admin: user.is_admin
+            }
+        });
         
     } catch (error) {
         console.error('Error creating admin:', error);
         res.status(500).json({ error: 'Failed to create admin' });
+    }
+});
+
+// ✅ NEW: Verify token route (optional but useful)
+router.get('/verify', async (req, res) => {
+    try {
+        const token = req.headers.authorization?.split(' ')[1];
+        
+        if (!token) {
+            return res.status(401).json({ error: 'No token provided' });
+        }
+        
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        
+        const result = await db.query(
+            'SELECT id, email, full_name, is_admin FROM users WHERE id = $1',
+            [decoded.id]
+        );
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        res.json({ user: result.rows[0] });
+        
+    } catch (error) {
+        res.status(401).json({ error: 'Invalid token' });
     }
 });
 

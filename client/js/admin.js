@@ -30,16 +30,19 @@ document.addEventListener('DOMContentLoaded', () => {
 function checkAdminAuth() {
     const token = localStorage.getItem('token');
     const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const adminToken = localStorage.getItem('is_admin');
+    const adminFlag = localStorage.getItem('is_admin'); // ✅ Add this
     
-    // Check ALL security layers
+    console.log('Admin auth check:', { token, isAdmin: user.is_admin, adminFlag });
+    
     if (!token) {
         window.location.href = '/auth.html';
         return false;
     }
     
-    if (!user.is_admin || adminToken !== 'true') {
-        localStorage.removeItem('is_admin'); // Clean up
+    // ✅ Check both user.is_admin AND the admin flag
+    if (!user.is_admin || adminFlag !== 'true') {
+        // Clean up invalid data
+        localStorage.removeItem('is_admin');
         window.location.href = '/home.html';
         return false;
     }

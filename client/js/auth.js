@@ -1,4 +1,4 @@
-// API Base URL - automatically detects environment
+// API Base URL
 const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://localhost:5000'
     : 'https://jamb-simulator-api.onrender.com';
@@ -7,7 +7,7 @@ let isLogin = true;
 
 document.addEventListener('DOMContentLoaded', () => {
     // Check if user already has an active session
-    const token = sessionStorage.getItem('token');
+    const token = localStorage.getItem('token');
     if (token) {
         redirectBasedOnRole();
         return;
@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function redirectBasedOnRole() {
-    const user = JSON.parse(sessionStorage.getItem('user') || '{}');
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
     if (user.is_admin) {
         window.location.href = '/admin.html';
     } else {
@@ -57,13 +57,6 @@ async function handleAuth(e) {
     const password = document.getElementById('password').value;
     const fullName = document.getElementById('fullName')?.value;
     
-
-if (data.user.is_admin) {
-    localStorage.setItem('is_admin', 'true');
-} else {
-    localStorage.removeItem('is_admin');
-}
-
     if (!email || !password) {
         showError('Please fill all fields');
         return;
@@ -95,9 +88,17 @@ if (data.user.is_admin) {
             throw new Error(data.error || 'Authentication failed');
         }
         
-        // Store in sessionStorage (clears when browser/tab closes)
-        sessionStorage.setItem('token', data.token);
-        sessionStorage.setItem('user', JSON.stringify(data.user));
+        // Store in localStorage
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        
+        // ✅ IMPORTANT: Set admin flag if user is admin
+        if (data.user.is_admin) {
+            localStorage.setItem('is_admin', 'true');
+            console.log('✅ Admin flag set');
+        } else {
+            localStorage.removeItem('is_admin');
+        }
         
         showSuccess(data.message);
         

@@ -9,31 +9,34 @@
     <script>
         // IMMEDIATE ADMIN CHECK - runs before ANYTHING loads
         (function() {
+            console.log('🔒 Admin page protection active');
+            
             // Get auth data
             const token = localStorage.getItem('token');
             const user = JSON.parse(localStorage.getItem('user') || '{}');
+            const adminFlag = localStorage.getItem('is_admin');
             
-            // Create a special admin flag for extra security
-            const isAdmin = user && user.is_admin === true;
-            
-            // Store admin status in a separate key for quick access
-            if (isAdmin) {
-                localStorage.setItem('is_admin', 'true');
-            } else {
-                localStorage.removeItem('is_admin');
-            }
+            console.log('Admin check:', { 
+                hasToken: !!token, 
+                isAdmin: user.is_admin, 
+                adminFlag: adminFlag 
+            });
             
             // MULTI-LAYER SECURITY CHECK
-            const adminCheck = localStorage.getItem('is_admin') === 'true';
+            if (!token) {
+                console.log('❌ No token - redirecting to login');
+                window.location.replace('/auth.html');
+                return;
+            }
             
-            // If ANY of these fail, redirect immediately
-            if (!token || !isAdmin || !adminCheck) {
-                console.log('❌ Admin access denied - redirecting to home');
+            if (!user.is_admin || adminFlag !== 'true') {
+                console.log('❌ Not admin - redirecting to home');
+                // Clean up invalid data
+                localStorage.removeItem('is_admin');
                 window.location.replace('/home.html');
                 return;
             }
             
-            // Admin is authenticated - allow access
             console.log('✅ Admin authenticated - loading panel');
         })();
     </script>
@@ -274,7 +277,7 @@
         <nav class="nav-container">
             <div class="logo">📚 JAMB Simulator 2026</div>
             <ul class="nav-menu">
-                <li><a href="index.html">Home</a></li>
+                <li><a href="home.html">Home</a></li>
                 <li><a href="progress.html">My Progress</a></li>
                 <li><a href="#" id="logoutBtn">Logout</a></li>
                 <li><a href="admin.html" class="active">Admin</a></li>
