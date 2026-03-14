@@ -4,21 +4,44 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JAMB Simulator - Admin Panel</title>
-  <script>
-        // IMMEDIATE ADMIN CHECK - runs before page loads
+    
+    <!-- ========== ENHANCED ADMIN PROTECTION SCRIPT ========== -->
+    <script>
+        // IMMEDIATE ADMIN CHECK - runs before ANYTHING loads
         (function() {
-            const token = sessionStorage.getItem('token');
-            const user = JSON.parse(sessionStorage.getItem('user') || '{}');
+            // Get auth data
+            const token = localStorage.getItem('token');
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
             
-            // If not admin, redirect IMMEDIATELY
-            if (!token || !user.is_admin) {
+            // Create a special admin flag for extra security
+            const isAdmin = user && user.is_admin === true;
+            
+            // Store admin status in a separate key for quick access
+            if (isAdmin) {
+                localStorage.setItem('is_admin', 'true');
+            } else {
+                localStorage.removeItem('is_admin');
+            }
+            
+            // MULTI-LAYER SECURITY CHECK
+            const adminCheck = localStorage.getItem('is_admin') === 'true';
+            
+            // If ANY of these fail, redirect immediately
+            if (!token || !isAdmin || !adminCheck) {
+                console.log('❌ Admin access denied - redirecting to home');
                 window.location.replace('/home.html');
                 return;
             }
+            
+            // Admin is authenticated - allow access
+            console.log('✅ Admin authenticated - loading panel');
         })();
     </script>
+    <!-- ========== END ADMIN PROTECTION ========== -->
+    
     <link rel="stylesheet" href="css/style.css">
     <style>
+        /* Admin Panel Specific Styles */
         .admin-container {
             max-width: 1200px;
             margin: 100px auto 50px;

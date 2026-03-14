@@ -3,6 +3,14 @@ const API_BASE = window.location.hostname === 'localhost' || window.location.hos
     ? 'http://localhost:5000'
     : 'https://jamb-simulator-api.onrender.com';
 
+(function() {
+    
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    if (user.is_admin) {
+        localStorage.setItem('is_admin', 'true');
+    }
+})();
+
 // Admin state
 let currentTab = 'users';
 let currentPage = 1;
@@ -15,22 +23,28 @@ document.addEventListener('DOMContentLoaded', () => {
     loadStats();
     loadUsers();
     
-    document.getElementById('logoutBtn').addEventListener('click', logout);
+    document.getElementById('logoutBtn').addEventListener('click', 
+);
 });
 
 function checkAdminAuth() {
     const token = localStorage.getItem('token');
-const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const adminToken = localStorage.getItem('is_admin');
     
+    // Check ALL security layers
     if (!token) {
         window.location.href = '/auth.html';
-        return;
+        return false;
     }
     
-    if (!user.is_admin) {
+    if (!user.is_admin || adminToken !== 'true') {
+        localStorage.removeItem('is_admin'); // Clean up
         window.location.href = '/home.html';
-        return;
+        return false;
     }
+    
+    return true;
 }
 
 async function loadStats() {
@@ -571,8 +585,9 @@ function calculateTimeSpent(start, end) {
 }
 
 function logout() {
-    localStorage.removeItem('token');      
-    localStorage.removeItem('user');      
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('is_admin'); // ← ADD THIS
     window.location.href = '/auth.html';
 }
 

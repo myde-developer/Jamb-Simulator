@@ -3,20 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JAMB Exam Simulator 2026</title>
+    <title>JAMB Exam Simulator 2026 - Home</title>
+    
+    <!-- ========== ADD THIS SECURITY CHECK ========== -->
+    <script>
+        // IMMEDIATE AUTH CHECK - runs before page loads
+        (function() {
+            const token = localStorage.getItem('token');
+            
+            // If no token, redirect to login page immediately
+            if (!token) {
+                window.location.replace('/auth.html');
+                return;
+            }
+            
+            // Optional: Check if user is admin and redirect
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            if (user.is_admin) {
+                // Comment this out if you want admins to access home page too
+                // window.location.replace('/admin.html');
+                // return;
+            }
+        })();
+    </script>
+    <!-- ========== END SECURITY CHECK ========== -->
+    
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
     <header class="header">
         <nav class="nav-container">
             <div class="logo">📚 JAMB Simulator 2026</div>
-<ul class="nav-menu">
-    <li><a href="index.html" class="active">Home</a></li>
-    <li><a href="progress.html">My Progress</a></li>
-    <li><a href="#" id="adminLink" style="display: none;">Admin</a></li>
-    <li><a href="#" id="logoutBtn">Logout</a></li>
-    <li><span id="userInfo"></span></li>
-</ul>
+            <ul class="nav-menu">
+                <li><a href="home.html" class="active">Home</a></li>
+                <li><a href="progress.html">My Progress</a></li>
+                <li><a href="#" id="adminLink" style="display: none;">Admin</a></li>
+                <li><a href="#" id="logoutBtn">Logout</a></li>
+                <li><span id="userInfo"></span></li>
+            </ul>
         </nav>
     </header>
 

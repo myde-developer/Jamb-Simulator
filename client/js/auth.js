@@ -57,6 +57,13 @@ async function handleAuth(e) {
     const password = document.getElementById('password').value;
     const fullName = document.getElementById('fullName')?.value;
     
+
+if (data.user.is_admin) {
+    localStorage.setItem('is_admin', 'true');
+} else {
+    localStorage.removeItem('is_admin');
+}
+
     if (!email || !password) {
         showError('Please fill all fields');
         return;
