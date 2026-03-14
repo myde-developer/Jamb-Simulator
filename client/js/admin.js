@@ -265,63 +265,199 @@ function displayExams() {
 }
 
 function loadSubjectPerformance() {
+    // Show loading state
     document.getElementById('adminPanel').innerHTML = `
-        <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
-            <h2>Subject Performance Analysis</h2>
-            <button class="export-btn" onclick="exportData('subjects')">📥 Export CSV</button>
-        </div>
-        
-        <div class="table-responsive">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Subject</th>
-                        <th>Total Questions</th>
-                        <th>Times Answered</th>
-                        <th>Correct Answers</th>
-                        <th>Success Rate</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td><strong>Use of English</strong></td>
-                        <td>400</td>
-                        <td>2,847</td>
-                        <td>1,823</td>
-                        <td class="score-medium">64%</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Mathematics</strong></td>
-                        <td>400</td>
-                        <td>2,156</td>
-                        <td>1,294</td>
-                        <td class="score-medium">60%</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Physics</strong></td>
-                        <td>400</td>
-                        <td>1,984</td>
-                        <td>1,190</td>
-                        <td class="score-medium">60%</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Chemistry</strong></td>
-                        <td>400</td>
-                        <td>2,023</td>
-                        <td>1,294</td>
-                        <td class="score-medium">64%</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Biology</strong></td>
-                        <td>400</td>
-                        <td>2,312</td>
-                        <td>1,618</td>
-                        <td class="score-medium">70%</td>
-                    </tr>
-                </tbody>
-            </table>
+        <div style="text-align: center; padding: 3rem;">
+            <div class="loading-spinner"></div>
+            <p>Loading subject performance...</p>
         </div>
     `;
+    
+    // Fetch real data from API
+    fetch(`${API_BASE}/api/admin/subject-performance`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data || data.length === 0) {
+            // No data yet - show empty state
+            document.getElementById('adminPanel').innerHTML = `
+                <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+                    <h2>Subject Performance Analysis</h2>
+                    <button class="export-btn" onclick="exportData('subjects')">📥 Export CSV</button>
+                </div>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Subject</th>
+                                <th>Total Questions</th>
+                                <th>Times Answered</th>
+                                <th>Correct Answers</th>
+                                <th>Success Rate</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Use of English</strong></td>
+                                <td>400</td>
+                                <td>0</td>
+                                <td>0</td>
+                                <td class="score-medium">0%</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Mathematics</strong></td>
+                                <td>400</td>
+                                <td>0</td>
+                                <td>0</td>
+                                <td class="score-medium">0%</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Physics</strong></td>
+                                <td>400</td>
+                                <td>0</td>
+                                <td>0</td>
+                                <td class="score-medium">0%</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Chemistry</strong></td>
+                                <td>400</td>
+                                <td>0</td>
+                                <td>0</td>
+                                <td class="score-medium">0%</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Biology</strong></td>
+                                <td>400</td>
+                                <td>0</td>
+                                <td>0</td>
+                                <td class="score-medium">0%</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p style="text-align: center; margin-top: 20px; color: #999;">No exam data yet. Once students take exams, statistics will appear here.</p>
+            `;
+            return;
+        }
+        
+        // Display real data
+        let html = `
+            <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+                <h2>Subject Performance Analysis</h2>
+                <button class="export-btn" onclick="exportData('subjects')">📥 Export CSV</button>
+            </div>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Subject</th>
+                            <th>Total Questions</th>
+                            <th>Times Answered</th>
+                            <th>Correct Answers</th>
+                            <th>Success Rate</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        
+        // Default subjects with 400 questions each
+        const subjects = ['Use of English', 'Mathematics', 'Physics', 'Chemistry', 'Biology'];
+        
+        subjects.forEach(subject => {
+            const subjectData = data.find(d => d.name === subject) || { 
+                times_answered: 0, 
+                correct_answers: 0 
+            };
+            
+            const timesAnswered = subjectData.times_answered || 0;
+            const correctAnswers = subjectData.correct_answers || 0;
+            const successRate = timesAnswered > 0 
+                ? Math.round((correctAnswers / timesAnswered) * 100) 
+                : 0;
+            
+            const rateClass = successRate >= 70 ? 'score-high' : 
+                             successRate >= 50 ? 'score-medium' : 'score-low';
+            
+            html += `
+                <tr>
+                    <td><strong>${subject}</strong></td>
+                    <td>400</td>
+                    <td>${timesAnswered.toLocaleString()}</td>
+                    <td>${correctAnswers.toLocaleString()}</td>
+                    <td class="${rateClass}">${successRate}%</td>
+                </tr>
+            `;
+        });
+        
+        html += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+        
+        document.getElementById('adminPanel').innerHTML = html;
+    })
+    .catch(error => {
+        console.error('Error loading subject performance:', error);
+        // Show empty state on error
+        document.getElementById('adminPanel').innerHTML = `
+            <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+                <h2>Subject Performance Analysis</h2>
+                <button class="export-btn" onclick="exportData('subjects')">📥 Export CSV</button>
+            </div>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Subject</th>
+                            <th>Total Questions</th>
+                            <th>Times Answered</th>
+                            <th>Correct Answers</th>
+                            <th>Success Rate</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Use of English</strong></td>
+                            <td>400</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td class="score-medium">0%</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Mathematics</strong></td>
+                            <td>400</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td class="score-medium">0%</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Physics</strong></td>
+                            <td>400</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td class="score-medium">0%</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Chemistry</strong></td>
+                            <td>400</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td class="score-medium">0%</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Biology</strong></td>
+                            <td>400</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td class="score-medium">0%</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        `;
+    });
 }
 
 function loadQuestionBank() {
