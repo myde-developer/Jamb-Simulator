@@ -2,26 +2,19 @@
 const { Pool } = require('pg');
 require('dotenv').config();
 
-let pool;
+// Same SSL fix for db.js
+const databaseUrl = process.env.DATABASE_URL;
+const connectionString = databaseUrl.includes('?') 
+    ? databaseUrl + '&uselibpqcompat=true' 
+    : databaseUrl + '?uselibpqcompat=true';
 
-if (process.env.NODE_ENV === 'production') {
-    // Production: Render database
-    pool = new Pool({
-        connectionString: process.env.DATABASE_URL,
-        ssl: {
-            rejectUnauthorized: false
-        }
-    });
-} else {
-    // Development: Local database
-    pool = new Pool({
-        user: process.env.DB_USER || 'postgres',
-        host: process.env.DB_HOST || 'localhost',
-        database: process.env.DB_NAME || 'jamb_simulator_2026',
-        password: process.env.DB_PASSWORD || 'yourpassword',
-        port: process.env.DB_PORT || 5432,
-    });
-}
+const pool = new Pool({
+    connectionString: connectionString,
+    ssl: {
+        rejectUnauthorized: false,
+        mode: 'require'
+    }
+});
 
 module.exports = {
     query: (text, params) => pool.query(text, params),

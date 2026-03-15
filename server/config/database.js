@@ -1,26 +1,30 @@
 // server/config/database.js
-// This file runs automatically when your app starts
-// It creates all tables if they don't exist
-
 const { Pool } = require('pg');
 require('dotenv').config();
 
-// Database connection
+// Fix SSL configuration for Render
+const databaseUrl = process.env.DATABASE_URL;
+
+// Add the recommended SSL parameters
+const connectionString = databaseUrl.includes('?') 
+    ? databaseUrl + '&uselibpqcompat=true' 
+    : databaseUrl + '?uselibpqcompat=true';
+
 const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.NODE_ENV === 'production' 
-        ? { rejectUnauthorized: false } 
-        : false
+    connectionString: connectionString,
+    ssl: {
+        rejectUnauthorized: false,  // Still needed for self-signed certs
+        mode: 'require'              // Explicitly set SSL mode
+    }
 });
 
-// Function to create all tables
 async function createTables() {
     const client = await pool.connect();
     
     try {
         console.log('📦 Setting up database tables...');
+        console.log('🔌 Connected to database with SSL');
         
-        // Begin transaction
         await client.query('BEGIN');
         
         // Create subjects table
@@ -95,7 +99,7 @@ async function createTables() {
         `);
         console.log('✅ user_answers table ready');
         
-        // Create indexes for performance
+        // Create indexes
         await client.query(`CREATE INDEX IF NOT EXISTS idx_questions_subject ON questions(subject_id);`);
         await client.query(`CREATE INDEX IF NOT EXISTS idx_questions_topic ON questions(topic);`);
         await client.query(`CREATE INDEX IF NOT EXISTS idx_questions_difficulty ON questions(difficulty);`);
@@ -115,30 +119,10 @@ async function createTables() {
                 ('Biology', 'BIO');
             `);
             console.log('✅ 5 subjects inserted');
-        } else {
-            console.log('✅ subjects already exist');
         }
         
-        // Create verification function
-        await client.query(`
-            CREATE OR REPLACE FUNCTION get_question_counts() 
-            RETURNS TABLE(subject_name VARCHAR, total_questions BIGINT) AS $func$
-            BEGIN
-                RETURN QUERY
-                SELECT s.name, COUNT(q.id)
-                FROM subjects s
-                LEFT JOIN questions q ON s.id = q.subject_id
-                GROUP BY s.id, s.name
-                ORDER BY s.name;
-            END;
-            $func$ LANGUAGE plpgsql;
-        `);
-        
-        // Commit transaction
         await client.query('COMMIT');
-        
         console.log('🎉 Database setup complete!');
-        console.log('📊 You can now add questions via admin panel');
         
     } catch (error) {
         await client.query('ROLLBACK');
@@ -149,18 +133,8 @@ async function createTables() {
     }
 }
 
-// Function to check if database is ready
-async function checkDatabase() {
-    try {
-        const result = await pool.query('SELECT 1');
-        return true;
-    } catch (error) {
-        return false;
-    }
-}
-
 module.exports = {
     pool,
     createTables,
-    checkDatabase
+    query: (text, params) => pool.query(text, params)
 };
