@@ -137,16 +137,24 @@ function renderQuestion(index) {
     const container = document.getElementById('questionContainer');
     const savedAnswer = examState.answers[question.id];
     
+    // ✅ FIX: Handle both database format and frontend format
+    const options = {
+        A: question.option_a || question.options?.A || 'Option A',
+        B: question.option_b || question.options?.B || 'Option B',
+        C: question.option_c || question.options?.C || 'Option C',
+        D: question.option_d || question.options?.D || 'Option D'
+    };
+    
     container.innerHTML = `
         <div class="question-number">Question ${index + 1} of ${examState.questions.length}</div>
-        <div class="question-subject">${question.subject}</div>
-        <div class="question-text">${question.question}</div>
+        <div class="question-subject">${question.subject || 'Unknown'}</div>
+        <div class="question-text">${question.question_text || question.question || ''}</div>
         <div class="options">
             ${['A', 'B', 'C', 'D'].map(letter => `
                 <div class="option ${savedAnswer === letter ? 'selected' : ''}" 
                      onclick="selectAnswer('${question.id}', '${letter}')">
                     <span class="option-letter">${letter}</span>
-                    <span class="option-text">${question.options[letter]}</span>
+                    <span class="option-text">${options[letter]}</span>
                 </div>
             `).join('')}
         </div>
@@ -321,7 +329,10 @@ function calculateJAMBScores() {
         
         subjectScores[q.subject].total++;
         
-        const isCorrect = examState.answers[q.id] === q.correctAnswer;
+        // ✅ FIX: Handle both formats
+        const correctAnswer = q.correct_answer || q.correctAnswer;
+        const isCorrect = examState.answers[q.id] === correctAnswer;
+        
         if (isCorrect) {
             subjectScores[q.subject].correct++;
             

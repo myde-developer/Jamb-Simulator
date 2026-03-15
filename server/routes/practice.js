@@ -1,16 +1,10 @@
-// server/routes/practice.js
-const express = require('express');
-const router = express.Router();
-const db = require('../db');
-const auth = require('../middleware/auth');
 
-// Get practice questions with topic filtering
 router.post('/questions', auth, async (req, res) => {
     try {
         const { subject_id, topic, difficulty, count } = req.body;
         
         let query = `
-            SELECT q.*, s.name as subject, s.code as subject_code
+            SELECT q.*, s.name as subject_name
             FROM questions q
             JOIN subjects s ON s.id = q.subject_id
             WHERE q.subject_id = $1
@@ -18,9 +12,9 @@ router.post('/questions', auth, async (req, res) => {
         const params = [subject_id];
         let paramIndex = 2;
         
-        if (topic && topic !== 'null' && topic !== '' && topic !== 'all') {
-            query += ` AND q.topic = $${paramIndex}`;
-            params.push(topic);
+        if (topic && topic !== 'null' && topic !== '') {
+            query += ` AND q.topic ILIKE $${paramIndex}`;
+            params.push(`%${topic}%`);
             paramIndex++;
         }
         
@@ -35,11 +29,28 @@ router.post('/questions', auth, async (req, res) => {
         
         const result = await db.query(query, params);
         
-        res.json(result.rows);
+        // Format questions for frontend
+        const formattedQuestions = result.rows.map(q => ({
+            id: q.id,
+            subject: q.subject_name,
+            question: q.question_text,
+            options: {
+                A: q.option_a,
+                B: q.option_b,
+                C: q.option_c,
+                D: q.option_d
+            },
+            correctAnswer: q.correct_answer,
+            explanation: q.explanation || '',
+            topic: q.topic,
+            difficulty: q.difficulty
+        }));
+        
+        res.json(formattedQuestions);
         
     } catch (error) {
         console.error('Error fetching practice questions:', error);
-        res.status(500).json({ error: 'Failed to load questions' });
+        res.status(500).json({ error: 'Failed to load questions: ' + error.message });
     }
 });
 

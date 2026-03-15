@@ -199,20 +199,31 @@ async function loadPracticeQuestions() {
 
 function renderQuestion() {
     const question = practiceState.questions[practiceState.currentIndex];
-    const savedAnswer = practiceState.answers[question.id];
+    if (!question) return;
     
-    document.getElementById('currentSubject').textContent = question.subject;
+    document.getElementById('currentSubject').textContent = question.subject || 'Unknown';
     document.getElementById('currentTopic').textContent = question.topic || 'General';
     document.getElementById('currentDifficulty').textContent = question.difficulty || 'medium';
     document.getElementById('currentQuestionNum').textContent = practiceState.currentIndex + 1;
-    document.getElementById('questionText').textContent = question.question;
+    document.getElementById('totalQuestions').textContent = practiceState.questions.length;
+    document.getElementById('questionText').textContent = question.question_text || question.question;
+    
+    // ✅ FIX: Handle both database format and frontend format
+    const options = {
+        A: question.option_a || question.options?.A || 'Option A',
+        B: question.option_b || question.options?.B || 'Option B',
+        C: question.option_c || question.options?.C || 'Option C',
+        D: question.option_d || question.options?.D || 'Option D'
+    };
+    
+    const savedAnswer = practiceState.answers[question.id];
     
     const optionsContainer = document.getElementById('optionsContainer');
     optionsContainer.innerHTML = ['A', 'B', 'C', 'D'].map(letter => `
         <div class="practice-option ${savedAnswer === letter ? 'selected' : ''}" 
              onclick="selectOption('${question.id}', '${letter}')">
             <span class="option-letter">${letter}</span>
-            <span>${question.options[letter]}</span>
+            <span>${options[letter]}</span>
         </div>
     `).join('');
     
@@ -248,18 +259,22 @@ function checkAnswer() {
     }
     
     practiceState.checked = true;
-    const isCorrect = selectedAnswer === question.correct_answer;
+    
+    // ✅ FIX: Get correct answer from either format
+    const correctAnswer = question.correct_answer || question.correctAnswer;
+    const isCorrect = selectedAnswer === correctAnswer;
     
     // Update option styling
     document.querySelectorAll('.practice-option').forEach(opt => {
         const letter = opt.querySelector('.option-letter').textContent;
-        if (letter === question.correct_answer) {
+        if (letter === correctAnswer) {
             opt.classList.add('correct');
         } else if (letter === selectedAnswer && !isCorrect) {
             opt.classList.add('wrong');
         }
     });
     
+    // Update results
     if (isCorrect) {
         practiceState.results.correct++;
         practiceState.streak++;
@@ -277,7 +292,7 @@ function checkAnswer() {
     
     feedbackMessage.innerHTML = isCorrect ? 
         '<div class="feedback-correct">✅ Correct! Well done!</div>' :
-        `<div class="feedback-wrong">❌ Wrong. The correct answer is ${question.correct_answer}.</div>`;
+        `<div class="feedback-wrong">❌ Wrong. The correct answer is ${correctAnswer}.</div>`;
     
     explanation.textContent = question.explanation || 'No explanation available.';
     feedbackBox.classList.add('show');

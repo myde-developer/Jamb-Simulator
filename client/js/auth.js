@@ -73,13 +73,19 @@ async function handleAuth(e) {
         : { email, password, fullName };
     
     try {
+        console.log('Sending request to:', url);
+        console.log('With body:', body);
+        
         const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
         });
         
+        console.log('Response status:', response.status);
+        
         const data = await response.json();
+        console.log('Response data:', data);
         
         if (!response.ok) {
             throw new Error(data.error || 'Authentication failed');
@@ -107,6 +113,7 @@ async function handleAuth(e) {
         }, 1500);
         
     } catch (error) {
+        console.error('Auth error:', error);
         showError(error.message);
     }
 }
@@ -115,6 +122,7 @@ async function createDefaultAdmin() {
     try {
         const response = await fetch(`${API_BASE}/api/auth/check-admin`);
         const data = await response.json();
+        console.log('Admin check:', data);
         
         if (!data.hasAdmin) {
             await fetch(`${API_BASE}/api/auth/create-default-admin`, {

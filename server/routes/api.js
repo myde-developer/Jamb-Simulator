@@ -137,6 +137,23 @@ router.post('/exam/questions', auth, async (req, res) => {
                      LIMIT $3`,
                     [subject.id, t.topic, t.count]
                 );
+
+const formattedQuestions = result.rows.map(q => ({
+                    id: q.id,
+                    subject: q.subject_name,
+                    question: q.question_text,
+                    options: {
+                        A: q.option_a,
+                        B: q.option_b,
+                        C: q.option_c,
+                        D: q.option_d
+                    },
+                    correctAnswer: q.correct_answer,
+                    explanation: q.explanation || '',
+                    topic: q.topic,
+                    difficulty: q.difficulty
+                }));
+
                 allQuestions = [...allQuestions, ...result.rows];
             }
         }

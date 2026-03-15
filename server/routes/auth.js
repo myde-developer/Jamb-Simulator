@@ -66,10 +66,11 @@ router.post('/register', async (req, res) => {
     }
 });
 
-// Login
 router.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
+        
+        console.log('Login attempt for:', email);
         
         // Find user
         const result = await db.query(
@@ -79,41 +80,40 @@ router.post('/login', async (req, res) => {
         
         const user = result.rows[0];
         if (!user) {
+            console.log('User not found:', email);
             return res.status(401).json({ error: 'Invalid email or password' });
         }
         
         // Check password
         const isValid = await bcrypt.compare(password, user.password_hash);
         if (!isValid) {
+            console.log('Invalid password for:', email);
             return res.status(401).json({ error: 'Invalid email or password' });
         }
         
-        // Generate token - include is_admin in token payload
+        // Generate token
         const token = jwt.sign(
-            { 
-                id: user.id, 
-                email: user.email, 
-                is_admin: user.is_admin  // ← CRITICAL: Include is_admin in token
-            },
+            { id: user.id, email: user.email, is_admin: user.is_admin },
             process.env.JWT_SECRET,
             { expiresIn: '7d' }
         );
         
-        // ✅ Send complete user object with is_admin to frontend
+        console.log('Login successful for:', email);
+        
         res.json({
             message: 'Login successful',
             user: {
                 id: user.id,
                 email: user.email,
                 full_name: user.full_name,
-                is_admin: user.is_admin  // ← MUST be here!
+                is_admin: user.is_admin
             },
             token
         });
         
     } catch (error) {
         console.error('Login error:', error);
-        res.status(500).json({ error: 'Login failed' });
+        res.status(500).json({ error: 'Login failed: ' + error.message });
     }
 });
 

@@ -483,29 +483,65 @@ function loadQuestionBank() {
         </div>
         
         <div id="questionsList"></div>
-        <div class="pagination" id="questionPagination"></div>
+       <div class="pagination-container">
+    <div class="pagination" id="questionPagination"></div>
+</div>
     `;
     
     loadQuestions();
 }
 
-function switchTab(tab) {
+function switchTab(tab, event) {
+    // Add event parameter and check if it exists
+    if (!event) {
+        // If called programmatically, find and click the appropriate tab
+        const tabs = document.querySelectorAll('.tab-btn');
+        const targetTab = Array.from(tabs).find(btn => 
+            btn.textContent.toLowerCase().includes(tab) || 
+            btn.getAttribute('onclick')?.includes(tab)
+        );
+        if (targetTab) {
+            targetTab.click();
+        }
+        return;
+    }
+    
     currentTab = tab;
     currentPage = 1;
     
+    // Remove active class from all tabs
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.classList.remove('active');
     });
+    
+    // Add active class to clicked tab
     event.target.classList.add('active');
     
+    // Load appropriate content
     switch(tab) {
-        case 'users': loadUsers(); break;
-        case 'exams': loadExams(); break;
-        case 'subjects': loadSubjectPerformance(); break;
-        case 'questions': loadQuestionBank(); break;
+        case 'users': 
+            loadUsers(); 
+            break;
+        case 'exams': 
+            loadExams(); 
+            break;
+        case 'subjects': 
+            loadSubjectPerformance(); 
+            break;
+        case 'questions': 
+            loadQuestionBank(); 
+            break;
+    }
+    
+    // Optional: Scroll the active tab into view on mobile
+    if (window.innerWidth <= 768) {
+        event.target.scrollIntoView({
+            behavior: 'smooth',
+            block: 'nearest',
+            inline: 'center'
+        });
     }
 }
-
 function searchUsers() {
     const searchTerm = document.getElementById('searchInput').value.toLowerCase();
     const filtered = usersData.filter(user => 
@@ -573,14 +609,159 @@ function displayFilteredUsers(users) {
     panel.innerHTML = html;
 }
 
+// Enhanced pagination function with scroll detection
 function generatePagination(totalItems) {
     const totalPages = Math.ceil(totalItems / 10);
     let html = '';
-    for (let i = 1; i <= totalPages; i++) {
+    
+    // Previous button
+    html += `<button class="page-btn prev" onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>
+        <span>Prev</span>
+    </button>`;
+    
+    // Page numbers - show limited numbers on mobile
+    const maxVisiblePages = window.innerWidth <= 480 ? 3 : window.innerWidth <= 768 ? 5 : 7;
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+    
+    if (endPage - startPage + 1 < maxVisiblePages) {
+        startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+    
+    // First page indicator
+    if (startPage > 1) {
+        html += `<button class="page-btn" onclick="goToPage(1)">1</button>`;
+        if (startPage > 2) {
+            html += `<span class="page-dots">...</span>`;
+        }
+    }
+    
+    // Page numbers
+    for (let i = startPage; i <= endPage; i++) {
         html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
     }
+    
+    // Last page indicator
+    if (endPage < totalPages) {
+        if (endPage < totalPages - 1) {
+            html += `<span class="page-dots">...</span>`;
+        }
+        html += `<button class="page-btn" onclick="goToPage(${totalPages})">${totalPages}</button>`;
+    }
+    
+    // Next button
+    html += `<button class="page-btn next" onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>
+        <span>Next</span>
+    </button>`;
+    
+    // Add scroll detection after rendering
+    setTimeout(checkPaginationScroll, 100);
+    
     return html;
 }
+
+// Check if pagination needs scroll indicators
+function checkPaginationScroll() {
+    const container = document.querySelector('.pagination-container');
+    const pagination = document.querySelector('.pagination');
+    
+    if (!container || !pagination) return;
+    
+    const hasHorizontalScroll = pagination.scrollWidth > pagination.clientWidth;
+    
+    if (hasHorizontalScroll) {
+        // Check if we can scroll left
+        if (pagination.scrollLeft > 0) {
+            container.classList.add('can-scroll-left');
+        } else {
+            container.classList.remove('can-scroll-left');
+        }
+        
+        // Check if we can scroll right
+        if (pagination.scrollLeft < pagination.scrollWidth - pagination.clientWidth) {
+            container.classList.add('can-scroll-right');
+        } else {
+            container.classList.remove('can-scroll-right');
+        }
+    } else {
+        container.classList.remove('can-scroll-left', 'can-scroll-right');
+    }
+}
+
+// Auto-scroll active page into view
+function scrollToActivePage() {
+    const pagination = document.querySelector('.pagination');
+    const activeBtn = document.querySelector('.page-btn.active');
+    
+    if (pagination && activeBtn) {
+        const containerWidth = pagination.clientWidth;
+        const btnLeft = activeBtn.offsetLeft;
+        const btnWidth = activeBtn.offsetWidth;
+        
+        // Center the active button
+        const scrollTo = btnLeft - (containerWidth / 2) + (btnWidth / 2);
+        
+        pagination.scrollTo({
+            left: Math.max(0, scrollTo),
+            behavior: 'smooth'
+        });
+    }
+}
+
+// Enhanced goToPage function
+function goToPage(page) {
+    if (page < 1 || page > Math.ceil(totalItems / 10)) return;
+    
+    currentPage = page;
+    
+    if (currentTab === 'users') {
+        displayUsers();
+    } else if (currentTab === 'exams') {
+        displayExams();
+    } else if (currentTab === 'questions') {
+        displayQuestions();
+    }
+    
+    // Scroll active page into view
+    setTimeout(scrollToActivePage, 100);
+}
+
+// Add scroll event listener
+document.addEventListener('DOMContentLoaded', () => {
+    const pagination = document.querySelector('.pagination');
+    if (pagination) {
+        pagination.addEventListener('scroll', checkPaginationScroll);
+        window.addEventListener('resize', () => {
+            checkPaginationScroll();
+            // Regenerate pagination on resize for mobile view
+            if (currentTab === 'questions') {
+                displayQuestions();
+            }
+        });
+    }
+});
+
+// Style for page dots
+const style = document.createElement('style');
+style.textContent = `
+    .page-dots {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 30px;
+        height: 44px;
+        color: #666;
+        font-weight: 600;
+    }
+    
+    @media (max-width: 480px) {
+        .page-dots {
+            min-width: 20px;
+            height: 38px;
+        }
+    }
+`;
+document.head.appendChild(style);
 
 function goToPage(page) {
     currentPage = page;
