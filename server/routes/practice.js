@@ -1,3 +1,5 @@
+const express = require('express');
+const router = express.Router();
 
 router.post('/questions', auth, async (req, res) => {
     try {
