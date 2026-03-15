@@ -109,15 +109,25 @@ async function fetchExamQuestions(subjects) {
         renderQuestion(0);
         renderPalette();
         
-    } catch (error) {
-        document.getElementById('questionContainer').innerHTML = `
-            <div style="text-align: center; padding: 50px; color: #e74c3c;">
-                ❌ Failed to load questions. Please try again.
-                <br><br>
-                <button onclick="location.reload()" style="padding: 10px 20px;">Retry</button>
-            </div>
-        `;
+} catch (error) {
+    console.error('Full error object:', error);
+    console.error('Error message:', error.message);
+    
+    // Try to get response details
+    if (error.response) {
+        error.response.text().then(text => {
+            console.error('Response body:', text);
+        });
     }
+    
+    document.getElementById('questionContainer').innerHTML = `
+        <div style="text-align: center; padding: 50px; color: #e74c3c;">
+            ❌ Failed to load questions: ${error.message}
+            <br><br>
+            <button onclick="location.reload()" style="padding: 10px 20px;">Retry</button>
+        </div>
+    `;
+}
 }
 
 function renderQuestion(index) {

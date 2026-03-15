@@ -4,10 +4,17 @@ const router = express.Router();
 const db = require('../db');
 const auth = require('../middleware/auth');
 
-// Get practice questions
+router.get('/test', (req, res) => {
+    res.json({ message: 'Practice router is working' });
+});
+
 router.post('/questions', auth, async (req, res) => {
     try {
         const { subject_id, topic, difficulty, count } = req.body;
+        
+        if (!subject_id) {
+            return res.status(400).json({ error: 'Subject ID is required' });
+        }
         
         let query = `
             SELECT q.*, s.name as subject, s.code as subject_code
@@ -35,11 +42,15 @@ router.post('/questions', auth, async (req, res) => {
         
         const result = await db.query(query, params);
         
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'No questions match your criteria' });
+        }
+        
         res.json(result.rows);
         
     } catch (error) {
         console.error('Error fetching practice questions:', error);
-        res.status(500).json({ error: 'Failed to load questions' });
+        res.status(500).json({ error: 'Failed to load questions: ' + error.message });
     }
 });
 

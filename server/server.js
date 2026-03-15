@@ -11,6 +11,13 @@ const app = express();
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.get('/test', (req, res) => {
+    res.json({ 
+        status: 'ok', 
+        message: 'Backend is working!',
+        time: new Date().toISOString()
+    });
+});
 
 // Initialize database
 createTables().catch(console.error);
@@ -24,6 +31,6 @@ app.use('/api/progress', require('./routes/progress'));
 app.use('/api/admin', require('./routes/admin'));
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server running on port ${PORT}`);
 });
