@@ -4,7 +4,9 @@ const router = express.Router();
 const db = require('../db');
 const adminAuth = require('../middleware/adminAuth');
 
-// Get dashboard stats
+// ============================================
+// DASHBOARD STATS
+// ============================================
 router.get('/stats', adminAuth, async (req, res) => {
     try {
         const usersResult = await db.query('SELECT COUNT(*) FROM users');
@@ -27,7 +29,11 @@ router.get('/stats', adminAuth, async (req, res) => {
     }
 });
 
-// Get all users
+// ============================================
+// USER MANAGEMENT
+// ============================================
+
+// Get all users with exam counts
 router.get('/users', adminAuth, async (req, res) => {
     try {
         const result = await db.query(
@@ -47,16 +53,81 @@ router.get('/users', adminAuth, async (req, res) => {
     }
 });
 
-// Get all exams
+// Get single user details
+router.get('/users/:id', adminAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await db.query(
+            `SELECT u.id, u.email, u.full_name, u.is_admin, u.created_at
+             FROM users u
+             WHERE u.id = $1`,
+            [id]
+        );
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        res.json(result.rows[0]);
+        
+    } catch (error) {
+        console.error('Error fetching user:', error);
+        res.status(500).json({ error: 'Failed to fetch user' });
+    }
+});
+
+// Make user admin
+router.put('/users/:id/make-admin', adminAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        await db.query('UPDATE users SET is_admin = true WHERE id = $1', [id]);
+        
+        res.json({ success: true, message: 'User role updated to admin' });
+        
+    } catch (error) {
+        console.error('Error updating user:', error);
+        res.status(500).json({ error: 'Failed to update user' });
+    }
+});
+
+// Get user's exam history
+router.get('/users/:id/exams', adminAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await db.query(
+            `SELECT es.*, 
+                    (SELECT array_agg(s.name) 
+                     FROM subjects s 
+                     WHERE s.id = ANY(es.subjects_selected)) as subjects
+             FROM exam_sessions es
+             WHERE es.user_id = $1
+             ORDER BY es.started_at DESC`,
+            [id]
+        );
+        
+        res.json(result.rows);
+        
+    } catch (error) {
+        console.error('Error fetching user exams:', error);
+        res.status(500).json({ error: 'Failed to fetch user exams' });
+    }
+});
+
+// ============================================
+// EXAM MANAGEMENT
+// ============================================
+
+// Get all exams with user details
 router.get('/exams', adminAuth, async (req, res) => {
     try {
         const result = await db.query(
             `SELECT es.*, u.full_name as user_name,
-                    array_agg(s.name) as subjects
+                    (SELECT array_agg(s.name) 
+                     FROM subjects s 
+                     WHERE s.id = ANY(es.subjects_selected)) as subjects
              FROM exam_sessions es
              JOIN users u ON u.id = es.user_id
-             LEFT JOIN subjects s ON s.id = ANY(es.subjects_selected)
-             GROUP BY es.id, u.full_name
              ORDER BY es.started_at DESC`
         );
         
@@ -68,7 +139,123 @@ router.get('/exams', adminAuth, async (req, res) => {
     }
 });
 
-// ✅ FIXED: Add question route
+// Get single exam details with answers
+router.get('/exams/:id', adminAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await db.query(
+            `SELECT es.*, u.full_name as user_name, u.email,
+                    json_agg(json_build_object(
+                        'question_id', q.id,
+                        'question_text', q.question_text,
+                        'user_answer', ua.selected_answer,
+                        'correct_answer', q.correct_answer,
+                        'is_correct', ua.is_correct,
+                        'subject', s.name
+                    ) ORDER BY q.id) as answers
+             FROM exam_sessions es
+             JOIN users u ON u.id = es.user_id
+             LEFT JOIN user_answers ua ON ua.session_id = es.id
+             LEFT JOIN questions q ON q.id = ua.question_id
+             LEFT JOIN subjects s ON s.id = q.subject_id
+             WHERE es.id = $1
+             GROUP BY es.id, u.full_name, u.email`,
+            [id]
+        );
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Exam not found' });
+        }
+        
+        res.json(result.rows[0]);
+        
+    } catch (error) {
+        console.error('Error fetching exam details:', error);
+        res.status(500).json({ error: 'Failed to fetch exam details' });
+    }
+});
+
+// ============================================
+// SUBJECT PERFORMANCE
+// ============================================
+
+router.get('/subject-performance', adminAuth, async (req, res) => {
+    try {
+        const result = await db.query(`
+            SELECT 
+                s.id,
+                s.name,
+                s.code,
+                COUNT(DISTINCT q.id) as total_questions,
+                COUNT(DISTINCT ua.id) as times_answered,
+                COUNT(DISTINCT CASE WHEN ua.is_correct THEN ua.id END) as correct_answers,
+                CASE 
+                    WHEN COUNT(DISTINCT ua.id) > 0 
+                    THEN ROUND((COUNT(DISTINCT CASE WHEN ua.is_correct THEN ua.id END)::numeric / COUNT(DISTINCT ua.id)) * 100)
+                    ELSE 0
+                END as success_rate
+            FROM subjects s
+            LEFT JOIN questions q ON q.subject_id = s.id
+            LEFT JOIN user_answers ua ON ua.question_id = q.id
+            GROUP BY s.id, s.name, s.code
+            ORDER BY s.name
+        `);
+        
+        res.json(result.rows);
+        
+    } catch (error) {
+        console.error('Error fetching subject performance:', error);
+        res.status(500).json({ error: 'Failed to fetch subject performance' });
+    }
+});
+
+// ============================================
+// QUESTION BANK MANAGEMENT
+// ============================================
+
+// Get all questions with subject details
+router.get('/questions', adminAuth, async (req, res) => {
+    try {
+        const result = await db.query(
+            `SELECT q.*, s.name as subject_name, s.code as subject_code
+             FROM questions q
+             JOIN subjects s ON s.id = q.subject_id
+             ORDER BY q.id ASC`
+        );
+        
+        res.json(result.rows);
+        
+    } catch (error) {
+        console.error('Error fetching questions:', error);
+        res.status(500).json({ error: 'Failed to fetch questions' });
+    }
+});
+
+// Get single question
+router.get('/questions/:id', adminAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await db.query(
+            `SELECT q.*, s.name as subject_name, s.code as subject_code
+             FROM questions q
+             JOIN subjects s ON s.id = q.subject_id
+             WHERE q.id = $1`,
+            [id]
+        );
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Question not found' });
+        }
+        
+        res.json(result.rows[0]);
+        
+    } catch (error) {
+        console.error('Error fetching question:', error);
+        res.status(500).json({ error: 'Failed to fetch question' });
+    }
+});
+
+// Add new question
 router.post('/questions', adminAuth, async (req, res) => {
     try {
         const { 
@@ -110,47 +297,12 @@ router.post('/questions', adminAuth, async (req, res) => {
     }
 });
 
-// Get all questions (ordered by ID)
-router.get('/questions', adminAuth, async (req, res) => {
-    try {
-        const result = await db.query(
-            `SELECT q.*, s.name as subject_name, s.code as subject_code
-             FROM questions q
-             JOIN subjects s ON s.id = q.subject_id
-             ORDER BY q.id ASC`  // Ensure ascending order
-        );
-        
-        res.json(result.rows);
-        
-    } catch (error) {
-        console.error('Error fetching questions:', error);
-        res.status(500).json({ error: 'Failed to fetch questions' });
-    }
-});
-
-// Get single question
-router.get('/questions/:id', adminAuth, async (req, res) => {
-    try {
-        const { id } = req.params;
-        const result = await db.query('SELECT * FROM questions WHERE id = $1', [id]);
-        
-        if (result.rows.length === 0) {
-            return res.status(404).json({ error: 'Question not found' });
-        }
-        
-        res.json(result.rows[0]);
-        
-    } catch (error) {
-        console.error('Error fetching question:', error);
-        res.status(500).json({ error: 'Failed to fetch question' });
-    }
-});
-
 // Update question
 router.put('/questions/:id', adminAuth, async (req, res) => {
     try {
         const { id } = req.params;
         const { 
+            subject_id,
             question_text, 
             option_a, 
             option_b, 
@@ -165,11 +317,13 @@ router.put('/questions/:id', adminAuth, async (req, res) => {
         
         const result = await db.query(
             `UPDATE questions 
-             SET question_text = $1, option_a = $2, option_b = $3, option_c = $4, option_d = $5,
-                 correct_answer = $6, explanation = $7, topic = $8, difficulty = $9, year = $10
-             WHERE id = $11
+             SET subject_id = $1, question_text = $2, option_a = $3, option_b = $4, 
+                 option_c = $5, option_d = $6, correct_answer = $7, explanation = $8, 
+                 topic = $9, difficulty = $10, year = $11
+             WHERE id = $12
              RETURNING *`,
-            [question_text, option_a, option_b, option_c, option_d, correct_answer, explanation, topic, difficulty, year, id]
+            [subject_id, question_text, option_a, option_b, option_c, option_d, 
+             correct_answer, explanation, topic, difficulty, year, id]
         );
         
         if (result.rows.length === 0) {
@@ -184,7 +338,7 @@ router.put('/questions/:id', adminAuth, async (req, res) => {
     }
 });
 
-// DELETE question with reordering
+// Delete question with reordering
 router.delete('/questions/:id', adminAuth, async (req, res) => {
     const client = await db.pool.connect();
     
@@ -193,7 +347,7 @@ router.delete('/questions/:id', adminAuth, async (req, res) => {
         
         await client.query('BEGIN');
         
-        // 1. First, check if question exists
+        // Check if question exists
         const checkResult = await client.query(
             'SELECT id FROM questions WHERE id = $1',
             [id]
@@ -204,16 +358,14 @@ router.delete('/questions/:id', adminAuth, async (req, res) => {
             return res.status(404).json({ error: 'Question not found' });
         }
         
-        // 2. Delete the question
+        // Delete the question
         await client.query('DELETE FROM questions WHERE id = $1', [id]);
         
-        // 3. Reorder all remaining questions to have sequential IDs
-        // Get all remaining questions ordered by current ID
+        // Reorder remaining questions
         const remainingQuestions = await client.query(
             'SELECT * FROM questions ORDER BY id'
         );
         
-        // 4. Update each question's ID to be sequential
         let newId = 1;
         for (const question of remainingQuestions.rows) {
             if (question.id !== newId) {
@@ -225,7 +377,7 @@ router.delete('/questions/:id', adminAuth, async (req, res) => {
             newId++;
         }
         
-        // 5. Reset the sequence to continue from the max ID
+        // Reset the sequence
         await client.query(
             'SELECT setval(\'questions_id_seq\', (SELECT COALESCE(MAX(id), 0) FROM questions))'
         );
@@ -246,114 +398,104 @@ router.delete('/questions/:id', adminAuth, async (req, res) => {
     }
 });
 
-// Make user admin
-router.put('/users/:id/make-admin', adminAuth, async (req, res) => {
-    try {
-        const { id } = req.params;
-        
-        await db.query('UPDATE users SET is_admin = true WHERE id = $1', [id]);
-        
-        res.json({ success: true });
-        
-    } catch (error) {
-        console.error('Error updating user:', error);
-        res.status(500).json({ error: 'Failed to update user' });
-    }
-});
+// ============================================
+// DASHBOARD CHARTS DATA
+// ============================================
 
-// ============================================
-// MISSING: Exam Details Route
-// ============================================
-router.get('/exams/:id', adminAuth, async (req, res) => {
-    try {
-        const { id } = req.params;
-        const result = await db.query(
-            `SELECT es.*, u.full_name as user_name, u.email,
-                    json_agg(json_build_object(
-                        'question_id', q.id,
-                        'question_text', q.question_text,
-                        'user_answer', ua.selected_option,
-                        'correct_answer', q.correct_answer,
-                        'is_correct', ua.is_correct,
-                        'subject', s.name
-                    )) as answers
-             FROM exam_sessions es
-             JOIN users u ON u.id = es.user_id
-             LEFT JOIN user_answers ua ON ua.exam_session_id = es.id
-             LEFT JOIN questions q ON q.id = ua.question_id
-             LEFT JOIN subjects s ON s.id = q.subject_id
-             WHERE es.id = $1
-             GROUP BY es.id, u.full_name, u.email`,
-            [id]
-        );
-        
-        if (result.rows.length === 0) {
-            return res.status(404).json({ error: 'Exam not found' });
-        }
-        
-        res.json(result.rows[0]);
-        
-    } catch (error) {
-        console.error('Error fetching exam details:', error);
-        res.status(500).json({ error: 'Failed to fetch exam details' });
-    }
-});
-
-// ============================================
-// FIXED: Subject Performance Route
-// ============================================
-router.get('/subject-performance', adminAuth, async (req, res) => {
+// Get daily exam activity for charts
+router.get('/activity/daily', adminAuth, async (req, res) => {
     try {
         const result = await db.query(`
-            SELECT 
-                s.id,
-                s.name,
-                s.code,
-                COUNT(DISTINCT q.id) as total_questions,
-                COUNT(DISTINCT ua.id) as times_answered,
-                COUNT(DISTINCT CASE WHEN ua.is_correct THEN ua.id END) as correct_answers,
-                CASE 
-                    WHEN COUNT(DISTINCT ua.id) > 0 
-                    THEN ROUND((COUNT(DISTINCT CASE WHEN ua.is_correct THEN ua.id END)::numeric / COUNT(DISTINCT ua.id)) * 100)
-                    ELSE 0
-                END as success_rate
+            SELECT DATE(started_at) as date, COUNT(*) as count
+            FROM exam_sessions
+            WHERE started_at >= NOW() - INTERVAL '30 days'
+            GROUP BY DATE(started_at)
+            ORDER BY date DESC
+        `);
+        
+        res.json(result.rows);
+        
+    } catch (error) {
+        console.error('Error fetching daily activity:', error);
+        res.status(500).json({ error: 'Failed to fetch activity data' });
+    }
+});
+
+// Get subject distribution
+router.get('/distribution/subjects', adminAuth, async (req, res) => {
+    try {
+        const result = await db.query(`
+            SELECT s.name, COUNT(q.id) as count
             FROM subjects s
             LEFT JOIN questions q ON q.subject_id = s.id
-            LEFT JOIN user_answers ua ON ua.question_id = q.id
-            GROUP BY s.id, s.name, s.code
+            GROUP BY s.id, s.name
             ORDER BY s.name
         `);
         
         res.json(result.rows);
         
     } catch (error) {
-        console.error('Error fetching subject performance:', error);
-        res.status(500).json({ error: 'Failed to fetch subject performance' });
+        console.error('Error fetching subject distribution:', error);
+        res.status(500).json({ error: 'Failed to fetch distribution data' });
     }
 });
 
-// ============================================
-// User's Exam History
-// ============================================
-router.get('/users/:id/exams', adminAuth, async (req, res) => {
+// Get difficulty distribution
+router.get('/distribution/difficulty', adminAuth, async (req, res) => {
     try {
-        const { id } = req.params;
-        const result = await db.query(
-            `SELECT es.*, 
-                    array_agg(s.name) as subjects
-             FROM exam_sessions es
-             LEFT JOIN subjects s ON s.id = ANY(es.subjects_selected)
-             WHERE es.user_id = $1
-             GROUP BY es.id
-             ORDER BY es.started_at DESC`,
-            [id]
-        );
+        const result = await db.query(`
+            SELECT difficulty, COUNT(*) as count
+            FROM questions
+            WHERE difficulty IS NOT NULL
+            GROUP BY difficulty
+            ORDER BY 
+                CASE difficulty
+                    WHEN 'easy' THEN 1
+                    WHEN 'medium' THEN 2
+                    WHEN 'hard' THEN 3
+                END
+        `);
         
         res.json(result.rows);
         
     } catch (error) {
-        console.error('Error fetching user exams:', error);
-        res.status(500).json({ error: 'Failed to fetch user exams' });
+        console.error('Error fetching difficulty distribution:', error);
+        res.status(500).json({ error: 'Failed to fetch distribution data' });
+    }
+});
+
+// ============================================
+// SYSTEM HEALTH CHECK
+// ============================================
+
+router.get('/health', adminAuth, async (req, res) => {
+    try {
+        // Check database connection
+        await db.query('SELECT 1');
+        
+        // Get table counts
+        const tables = await db.query(`
+            SELECT 
+                (SELECT COUNT(*) FROM users) as users,
+                (SELECT COUNT(*) FROM exam_sessions) as exams,
+                (SELECT COUNT(*) FROM questions) as questions,
+                (SELECT COUNT(*) FROM subjects) as subjects,
+                (SELECT COUNT(*) FROM user_answers) as answers
+        `);
+        
+        res.json({
+            status: 'healthy',
+            database: 'connected',
+            counts: tables.rows[0]
+        });
+        
+    } catch (error) {
+        console.error('Health check failed:', error);
+        res.status(500).json({ 
+            status: 'unhealthy', 
+            database: 'disconnected',
+            error: error.message 
+        });
     }
 });
 
