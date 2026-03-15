@@ -1,5 +1,7 @@
 const express = require('express');
 const router = express.Router();
+const db = require('../db'); // Import database connection
+const auth = require('../middleware/auth'); // Import auth middleware
 
 router.post('/questions', auth, async (req, res) => {
     try {
