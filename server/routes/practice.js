@@ -4,17 +4,10 @@ const router = express.Router();
 const db = require('../db');
 const auth = require('../middleware/auth');
 
-router.get('/test', (req, res) => {
-    res.json({ message: 'Practice router is working' });
-});
-
+// Get practice questions with topic filtering
 router.post('/questions', auth, async (req, res) => {
     try {
         const { subject_id, topic, difficulty, count } = req.body;
-        
-        if (!subject_id) {
-            return res.status(400).json({ error: 'Subject ID is required' });
-        }
         
         let query = `
             SELECT q.*, s.name as subject, s.code as subject_code
@@ -25,9 +18,9 @@ router.post('/questions', auth, async (req, res) => {
         const params = [subject_id];
         let paramIndex = 2;
         
-        if (topic && topic !== 'null' && topic !== '') {
-            query += ` AND q.topic ILIKE $${paramIndex}`;
-            params.push(`%${topic}%`);
+        if (topic && topic !== 'null' && topic !== '' && topic !== 'all') {
+            query += ` AND q.topic = $${paramIndex}`;
+            params.push(topic);
             paramIndex++;
         }
         
@@ -42,15 +35,55 @@ router.post('/questions', auth, async (req, res) => {
         
         const result = await db.query(query, params);
         
-        if (result.rows.length === 0) {
-            return res.status(404).json({ error: 'No questions match your criteria' });
-        }
-        
         res.json(result.rows);
         
     } catch (error) {
         console.error('Error fetching practice questions:', error);
-        res.status(500).json({ error: 'Failed to load questions: ' + error.message });
+        res.status(500).json({ error: 'Failed to load questions' });
+    }
+});
+
+// Get distinct topics for a subject (from database)
+router.get('/topics/:subjectId', auth, async (req, res) => {
+    try {
+        const { subjectId } = req.params;
+        
+        const result = await db.query(
+            `SELECT DISTINCT topic 
+             FROM questions 
+             WHERE subject_id = $1 AND topic IS NOT NULL AND topic != ''
+             ORDER BY topic`,
+            [subjectId]
+        );
+        
+        res.json(result.rows.map(row => row.topic));
+        
+    } catch (error) {
+        console.error('Error fetching topics:', error);
+        res.status(500).json({ error: 'Failed to load topics' });
+    }
+});
+
+// Get difficulty levels (optional)
+router.get('/difficulties', auth, async (req, res) => {
+    try {
+        const result = await db.query(
+            `SELECT DISTINCT difficulty 
+             FROM questions 
+             WHERE difficulty IS NOT NULL
+             ORDER BY 
+                CASE difficulty 
+                    WHEN 'easy' THEN 1 
+                    WHEN 'medium' THEN 2 
+                    WHEN 'hard' THEN 3 
+                END`
+        );
+        
+        res.json(result.rows.map(row => row.difficulty));
+        
+    } catch (error) {
+        console.error('Error fetching difficulties:', error);
+        res.status(500).json({ error: 'Failed to load difficulties' });
     }
 });
 
