@@ -261,4 +261,100 @@ router.put('/users/:id/make-admin', adminAuth, async (req, res) => {
     }
 });
 
+// ============================================
+// MISSING: Exam Details Route
+// ============================================
+router.get('/exams/:id', adminAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await db.query(
+            `SELECT es.*, u.full_name as user_name, u.email,
+                    json_agg(json_build_object(
+                        'question_id', q.id,
+                        'question_text', q.question_text,
+                        'user_answer', ua.selected_option,
+                        'correct_answer', q.correct_answer,
+                        'is_correct', ua.is_correct,
+                        'subject', s.name
+                    )) as answers
+             FROM exam_sessions es
+             JOIN users u ON u.id = es.user_id
+             LEFT JOIN user_answers ua ON ua.exam_session_id = es.id
+             LEFT JOIN questions q ON q.id = ua.question_id
+             LEFT JOIN subjects s ON s.id = q.subject_id
+             WHERE es.id = $1
+             GROUP BY es.id, u.full_name, u.email`,
+            [id]
+        );
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Exam not found' });
+        }
+        
+        res.json(result.rows[0]);
+        
+    } catch (error) {
+        console.error('Error fetching exam details:', error);
+        res.status(500).json({ error: 'Failed to fetch exam details' });
+    }
+});
+
+// ============================================
+// FIXED: Subject Performance Route
+// ============================================
+router.get('/subject-performance', adminAuth, async (req, res) => {
+    try {
+        const result = await db.query(`
+            SELECT 
+                s.id,
+                s.name,
+                s.code,
+                COUNT(DISTINCT q.id) as total_questions,
+                COUNT(DISTINCT ua.id) as times_answered,
+                COUNT(DISTINCT CASE WHEN ua.is_correct THEN ua.id END) as correct_answers,
+                CASE 
+                    WHEN COUNT(DISTINCT ua.id) > 0 
+                    THEN ROUND((COUNT(DISTINCT CASE WHEN ua.is_correct THEN ua.id END)::numeric / COUNT(DISTINCT ua.id)) * 100)
+                    ELSE 0
+                END as success_rate
+            FROM subjects s
+            LEFT JOIN questions q ON q.subject_id = s.id
+            LEFT JOIN user_answers ua ON ua.question_id = q.id
+            GROUP BY s.id, s.name, s.code
+            ORDER BY s.name
+        `);
+        
+        res.json(result.rows);
+        
+    } catch (error) {
+        console.error('Error fetching subject performance:', error);
+        res.status(500).json({ error: 'Failed to fetch subject performance' });
+    }
+});
+
+// ============================================
+// User's Exam History
+// ============================================
+router.get('/users/:id/exams', adminAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await db.query(
+            `SELECT es.*, 
+                    array_agg(s.name) as subjects
+             FROM exam_sessions es
+             LEFT JOIN subjects s ON s.id = ANY(es.subjects_selected)
+             WHERE es.user_id = $1
+             GROUP BY es.id
+             ORDER BY es.started_at DESC`,
+            [id]
+        );
+        
+        res.json(result.rows);
+        
+    } catch (error) {
+        console.error('Error fetching user exams:', error);
+        res.status(500).json({ error: 'Failed to fetch user exams' });
+    }
+});
+
 module.exports = router;
