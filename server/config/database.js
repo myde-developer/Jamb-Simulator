@@ -19,7 +19,7 @@ const pool = new Pool({
     }
 });
 
-as ync function createTables() {
+async function createTables() {
     const client = await pool.connect();
     
     try {
