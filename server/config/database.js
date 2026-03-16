@@ -3782,7 +3782,7 @@ The government plans to ___ free education for all.',
  'They are longitudinal waves', 'They require a medium', 'They can travel through vacuum', 'They can be reflected', 'C', 
  'Sound waves cannot travel through vacuum as they require a material medium.', 'Sound', 'easy'),
 
-(3, 'A wire of length 3 m and cross-sectional area 2×10⁻⁶ m² is stretched by a force of 60 N. If Young's modulus is 2×10¹¹ N/m², what is the strain?',
+(3, 'A wire of length 3 m and cross-sectional area 2×10⁻⁶ m² is stretched by a force of 60 N. If Young''s modulus is 2×10¹¹ N/m², what is the strain?',
 '1.0×10⁻⁴', '1.5×10⁻⁴', '2.0×10⁻⁴', '2.5×10⁻⁴', 'B',
 'Stress = F/A = 60 / (2×10⁻⁶) = 3×10⁷ N/m²; Strain = Stress / Y = (3×10⁷) / (2×10¹¹) = 1.5×10⁻⁴',
 'Elasticity', 'medium'),
