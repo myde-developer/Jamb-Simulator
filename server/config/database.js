@@ -129,73 +129,73 @@ async function createTables() {
         } else {
             console.log('✅ subjects already exist');
         }
+
+     // ============================================
+// INSERT QUESTIONS FROM JSON FILE
+// ============================================
+
+// ALWAYS clear existing questions first
+console.log('🗑️ Clearing existing questions...');
+await client.query(`DELETE FROM questions;`);
+await client.query(`ALTER SEQUENCE questions_id_seq RESTART WITH 1;`);
+console.log('✅ Cleared existing questions');
+
+console.log('📝 Loading questions from JSON file...');
+
+try {
+    // Read questions from JSON file
+    const questionsFilePath = path.join(__dirname, '../data/questions.json');
+    const questionsData = await fs.readFile(questionsFilePath, 'utf8');
+    const questions = JSON.parse(questionsData);
+    
+    console.log(`✅ Loaded ${questions.length} questions from JSON file`);
+    
+    // Insert questions in batches to avoid overwhelming the database
+    const BATCH_SIZE = 100;
+    let insertedCount = 0;
+    
+    for (let i = 0; i < questions.length; i += BATCH_SIZE) {
+        const batch = questions.slice(i, i + BATCH_SIZE);
         
-        // ============================================
-        // INSERT QUESTIONS FROM JSON FILE
-        // ============================================
+        // Build parameterized query for this batch
+        const values = [];
+        const placeholders = [];
         
-        // Check if questions already exist
-        const questionsCheck = await client.query(`SELECT COUNT(*) FROM questions`);
-        if (parseInt(questionsCheck.rows[0].count) > 0) {
-            console.log(`✅ ${questionsCheck.rows[0].count} questions already exist in database`);
-        } else {
-            console.log('📝 Loading questions from JSON file...');
-            
-            try {
-                // Read questions from JSON file
-                const questionsFilePath = path.join(__dirname, '../data/questions.json');
-                const questionsData = await fs.readFile(questionsFilePath, 'utf8');
-                const questions = JSON.parse(questionsData);
-                
-                console.log(`✅ Loaded ${questions.length} questions from JSON file`);
-                
-                // Insert questions in batches to avoid overwhelming the database
-                const BATCH_SIZE = 100;
-                let insertedCount = 0;
-                
-                for (let i = 0; i < questions.length; i += BATCH_SIZE) {
-                    const batch = questions.slice(i, i + BATCH_SIZE);
-                    
-                    // Build parameterized query for this batch
-                    const values = [];
-                    const placeholders = [];
-                    
-                    batch.forEach((q, index) => {
-                        const base = index * 10; // 10 fields per question
-                        placeholders.push(`($${base+1}, $${base+2}, $${base+3}, $${base+4}, $${base+5}, $${base+6}, $${base+7}, $${base+8}, $${base+9}, $${base+10})`);
-                        values.push(
-                            q.subject_id,
-                            q.question_text,
-                            q.option_a,
-                            q.option_b,
-                            q.option_c,
-                            q.option_d,
-                            q.correct_answer,
-                            q.explanation || null,
-                            q.topic || null,
-                            q.difficulty || 'medium'
-                        );
-                    });
-                    
-                    const query = `
-                        INSERT INTO questions 
-                        (subject_id, question_text, option_a, option_b, option_c, option_d, correct_answer, explanation, topic, difficulty) 
-                        VALUES ${placeholders.join(', ')}
-                    `;
-                    
-                    await client.query(query, values);
-                    insertedCount += batch.length;
-                    console.log(`✅ Inserted batch ${Math.floor(i/BATCH_SIZE) + 1}/${Math.ceil(questions.length/BATCH_SIZE)} (${insertedCount}/${questions.length} questions)`);
-                }
-                
-                console.log(`🎉 Successfully inserted ${insertedCount} questions!`);
-                
-            } catch (error) {
-                console.error('❌ Error loading questions from JSON file:', error.message);
-                console.log('💡 Tip: Make sure the questions.json file exists in server/data/ directory');
-                throw error;
-            }
-        }
+        batch.forEach((q, index) => {
+            const base = index * 10; // 10 fields per question
+            placeholders.push(`($${base+1}, $${base+2}, $${base+3}, $${base+4}, $${base+5}, $${base+6}, $${base+7}, $${base+8}, $${base+9}, $${base+10})`);
+            values.push(
+                q.subject_id,
+                q.question_text,
+                q.option_a,
+                q.option_b,
+                q.option_c,
+                q.option_d,
+                q.correct_answer,
+                q.explanation || null,
+                q.topic || null,
+                q.difficulty || 'medium'
+            );
+        });
+        
+        const query = `
+            INSERT INTO questions 
+            (subject_id, question_text, option_a, option_b, option_c, option_d, correct_answer, explanation, topic, difficulty) 
+            VALUES ${placeholders.join(', ')}
+        `;
+        
+        await client.query(query, values);
+        insertedCount += batch.length;
+        console.log(`✅ Inserted batch ${Math.floor(i/BATCH_SIZE) + 1}/${Math.ceil(questions.length/BATCH_SIZE)} (${insertedCount}/${questions.length} questions)`);
+    }
+    
+    console.log(`🎉 Successfully inserted ${insertedCount} questions!`);
+    
+} catch (error) {
+    console.error('❌ Error loading questions from JSON file:', error.message);
+    console.log('💡 Tip: Make sure the questions.json file exists in server/data/ directory');
+    throw error;
+}
         
         // ============================================
         // CREATE VERIFICATION FUNCTION
