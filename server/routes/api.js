@@ -11,6 +11,7 @@ router.post('/exam/questions', auth, async (req, res) => {
 
         for (const subject of subjects) {
             let topicDistribution = [];
+            let subjectQuestions = [];
 
             // ===== ENGLISH LANGUAGE (60 questions) =====
             if (subject.name === 'Use of English') {
@@ -66,12 +67,12 @@ router.post('/exam/questions', auth, async (req, res) => {
                     { topic: 'Work, Energy and Power', count: 4 },
                     { topic: 'Friction', count: 2 },
                     { topic: 'Simple Machines', count: 2 },
-                    { topic: 'Elasticity', count: 2 },
+                    { topic: 'Elasticity', count: 3 },
                     { topic: 'Pressure', count: 2 },
                     { topic: 'Heat Energy', count: 3 },
                     { topic: 'Waves', count: 3 },
                     { topic: 'Light', count: 3 },
-                    { topic: 'Sound', count: 2 }
+                    { topic: 'Sound', count: 3 }
                 ];
             }
             
@@ -129,7 +130,7 @@ router.post('/exam/questions', auth, async (req, res) => {
             // Fetch questions for each topic
             for (const t of topicDistribution) {
                 const result = await db.query(
-                    `SELECT q.*, s.name as subject 
+                    `SELECT q.*, s.name as subject_name 
                      FROM questions q
                      JOIN subjects s ON s.id = q.subject_id
                      WHERE q.subject_id = $1 AND q.topic = $2
@@ -138,28 +139,44 @@ router.post('/exam/questions', auth, async (req, res) => {
                     [subject.id, t.topic, t.count]
                 );
 
-const formattedQuestions = result.rows.map(q => ({
+                // Format the questions properly
+                const formattedQuestions = result.rows.map(q => ({
                     id: q.id,
                     subject: q.subject_name,
-                    question: q.question_text,
-                    options: {
-                        A: q.option_a,
-                        B: q.option_b,
-                        C: q.option_c,
-                        D: q.option_d
-                    },
-                    correctAnswer: q.correct_answer,
+                    question_text: q.question_text,
+                    option_a: q.option_a,
+                    option_b: q.option_b,
+                    option_c: q.option_c,
+                    option_d: q.option_d,
+                    correct_answer: q.correct_answer,
                     explanation: q.explanation || '',
                     topic: q.topic,
                     difficulty: q.difficulty
                 }));
 
-                allQuestions = [...allQuestions, ...result.rows];
+                // Add to subject questions
+                subjectQuestions = [...subjectQuestions, ...formattedQuestions];
             }
+
+            // Verify we have the correct number of questions for this subject
+            const expectedCount = subject.name === 'Use of English' ? 60 : 40;
+            console.log(`${subject.name}: Loaded ${subjectQuestions.length} of ${expectedCount} questions`);
+            
+            // If we don't have enough questions, log a warning
+            if (subjectQuestions.length < expectedCount) {
+                console.warn(`Warning: Only found ${subjectQuestions.length} questions for ${subject.name}, expected ${expectedCount}`);
+            }
+
+            // Add subject questions to all questions
+            allQuestions = [...allQuestions, ...subjectQuestions];
         }
 
-        // Shuffle all questions together
-        allQuestions = shuffleArray(allQuestions);
+        // Shuffle all questions together (optional - you might want to keep them grouped by subject)
+        // If you want to keep them grouped by subject for the tabs, comment out the shuffle
+        // allQuestions = shuffleArray(allQuestions);
+        
+        console.log(`Total questions loaded: ${allQuestions.length}`);
+        
         res.json(allQuestions);
 
     } catch (error) {
