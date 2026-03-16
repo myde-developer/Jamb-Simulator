@@ -14,24 +14,26 @@ function logout(e) {
 // Exam state
 let examState = {
     questions: [],
-    currentIndex: 0,
+    subjectQuestions: {},
+    currentSubject: null,
+    subjectIndices: {},
     answers: {},
     timeRemaining: 7200,
     timerInterval: null,
     subjects: [],
     examId: null,
     startTime: null,
-    currentSubject: 'all',
-    subjectRanges: {}
+    subjectOrder: []
 };
 
-// Calculator state with drag functionality
+// Calculator state
 let examCalculator = {
     currentInput: '',
     previousInput: '',
     operator: null,
     memory: 0,
-    shouldReset: false
+    shouldReset: false,
+    lastResult: null
 };
 
 // Drag state for calculator
@@ -82,7 +84,14 @@ function loadExamData() {
     }
     
     examState.subjects = selectedSubjects;
+    examState.subjectOrder = selectedSubjects.map(s => s.name);
     examState.startTime = new Date().toISOString();
+    
+    selectedSubjects.forEach(subject => {
+        examState.subjectIndices[subject.name] = 0;
+    });
+    
+    examState.currentSubject = selectedSubjects[0].name;
     
     displaySubjectsBadge(selectedSubjects);
     renderSubjectTabs(selectedSubjects);
@@ -98,9 +107,10 @@ function renderSubjectTabs(subjects) {
         const isEnglish = subject.name === 'Use of English';
         const questionCount = isEnglish ? 60 : 40;
         const displayName = isEnglish ? 'English' : subject.name;
+        const isActive = index === 0 ? 'active' : '';
         
         return `
-            <button class="subject-tab ${index === 0 ? 'active' : ''}" 
+            <button class="subject-tab ${isActive}" 
                     onclick="switchSubject('${subject.name}')">
                 ${displayName}
                 <span class="count-badge">${questionCount}</span>
@@ -141,31 +151,18 @@ function switchSubject(subjectName) {
         }
     });
     
-    const firstIndex = examState.questions.findIndex(q => q.subject === subjectName);
-    if (firstIndex !== -1) {
-        examState.currentIndex = firstIndex;
-        renderQuestion(firstIndex);
-        updateNavButtons();
-        highlightCurrentInPalette(firstIndex);
-    }
-    
+    renderSubjectQuestion(subjectName);
     renderPalette();
 }
 
-function filterPalette(subject) {
-    examState.currentSubject = subject;
+function renderSubjectQuestion(subjectName) {
+    const subjectQuestions = examState.subjectQuestions[subjectName];
+    if (!subjectQuestions || subjectQuestions.length === 0) return;
     
-    document.querySelectorAll('.filter-btn').forEach(btn => {
-        const btnSubject = btn.textContent.trim();
-        if ((subject === 'all' && btnSubject === 'All') || 
-            (subject !== 'all' && btnSubject === subject)) {
-            btn.classList.add('active');
-        } else {
-            btn.classList.remove('active');
-        }
-    });
+    const currentIndex = examState.subjectIndices[subjectName];
+    const question = subjectQuestions[currentIndex];
     
-    renderPalette();
+    renderQuestion(question, subjectName, currentIndex + 1, subjectQuestions.length);
 }
 
 function displaySubjectsBadge(subjects) {
@@ -197,22 +194,22 @@ async function fetchExamQuestions(subjects) {
         if (!response.ok) throw new Error('Failed to fetch questions');
         
         const questions = await response.json();
+        
+        examState.subjectQuestions = {};
+        subjects.forEach(subject => {
+            const subjectQuestions = questions.filter(q => q.subject === subject.name);
+            examState.subjectQuestions[subject.name] = subjectQuestions;
+        });
+        
         examState.questions = questions;
         examState.examId = generateExamId();
         
-        calculateSubjectRanges();
-        
-        renderQuestion(0);
+        const firstSubject = subjects[0].name;
+        renderSubjectQuestion(firstSubject);
         renderPalette();
         
     } catch (error) {
-        console.error('Full error object:', error);
-        
-        if (error.response) {
-            error.response.text().then(text => {
-                console.error('Response body:', text);
-            });
-        }
+        console.error('Error loading questions:', error);
         
         document.getElementById('questionContainer').innerHTML = `
             <div style="text-align: center; padding: 50px; color: #e74c3c;">
@@ -224,20 +221,7 @@ async function fetchExamQuestions(subjects) {
     }
 }
 
-function calculateSubjectRanges() {
-    const ranges = {};
-    examState.subjects.forEach(subject => {
-        ranges[subject.name] = {
-            start: examState.questions.findIndex(q => q.subject === subject.name),
-            end: examState.questions.findLastIndex(q => q.subject === subject.name),
-            count: examState.questions.filter(q => q.subject === subject.name).length
-        };
-    });
-    examState.subjectRanges = ranges;
-}
-
-function renderQuestion(index) {
-    const question = examState.questions[index];
+function renderQuestion(question, subjectName, questionNumber, totalQuestions) {
     if (!question) return;
     
     const container = document.getElementById('questionContainer');
@@ -251,8 +235,8 @@ function renderQuestion(index) {
     };
     
     container.innerHTML = `
-        <div class="question-number">Question ${index + 1} of ${examState.questions.length}</div>
-        <div class="question-subject">${question.subject || 'Unknown'}</div>
+        <div class="question-number">Question ${questionNumber} of ${totalQuestions}</div>
+        <div class="question-subject">${subjectName}</div>
         <div class="question-text">${question.question_text || question.question || ''}</div>
         <div class="options">
             ${['A', 'B', 'C', 'D'].map(letter => `
@@ -265,9 +249,9 @@ function renderQuestion(index) {
         </div>
     `;
     
-    updateNavButtons();
+    updateNavButtons(subjectName);
     updateProgress();
-    highlightCurrentInPalette(index);
+    highlightCurrentInPalette(question.id);
 }
 
 function selectAnswer(questionId, answer) {
@@ -289,50 +273,106 @@ function renderPalette() {
     const palette = document.getElementById('paletteGrid');
     if (!palette) return;
     
-    let filteredQuestions = examState.questions;
-    if (examState.currentSubject !== 'all') {
-        filteredQuestions = examState.questions.filter(q => q.subject === examState.currentSubject);
+    const allQuestions = [];
+    
+    Object.keys(examState.subjectQuestions).forEach(subject => {
+        examState.subjectQuestions[subject].forEach((q, index) => {
+            allQuestions.push({
+                ...q,
+                subjectDisplay: subject === 'Use of English' ? 'ENG' : 
+                               subject === 'Mathematics' ? 'MTH' :
+                               subject === 'Physics' ? 'PHY' :
+                               subject === 'Chemistry' ? 'CHM' :
+                               subject === 'Biology' ? 'BIO' : subject.substring(0, 3).toUpperCase(),
+                subjectName: subject,
+                subjectIndex: index + 1
+            });
+        });
+    });
+    
+    let displayQuestions = allQuestions;
+    if (examState.currentSubject && examState.currentSubject !== 'all') {
+        displayQuestions = allQuestions.filter(q => q.subjectName === examState.currentSubject);
     }
     
-    palette.innerHTML = filteredQuestions.map((q, idx) => {
-        const originalIndex = examState.questions.findIndex(question => question.id === q.id);
+    palette.innerHTML = displayQuestions.map((q, idx) => {
         const answered = examState.answers[q.id] ? 'answered' : 'unanswered';
-        const current = originalIndex === examState.currentIndex ? 'current' : '';
-        const subjectShort = q.subject === 'Use of English' ? 'ENG' : 
-                            q.subject === 'Mathematics' ? 'MTH' :
-                            q.subject === 'Physics' ? 'PHY' :
-                            q.subject === 'Chemistry' ? 'CHM' :
-                            q.subject === 'Biology' ? 'BIO' : 'SUB';
+        const isCurrent = examState.currentSubject === q.subjectName && 
+                         examState.subjectIndices[q.subjectName] === q.subjectIndex - 1;
+        const current = isCurrent ? 'current' : '';
         
         return `
             <div class="palette-item ${answered} ${current}" 
-                 onclick="jumpToQuestion(${originalIndex})"
-                 data-subject="${subjectShort}"
-                 title="${q.subject} - Question ${originalIndex + 1}">
-                ${originalIndex + 1}
+                 onclick="jumpToQuestion('${q.subjectName}', ${q.subjectIndex - 1})"
+                 data-subject="${q.subjectDisplay}"
+                 title="${q.subjectName} - Question ${q.subjectIndex}">
+                ${q.subjectDisplay} ${q.subjectIndex}
             </div>
         `;
     }).join('');
 }
 
 function updatePaletteItem(questionId) {
-    const index = examState.questions.findIndex(q => q.id === questionId);
-    const paletteItems = document.querySelectorAll('.palette-item');
+    let targetSubject = null;
+    let targetIndex = -1;
     
+    for (const subject in examState.subjectQuestions) {
+        const index = examState.subjectQuestions[subject].findIndex(q => q.id === questionId);
+        if (index !== -1) {
+            targetSubject = subject;
+            targetIndex = index;
+            break;
+        }
+    }
+    
+    if (targetSubject === null) return;
+    
+    const paletteItems = document.querySelectorAll('.palette-item');
     paletteItems.forEach(item => {
-        if (item.textContent.trim() === (index + 1).toString()) {
+        const itemText = item.textContent.trim();
+        const subjectCode = targetSubject === 'Use of English' ? 'ENG' :
+                           targetSubject === 'Mathematics' ? 'MTH' :
+                           targetSubject === 'Physics' ? 'PHY' :
+                           targetSubject === 'Chemistry' ? 'CHM' :
+                           targetSubject === 'Biology' ? 'BIO' : targetSubject.substring(0, 3).toUpperCase();
+        
+        if (itemText === `${subjectCode} ${targetIndex + 1}`) {
             item.className = 'palette-item answered';
-            if (index === examState.currentIndex) {
+            
+            const isCurrent = examState.currentSubject === targetSubject && 
+                             examState.subjectIndices[targetSubject] === targetIndex;
+            if (isCurrent) {
                 item.classList.add('current');
             }
         }
     });
 }
 
-function highlightCurrentInPalette(index) {
-    document.querySelectorAll('.palette-item').forEach((item, i) => {
-        const itemNumber = parseInt(item.textContent.trim());
-        if (itemNumber === index + 1) {
+function highlightCurrentInPalette(questionId) {
+    let targetSubject = null;
+    let targetIndex = -1;
+    
+    for (const subject in examState.subjectQuestions) {
+        const index = examState.subjectQuestions[subject].findIndex(q => q.id === questionId);
+        if (index !== -1) {
+            targetSubject = subject;
+            targetIndex = index;
+            break;
+        }
+    }
+    
+    if (targetSubject === null) return;
+    
+    const paletteItems = document.querySelectorAll('.palette-item');
+    paletteItems.forEach(item => {
+        const itemText = item.textContent.trim();
+        const subjectCode = targetSubject === 'Use of English' ? 'ENG' :
+                           targetSubject === 'Mathematics' ? 'MTH' :
+                           targetSubject === 'Physics' ? 'PHY' :
+                           targetSubject === 'Chemistry' ? 'CHM' :
+                           targetSubject === 'Biology' ? 'BIO' : targetSubject.substring(0, 3).toUpperCase();
+        
+        if (itemText === `${subjectCode} ${targetIndex + 1}`) {
             item.classList.add('current');
         } else {
             item.classList.remove('current');
@@ -340,33 +380,38 @@ function highlightCurrentInPalette(index) {
     });
 }
 
-function jumpToQuestion(index) {
-    examState.currentIndex = index;
-    renderQuestion(index);
+function jumpToQuestion(subjectName, index) {
+    examState.currentSubject = subjectName;
+    examState.subjectIndices[subjectName] = index;
     
-    const question = examState.questions[index];
-    if (question) {
-        document.querySelectorAll('.subject-tab').forEach((tab, i) => {
-            const tabSubject = examState.subjects[i].name;
-            if (tabSubject === question.subject) {
-                tab.classList.add('active');
-            } else {
-                tab.classList.remove('active');
-            }
-        });
-    }
+    document.querySelectorAll('.subject-tab').forEach((tab, i) => {
+        const tabSubject = examState.subjects[i].name;
+        if (tabSubject === subjectName) {
+            tab.classList.add('active');
+        } else {
+            tab.classList.remove('active');
+        }
+    });
+    
+    renderSubjectQuestion(subjectName);
 }
 
-function updateNavButtons() {
+function updateNavButtons(subjectName) {
     const prevBtn = document.getElementById('prevBtn');
     const nextBtn = document.getElementById('nextBtn');
     const submitBtn = document.getElementById('submitBtn');
     
     if (!prevBtn || !nextBtn || !submitBtn) return;
     
-    prevBtn.disabled = examState.currentIndex === 0;
+    const currentIndex = examState.subjectIndices[subjectName];
+    const totalQuestions = examState.subjectQuestions[subjectName].length;
     
-    if (examState.currentIndex === examState.questions.length - 1) {
+    prevBtn.disabled = currentIndex === 0;
+    
+    const isLastSubject = subjectName === examState.subjectOrder[examState.subjectOrder.length - 1];
+    const isLastQuestion = currentIndex === totalQuestions - 1;
+    
+    if (isLastSubject && isLastQuestion) {
         nextBtn.style.display = 'none';
         submitBtn.style.display = 'block';
     } else {
@@ -375,9 +420,73 @@ function updateNavButtons() {
     }
 }
 
+function nextQuestion() {
+    const currentSubject = examState.currentSubject;
+    const currentIndex = examState.subjectIndices[currentSubject];
+    const subjectQuestions = examState.subjectQuestions[currentSubject];
+    
+    if (currentIndex < subjectQuestions.length - 1) {
+        examState.subjectIndices[currentSubject] = currentIndex + 1;
+        renderSubjectQuestion(currentSubject);
+    } else {
+        const currentSubjectIndex = examState.subjectOrder.indexOf(currentSubject);
+        if (currentSubjectIndex < examState.subjectOrder.length - 1) {
+            const nextSubject = examState.subjectOrder[currentSubjectIndex + 1];
+            examState.currentSubject = nextSubject;
+            examState.subjectIndices[nextSubject] = 0;
+            
+            document.querySelectorAll('.subject-tab').forEach((tab, i) => {
+                const tabSubject = examState.subjects[i].name;
+                if (tabSubject === nextSubject) {
+                    tab.classList.add('active');
+                } else {
+                    tab.classList.remove('active');
+                }
+            });
+            
+            renderSubjectQuestion(nextSubject);
+        }
+    }
+    
+    renderPalette();
+}
+
+function prevQuestion() {
+    const currentSubject = examState.currentSubject;
+    const currentIndex = examState.subjectIndices[currentSubject];
+    
+    if (currentIndex > 0) {
+        examState.subjectIndices[currentSubject] = currentIndex - 1;
+        renderSubjectQuestion(currentSubject);
+    } else {
+        const currentSubjectIndex = examState.subjectOrder.indexOf(currentSubject);
+        if (currentSubjectIndex > 0) {
+            const prevSubject = examState.subjectOrder[currentSubjectIndex - 1];
+            const prevSubjectQuestions = examState.subjectQuestions[prevSubject];
+            
+            examState.currentSubject = prevSubject;
+            examState.subjectIndices[prevSubject] = prevSubjectQuestions.length - 1;
+            
+            document.querySelectorAll('.subject-tab').forEach((tab, i) => {
+                const tabSubject = examState.subjects[i].name;
+                if (tabSubject === prevSubject) {
+                    tab.classList.add('active');
+                } else {
+                    tab.classList.remove('active');
+                }
+            });
+            
+            renderSubjectQuestion(prevSubject);
+        }
+    }
+    
+    renderPalette();
+}
+
 function updateProgress() {
     const answeredCount = Object.keys(examState.answers).length;
-    const progress = (answeredCount / examState.questions.length) * 100;
+    const totalQuestions = Object.values(examState.subjectQuestions).reduce((sum, q) => sum + q.length, 0);
+    const progress = (answeredCount / totalQuestions) * 100;
     const progressFill = document.getElementById('progressFill');
     if (progressFill) {
         progressFill.style.width = `${progress}%`;
@@ -415,26 +524,17 @@ function updateTimerDisplay() {
 }
 
 function setupEventListeners() {
-    document.getElementById('prevBtn')?.addEventListener('click', () => {
-        if (examState.currentIndex > 0) {
-            examState.currentIndex--;
-            renderQuestion(examState.currentIndex);
-        }
-    });
-    
-    document.getElementById('nextBtn')?.addEventListener('click', () => {
-        if (examState.currentIndex < examState.questions.length - 1) {
-            examState.currentIndex++;
-            renderQuestion(examState.currentIndex);
-        }
-    });
-    
+    document.getElementById('prevBtn')?.addEventListener('click', prevQuestion);
+    document.getElementById('nextBtn')?.addEventListener('click', nextQuestion);
     document.getElementById('submitBtn')?.addEventListener('click', submitExam);
 }
 
 function submitExam() {
-    if (Object.keys(examState.answers).length < examState.questions.length) {
-        if (!confirm(`You have answered ${Object.keys(examState.answers).length} out of ${examState.questions.length} questions. Submit anyway?`)) {
+    const totalQuestions = Object.values(examState.subjectQuestions).reduce((sum, q) => sum + q.length, 0);
+    const answeredCount = Object.keys(examState.answers).length;
+    
+    if (answeredCount < totalQuestions) {
+        if (!confirm(`You have answered ${answeredCount} out of ${totalQuestions} questions. Submit anyway?`)) {
             return;
         }
     }
@@ -444,7 +544,7 @@ function submitExam() {
     const results = calculateJAMBScores();
     
     localStorage.setItem('lastExamResults', JSON.stringify({
-        questions: examState.questions,
+        subjectQuestions: examState.subjectQuestions,
         answers: examState.answers,
         scores: results,
         subjects: examState.subjects,
@@ -461,32 +561,28 @@ function calculateJAMBScores() {
     let otherTotal = 0;
     const subjectScores = {};
     
-    examState.questions.forEach(q => {
-        if (!subjectScores[q.subject]) {
-            subjectScores[q.subject] = { correct: 0, total: 0 };
-        }
+    Object.keys(examState.subjectQuestions).forEach(subject => {
+        subjectScores[subject] = { correct: 0, total: examState.subjectQuestions[subject].length };
         
-        subjectScores[q.subject].total++;
-        
-        const correctAnswer = q.correct_answer || q.correctAnswer;
-        const isCorrect = examState.answers[q.id] === correctAnswer;
-        
-        if (isCorrect) {
-            subjectScores[q.subject].correct++;
+        examState.subjectQuestions[subject].forEach(q => {
+            const correctAnswer = q.correct_answer || q.correctAnswer;
+            const isCorrect = examState.answers[q.id] === correctAnswer;
             
-            if (q.subject === 'Use of English') {
-                englishCorrect++;
-                englishTotal++;
-            } else {
-                otherCorrect++;
-                otherTotal++;
+            if (isCorrect) {
+                subjectScores[subject].correct++;
+                
+                if (subject === 'Use of English') {
+                    englishCorrect++;
+                } else {
+                    otherCorrect++;
+                }
             }
+        });
+        
+        if (subject === 'Use of English') {
+            englishTotal = examState.subjectQuestions[subject].length;
         } else {
-            if (q.subject === 'Use of English') {
-                englishTotal++;
-            } else {
-                otherTotal++;
-            }
+            otherTotal += examState.subjectQuestions[subject].length;
         }
     });
     
@@ -507,36 +603,340 @@ function generateExamId() {
     return 'EXAM_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 }
 
-// Draggable Calculator Functions
+function filterPalette(subject) {
+    examState.currentSubject = subject === 'all' ? null : subject;
+    
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        const btnSubject = btn.textContent.trim();
+        if ((subject === 'all' && btnSubject === 'All') || 
+            (subject !== 'all' && btnSubject === subject)) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+    
+    renderPalette();
+}
+
+function renderCalculator() {
+    const container = document.getElementById('examCalculator');
+    
+    container.innerHTML = `
+        <div class="calc-display">
+            <div class="calc-expression" id="calcExpression"></div>
+            <div class="calc-result" id="calcResult">0</div>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 8px;">
+            <button class="calc-btn operator" onclick="calculatorMemory('clear'); event.stopPropagation();">MC</button>
+            <button class="calc-btn operator" onclick="calculatorMemory('recall'); event.stopPropagation();">MR</button>
+            <button class="calc-btn operator" onclick="calculatorMemory('add'); event.stopPropagation();">M+</button>
+            <button class="calc-btn operator" onclick="calculatorMemory('subtract'); event.stopPropagation();">M-</button>
+        </div>
+        
+        <div class="calc-grid">
+            <button class="calc-btn clear" onclick="calculatorClear(); event.stopPropagation();">C</button>
+            <button class="calc-btn operator" onclick="calculatorAppend('%'); event.stopPropagation();">%</button>
+            <button class="calc-btn operator" onclick="calculatorOperator('/'); event.stopPropagation();">÷</button>
+            <button class="calc-btn operator" onclick="calculatorBackspace(); event.stopPropagation();">⌫</button>
+            
+            <button class="calc-btn number" onclick="calculatorAppend('7'); event.stopPropagation();">7</button>
+            <button class="calc-btn number" onclick="calculatorAppend('8'); event.stopPropagation();">8</button>
+            <button class="calc-btn number" onclick="calculatorAppend('9'); event.stopPropagation();">9</button>
+            <button class="calc-btn operator" onclick="calculatorOperator('*'); event.stopPropagation();">×</button>
+            
+            <button class="calc-btn number" onclick="calculatorAppend('4'); event.stopPropagation();">4</button>
+            <button class="calc-btn number" onclick="calculatorAppend('5'); event.stopPropagation();">5</button>
+            <button class="calc-btn number" onclick="calculatorAppend('6'); event.stopPropagation();">6</button>
+            <button class="calc-btn operator" onclick="calculatorOperator('-'); event.stopPropagation();">−</button>
+            
+            <button class="calc-btn number" onclick="calculatorAppend('1'); event.stopPropagation();">1</button>
+            <button class="calc-btn number" onclick="calculatorAppend('2'); event.stopPropagation();">2</button>
+            <button class="calc-btn number" onclick="calculatorAppend('3'); event.stopPropagation();">3</button>
+            <button class="calc-btn operator" onclick="calculatorOperator('+'); event.stopPropagation();">+</button>
+            
+            <button class="calc-btn number" onclick="calculatorAppend('0'); event.stopPropagation();">0</button>
+            <button class="calc-btn number" onclick="calculatorAppend('.'); event.stopPropagation();">.</button>
+            <button class="calc-btn equals" onclick="calculatorCalculate(); event.stopPropagation();" style="grid-column: span 2;">=</button>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px;">
+            <button class="calc-btn operator" onclick="calculatorScientific('sqrt'); event.stopPropagation();">√</button>
+            <button class="calc-btn operator" onclick="calculatorScientific('square'); event.stopPropagation();">x²</button>
+            <button class="calc-btn operator" onclick="calculatorScientific('sin'); event.stopPropagation();">sin</button>
+            <button class="calc-btn operator" onclick="calculatorScientific('cos'); event.stopPropagation();">cos</button>
+        </div>
+    `;
+    
+    updateCalculatorDisplay();
+}
+
+function calculatorAppend(value) {
+    if (examCalculator.shouldReset) {
+        examCalculator.currentInput = '';
+        examCalculator.shouldReset = false;
+    }
+    
+    if (value === '.') {
+        if (examCalculator.currentInput.includes('.')) return;
+        if (examCalculator.currentInput === '') {
+            examCalculator.currentInput = '0.';
+            updateCalculatorDisplay();
+            return;
+        }
+    }
+    
+    examCalculator.currentInput += value;
+    updateCalculatorDisplay();
+}
+
+function calculatorOperator(op) {
+    if (examCalculator.operator && examCalculator.previousInput !== '' && examCalculator.currentInput !== '') {
+        calculatorCalculate();
+    }
+    
+    examCalculator.operator = op;
+    
+    if (examCalculator.currentInput !== '') {
+        examCalculator.previousInput = examCalculator.currentInput;
+        examCalculator.currentInput = '';
+    } else if (examCalculator.lastResult !== null) {
+        examCalculator.previousInput = examCalculator.lastResult.toString();
+    }
+    
+    examCalculator.shouldReset = false;
+    updateCalculatorDisplay();
+}
+
+function calculatorCalculate() {
+    if (!examCalculator.operator || examCalculator.previousInput === '') {
+        return;
+    }
+    
+    let currentValue;
+    if (examCalculator.currentInput === '') {
+        if (examCalculator.lastResult !== null) {
+            currentValue = examCalculator.lastResult;
+        } else {
+            currentValue = parseFloat(examCalculator.previousInput);
+        }
+    } else {
+        currentValue = parseFloat(examCalculator.currentInput);
+    }
+    
+    const prevValue = parseFloat(examCalculator.previousInput);
+    
+    if (isNaN(prevValue) || isNaN(currentValue)) {
+        alert('Invalid input');
+        calculatorClear();
+        return;
+    }
+    
+    let result;
+    
+    switch(examCalculator.operator) {
+        case '+':
+            result = prevValue + currentValue;
+            break;
+        case '-':
+            result = prevValue - currentValue;
+            break;
+        case '*':
+            result = prevValue * currentValue;
+            break;
+        case '/':
+            if (currentValue === 0) {
+                alert('Cannot divide by zero!');
+                return;
+            }
+            result = prevValue / currentValue;
+            break;
+        case '%':
+            result = prevValue % currentValue;
+            break;
+        default:
+            return;
+    }
+    
+    result = Math.round(result * 100000000) / 100000000;
+    
+    examCalculator.currentInput = result.toString();
+    examCalculator.lastResult = result;
+    examCalculator.operator = null;
+    examCalculator.previousInput = '';
+    examCalculator.shouldReset = true;
+    
+    updateCalculatorDisplay();
+}
+
+function calculatorScientific(func) {
+    if (examCalculator.currentInput === '') {
+        if (examCalculator.lastResult !== null) {
+            examCalculator.currentInput = examCalculator.lastResult.toString();
+        } else {
+            return;
+        }
+    }
+    
+    let value = parseFloat(examCalculator.currentInput);
+    if (isNaN(value)) return;
+    
+    let result;
+    
+    switch(func) {
+        case 'sqrt':
+            if (value < 0) {
+                alert('Cannot calculate square root of negative number');
+                return;
+            }
+            result = Math.sqrt(value);
+            break;
+        case 'square':
+            result = Math.pow(value, 2);
+            break;
+        case 'sin':
+            result = Math.sin(value * Math.PI / 180);
+            break;
+        case 'cos':
+            result = Math.cos(value * Math.PI / 180);
+            break;
+        default:
+            return;
+    }
+    
+    result = Math.round(result * 100000000) / 100000000;
+    
+    examCalculator.currentInput = result.toString();
+    examCalculator.lastResult = result;
+    examCalculator.shouldReset = true;
+    examCalculator.operator = null;
+    examCalculator.previousInput = '';
+    
+    updateCalculatorDisplay();
+}
+
+function calculatorMemory(action) {
+    let currentValue;
+    
+    if (examCalculator.currentInput !== '') {
+        currentValue = parseFloat(examCalculator.currentInput);
+    } else if (examCalculator.lastResult !== null) {
+        currentValue = examCalculator.lastResult;
+    } else {
+        currentValue = 0;
+    }
+    
+    if (isNaN(currentValue)) currentValue = 0;
+    
+    switch(action) {
+        case 'clear':
+            examCalculator.memory = 0;
+            break;
+        case 'recall':
+            examCalculator.currentInput = examCalculator.memory.toString();
+            examCalculator.shouldReset = true;
+            examCalculator.operator = null;
+            examCalculator.previousInput = '';
+            updateCalculatorDisplay();
+            break;
+        case 'add':
+            examCalculator.memory += currentValue;
+            break;
+        case 'subtract':
+            examCalculator.memory -= currentValue;
+            break;
+    }
+    
+    const result = document.getElementById('calcResult');
+    if (result && action !== 'recall') {
+        const originalText = result.textContent;
+        result.textContent = action === 'clear' ? 'Memory Cleared' : 
+                            action === 'add' ? 'Memory +' : 
+                            action === 'subtract' ? 'Memory -' : '';
+        setTimeout(() => {
+            updateCalculatorDisplay();
+        }, 500);
+    }
+}
+
+function calculatorClear() {
+    examCalculator.currentInput = '';
+    examCalculator.previousInput = '';
+    examCalculator.operator = null;
+    examCalculator.shouldReset = false;
+    updateCalculatorDisplay();
+}
+
+function calculatorBackspace() {
+    if (examCalculator.shouldReset) return;
+    examCalculator.currentInput = examCalculator.currentInput.slice(0, -1);
+    updateCalculatorDisplay();
+}
+
+function updateCalculatorDisplay() {
+    const expression = document.getElementById('calcExpression');
+    const result = document.getElementById('calcResult');
+    
+    if (expression) {
+        if (examCalculator.operator && examCalculator.previousInput) {
+            expression.textContent = `${examCalculator.previousInput} ${examCalculator.operator}`;
+        } else {
+            expression.textContent = '';
+        }
+    }
+    
+    if (result) {
+        if (examCalculator.currentInput === '') {
+            if (examCalculator.lastResult !== null && !examCalculator.operator) {
+                result.textContent = examCalculator.lastResult;
+            } else {
+                result.textContent = '0';
+            }
+        } else {
+            result.textContent = examCalculator.currentInput;
+        }
+    }
+}
+
+// Modal click handler
+function handleModalClick(event) {
+    if (event.target === document.getElementById('calculatorModal')) {
+        toggleCalculator(event);
+    }
+}
+
 function initDraggableCalculator() {
-    const modal = document.getElementById('calculatorModal');
     const content = document.getElementById('calculatorContent');
     const header = document.getElementById('calculatorHeader');
     
-    if (!modal || !content || !header) return;
+    if (!content || !header) return;
     
-    // Remove any existing listeners
+    content.style.transform = 'translate(-50%, -50%)';
+    dragState.xOffset = 0;
+    dragState.yOffset = 0;
+    
     header.removeEventListener('mousedown', dragMouseDown);
     header.removeEventListener('touchstart', dragTouchStart);
-    document.removeEventListener('mousemove', dragMouseMove);
-    document.removeEventListener('mouseup', dragMouseUp);
-    document.removeEventListener('touchmove', dragTouchMove);
-    document.removeEventListener('touchend', dragTouchEnd);
     
-    // Add new listeners
     header.addEventListener('mousedown', dragMouseDown);
     header.addEventListener('touchstart', dragTouchStart, { passive: false });
 }
 
 function dragMouseDown(e) {
     e.preventDefault();
+    e.stopPropagation();
     const content = document.getElementById('calculatorContent');
     if (!content) return;
     
+    const transform = window.getComputedStyle(content).transform;
+    const matrix = new DOMMatrix(transform);
+    
+    dragState.xOffset = matrix.m41;
+    dragState.yOffset = matrix.m42;
     dragState.initialX = e.clientX - dragState.xOffset;
     dragState.initialY = e.clientY - dragState.yOffset;
     dragState.isDragging = true;
-    dragState.activated = true;
     
     document.addEventListener('mousemove', dragMouseMove);
     document.addEventListener('mouseup', dragMouseUp);
@@ -547,14 +947,19 @@ function dragMouseDown(e) {
 
 function dragTouchStart(e) {
     e.preventDefault();
+    e.stopPropagation();
     const touch = e.touches[0];
     const content = document.getElementById('calculatorContent');
     if (!content) return;
     
+    const transform = window.getComputedStyle(content).transform;
+    const matrix = new DOMMatrix(transform);
+    
+    dragState.xOffset = matrix.m41;
+    dragState.yOffset = matrix.m42;
     dragState.initialX = touch.clientX - dragState.xOffset;
     dragState.initialY = touch.clientY - dragState.yOffset;
     dragState.isDragging = true;
-    dragState.activated = true;
     
     document.addEventListener('touchmove', dragTouchMove, { passive: false });
     document.addEventListener('touchend', dragTouchEnd);
@@ -571,9 +976,6 @@ function dragMouseMove(e) {
     dragState.currentX = e.clientX - dragState.initialX;
     dragState.currentY = e.clientY - dragState.initialY;
     
-    dragState.xOffset = dragState.currentX;
-    dragState.yOffset = dragState.currentY;
-    
     setTranslate(dragState.currentX, dragState.currentY, document.getElementById('calculatorContent'));
 }
 
@@ -585,15 +987,11 @@ function dragTouchMove(e) {
     dragState.currentX = touch.clientX - dragState.initialX;
     dragState.currentY = touch.clientY - dragState.initialY;
     
-    dragState.xOffset = dragState.currentX;
-    dragState.yOffset = dragState.currentY;
-    
     setTranslate(dragState.currentX, dragState.currentY, document.getElementById('calculatorContent'));
 }
 
 function dragMouseUp(e) {
     dragState.isDragging = false;
-    dragState.activated = false;
     
     document.removeEventListener('mousemove', dragMouseMove);
     document.removeEventListener('mouseup', dragMouseUp);
@@ -607,7 +1005,6 @@ function dragMouseUp(e) {
 
 function dragTouchEnd(e) {
     dragState.isDragging = false;
-    dragState.activated = false;
     
     document.removeEventListener('touchmove', dragTouchMove);
     document.removeEventListener('touchend', dragTouchEnd);
@@ -623,7 +1020,6 @@ function dragTouchEnd(e) {
 function setTranslate(xPos, yPos, el) {
     if (!el) return;
     
-    // Add bounds checking to keep calculator on screen
     const rect = el.getBoundingClientRect();
     const maxX = window.innerWidth - rect.width;
     const maxY = window.innerHeight - rect.height;
@@ -634,204 +1030,39 @@ function setTranslate(xPos, yPos, el) {
     el.style.transform = `translate(${xPos}px, ${yPos}px)`;
 }
 
-// Updated toggleCalculator function with drag initialization
-function toggleCalculator() {
+function toggleCalculator(event) {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    
     const modal = document.getElementById('calculatorModal');
     const btn = document.getElementById('calculatorToggle');
     const content = document.getElementById('calculatorContent');
     
     if (modal.style.display === 'none' || modal.style.display === '') {
         modal.style.display = 'block';
-        btn.innerHTML = '<span>🧮</span> <span class="btn-text">Hide Calculator</span>';
+        if (btn) {
+            btn.innerHTML = '<span>🧮</span> <span class="btn-text">Hide Calculator</span>';
+        }
         renderCalculator();
         
-        // Reset position
-        if (content) {
-            content.style.transform = 'none';
-            dragState.xOffset = 0;
-            dragState.yOffset = 0;
-        }
-        
-        // Initialize draggable
         setTimeout(() => {
             initDraggableCalculator();
-        }, 100);
+        }, 50);
     } else {
         modal.style.display = 'none';
-        btn.innerHTML = '<span>🧮</span> <span class="btn-text">Calculator</span>';
+        if (btn) {
+            btn.innerHTML = '<span>🧮</span> <span class="btn-text">Calculator</span>';
+        }
         
-        // Reset drag state
+        if (content) {
+            content.style.transform = 'translate(-50%, -50%)';
+        }
+        
         dragState.isDragging = false;
         dragState.xOffset = 0;
         dragState.yOffset = 0;
-        if (content) {
-            content.style.transform = 'none';
-        }
-    }
-}
-
-function renderCalculator() {
-    const container = document.getElementById('examCalculator');
-    
-    container.innerHTML = `
-        <div class="calc-display">
-            <div class="calc-expression" id="calcExpression"></div>
-            <div class="calc-result" id="calcResult">0</div>
-        </div>
-        
-        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 8px;">
-            <button class="calc-btn operator" onclick="calculatorMemory('clear')">MC</button>
-            <button class="calc-btn operator" onclick="calculatorMemory('recall')">MR</button>
-            <button class="calc-btn operator" onclick="calculatorMemory('add')">M+</button>
-            <button class="calc-btn operator" onclick="calculatorMemory('subtract')">M-</button>
-        </div>
-        
-        <div class="calc-grid">
-            <button class="calc-btn clear" onclick="calculatorClear()">C</button>
-            <button class="calc-btn operator" onclick="calculatorAppend('%')">%</button>
-            <button class="calc-btn operator" onclick="calculatorAppend('/')">÷</button>
-            <button class="calc-btn operator" onclick="calculatorBackspace()">⌫</button>
-            
-            <button class="calc-btn number" onclick="calculatorAppend('7')">7</button>
-            <button class="calc-btn number" onclick="calculatorAppend('8')">8</button>
-            <button class="calc-btn number" onclick="calculatorAppend('9')">9</button>
-            <button class="calc-btn operator" onclick="calculatorAppend('*')">×</button>
-            
-            <button class="calc-btn number" onclick="calculatorAppend('4')">4</button>
-            <button class="calc-btn number" onclick="calculatorAppend('5')">5</button>
-            <button class="calc-btn number" onclick="calculatorAppend('6')">6</button>
-            <button class="calc-btn operator" onclick="calculatorAppend('-')">−</button>
-            
-            <button class="calc-btn number" onclick="calculatorAppend('1')">1</button>
-            <button class="calc-btn number" onclick="calculatorAppend('2')">2</button>
-            <button class="calc-btn number" onclick="calculatorAppend('3')">3</button>
-            <button class="calc-btn operator" onclick="calculatorAppend('+')">+</button>
-            
-            <button class="calc-btn number" onclick="calculatorAppend('0')">0</button>
-            <button class="calc-btn number" onclick="calculatorAppend('.')">.</button>
-            <button class="calc-btn equals" onclick="calculatorCalculate()">=</button>
-        </div>
-        
-        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px;">
-            <button class="calc-btn operator" onclick="calculatorScientific('sqrt')">√</button>
-            <button class="calc-btn operator" onclick="calculatorScientific('square')">x²</button>
-            <button class="calc-btn operator" onclick="calculatorScientific('sin')">sin</button>
-            <button class="calc-btn operator" onclick="calculatorScientific('cos')">cos</button>
-        </div>
-    `;
-    
-    updateCalculatorDisplay();
-}
-
-function calculatorAppend(value) {
-    if (value === '.' && examCalculator.currentInput.includes('.')) return;
-    examCalculator.currentInput += value;
-    updateCalculatorDisplay();
-}
-
-function calculatorOperator(op) {
-    if (examCalculator.previousInput !== '' && examCalculator.currentInput !== '') {
-        calculatorCalculate();
-    }
-    examCalculator.operator = op;
-    if (examCalculator.currentInput !== '') {
-        examCalculator.previousInput = examCalculator.currentInput;
-        examCalculator.currentInput = '';
-    }
-    updateCalculatorDisplay();
-}
-
-function calculatorCalculate() {
-    if (!examCalculator.operator || examCalculator.previousInput === '' || examCalculator.currentInput === '') return;
-    
-    let result;
-    const prev = parseFloat(examCalculator.previousInput);
-    const curr = parseFloat(examCalculator.currentInput);
-    
-    switch(examCalculator.operator) {
-        case '+': result = prev + curr; break;
-        case '-': result = prev - curr; break;
-        case '*': result = prev * curr; break;
-        case '/': 
-            if (curr === 0) {
-                alert('Cannot divide by zero!');
-                return;
-            }
-            result = prev / curr; 
-            break;
-        case '%': result = prev % curr; break;
-        default: return;
-    }
-    
-    examCalculator.currentInput = result.toString();
-    examCalculator.operator = null;
-    examCalculator.previousInput = '';
-    updateCalculatorDisplay();
-}
-
-function calculatorScientific(func) {
-    if (examCalculator.currentInput === '') return;
-    
-    let value = parseFloat(examCalculator.currentInput);
-    let result;
-    
-    switch(func) {
-        case 'sqrt': result = Math.sqrt(value); break;
-        case 'square': result = Math.pow(value, 2); break;
-        case 'sin': result = Math.sin(value * Math.PI / 180); break;
-        case 'cos': result = Math.cos(value * Math.PI / 180); break;
-        default: return;
-    }
-    
-    examCalculator.currentInput = result.toString();
-    updateCalculatorDisplay();
-}
-
-function calculatorMemory(action) {
-    switch(action) {
-        case 'clear': examCalculator.memory = 0; break;
-        case 'recall': 
-            examCalculator.currentInput = examCalculator.memory.toString();
-            break;
-        case 'add': 
-            if (examCalculator.currentInput !== '') {
-                examCalculator.memory += parseFloat(examCalculator.currentInput);
-            }
-            break;
-        case 'subtract':
-            if (examCalculator.currentInput !== '') {
-                examCalculator.memory -= parseFloat(examCalculator.currentInput);
-            }
-            break;
-    }
-    updateCalculatorDisplay();
-}
-
-function calculatorClear() {
-    examCalculator.currentInput = '';
-    examCalculator.previousInput = '';
-    examCalculator.operator = null;
-    updateCalculatorDisplay();
-}
-
-function calculatorBackspace() {
-    examCalculator.currentInput = examCalculator.currentInput.slice(0, -1);
-    updateCalculatorDisplay();
-}
-
-function updateCalculatorDisplay() {
-    const expression = document.getElementById('calcExpression');
-    const result = document.getElementById('calcResult');
-    
-    if (expression) {
-        if (examCalculator.operator && examCalculator.previousInput) {
-            expression.textContent = `${examCalculator.previousInput} ${examCalculator.operator}`;
-        } else {
-            expression.textContent = '';
-        }
-    }
-    if (result) {
-        result.textContent = examCalculator.currentInput || '0';
     }
 }
 
@@ -839,6 +1070,7 @@ function updateCalculatorDisplay() {
 window.selectAnswer = selectAnswer;
 window.jumpToQuestion = jumpToQuestion;
 window.toggleCalculator = toggleCalculator;
+window.handleModalClick = handleModalClick;
 window.calculatorAppend = calculatorAppend;
 window.calculatorOperator = calculatorOperator;
 window.calculatorCalculate = calculatorCalculate;
@@ -848,3 +1080,5 @@ window.calculatorMemory = calculatorMemory;
 window.calculatorScientific = calculatorScientific;
 window.switchSubject = switchSubject;
 window.filterPalette = filterPalette;
+window.prevQuestion = prevQuestion;
+window.nextQuestion = nextQuestion;

@@ -448,140 +448,9 @@ function sharePracticeResults() {
     if (window.updateShareStats) window.updateShareStats();
 }
 
-// Draggable Calculator functionality
-function makeCalculatorDraggable() {
-    const modal = document.getElementById('practiceCalculatorModal');
-    const header = modal?.querySelector('.calculator-modal-header');
-    const content = modal?.querySelector('.calculator-modal-content');
-    
-    if (!header || !content || !modal) return;
-    
-    dragState.modal = modal;
-    dragState.header = header;
-    dragState.content = content;
-    
-    // Set initial position
-    content.style.position = 'relative';
-    content.style.left = '0';
-    content.style.top = '0';
-    content.style.transition = 'none';
-    content.style.margin = '0 auto';
-    
-    // Remove any existing listeners
-    header.removeEventListener('mousedown', startDrag);
-    header.removeEventListener('touchstart', startDrag);
-    document.removeEventListener('mousemove', onDrag);
-    document.removeEventListener('touchmove', onDrag);
-    document.removeEventListener('mouseup', stopDrag);
-    document.removeEventListener('touchend', stopDrag);
-    
-    // Add new listeners
-    header.addEventListener('mousedown', startDrag);
-    header.addEventListener('touchstart', startDrag, { passive: false });
-}
+// ============ FIXED CALCULATOR FUNCTIONS ============
 
-function startDrag(e) {
-    // Prevent default only for touch events to allow scrolling when not dragging
-    if (e.type === 'touchstart') {
-        e.preventDefault();
-    }
-    
-    // Don't drag if clicking the close button
-    if (e.target.classList.contains('close-btn')) return;
-    
-    const modal = document.getElementById('practiceCalculatorModal');
-    const content = modal.querySelector('.calculator-modal-content');
-    
-    // Get the current transform or use 0
-    const computedStyle = window.getComputedStyle(content);
-    const transform = computedStyle.transform;
-    
-    let currentX = 0, currentY = 0;
-    if (transform && transform !== 'none') {
-        const matrix = transform.match(/matrix.*\((.+)\)/);
-        if (matrix) {
-            const values = matrix[1].split(', ');
-            currentX = parseFloat(values[4] || 0);
-            currentY = parseFloat(values[5] || 0);
-        }
-    }
-    
-    dragState.isDragging = true;
-    dragState.startX = e.type === 'mousedown' ? e.clientX : e.touches[0].clientX;
-    dragState.startY = e.type === 'mousedown' ? e.clientY : e.touches[0].clientY;
-    dragState.offsetX = currentX;
-    dragState.offsetY = currentY;
-    
-    modal.classList.add('dragging');
-    content.style.cursor = 'grabbing';
-    content.style.transition = 'none';
-    content.style.userSelect = 'none';
-    
-    // Add document-level listeners
-    document.addEventListener('mousemove', onDrag);
-    document.addEventListener('touchmove', onDrag, { passive: false });
-    document.addEventListener('mouseup', stopDrag);
-    document.addEventListener('touchend', stopDrag);
-}
-
-function onDrag(e) {
-    if (!dragState.isDragging) return;
-    
-    e.preventDefault();
-    
-    const clientX = e.type === 'mousemove' ? e.clientX : e.touches[0].clientX;
-    const clientY = e.type === 'mousemove' ? e.clientY : e.touches[0].clientY;
-    
-    // Calculate new position
-    const deltaX = clientX - dragState.startX;
-    const deltaY = clientY - dragState.startY;
-    
-    const newX = dragState.offsetX + deltaX;
-    const newY = dragState.offsetY + deltaY;
-    
-    // Apply transform with boundary limits (keep within viewport)
-    const modal = document.getElementById('practiceCalculatorModal');
-    const content = modal.querySelector('.calculator-modal-content');
-    const modalRect = modal.getBoundingClientRect();
-    const contentRect = content.getBoundingClientRect();
-    
-    // Calculate boundaries (keep at least 20px in viewport)
-    const minX = -contentRect.width + 40;
-    const maxX = modalRect.width - 40;
-    const minY = -contentRect.height + 40;
-    const maxY = modalRect.height - 40;
-    
-    // Clamp values
-    const clampedX = Math.min(Math.max(newX, minX), maxX);
-    const clampedY = Math.min(Math.max(newY, minY), maxY);
-    
-    content.style.transform = `translate(${clampedX}px, ${clampedY}px)`;
-    
-    dragState.currentX = clampedX;
-    dragState.currentY = clampedY;
-}
-
-function stopDrag() {
-    if (!dragState.isDragging) return;
-    
-    dragState.isDragging = false;
-    
-    const modal = document.getElementById('practiceCalculatorModal');
-    const content = modal.querySelector('.calculator-modal-content');
-    
-    modal.classList.remove('dragging');
-    content.style.cursor = '';
-    content.style.transition = 'transform 0.1s ease';
-    content.style.userSelect = '';
-    
-    // Remove document-level listeners
-    document.removeEventListener('mousemove', onDrag);
-    document.removeEventListener('touchmove', onDrag);
-    document.removeEventListener('mouseup', stopDrag);
-    document.removeEventListener('touchend', stopDrag);
-}
-
-// Update togglePracticeCalculator function to make calculator draggable when shown
+// Toggle calculator modal
 function togglePracticeCalculator() {
     const modal = document.getElementById('practiceCalculatorModal');
     const btn = document.getElementById('practiceCalculatorToggle');
@@ -589,17 +458,21 @@ function togglePracticeCalculator() {
     if (modal.style.display === 'none' || !modal.style.display) {
         modal.style.display = 'block';
         btn.textContent = '🧮 Hide Calculator';
+        
+        // Reset calculator position
+        const content = modal.querySelector('.calculator-modal-content');
+        if (content) {
+            content.style.transform = '';
+            content.style.top = '';
+            content.style.left = '';
+        }
+        
         renderPracticeCalculator();
         
-        // Reset position when opening
+        // Make draggable after rendering
         setTimeout(() => {
-            const content = modal.querySelector('.calculator-modal-content');
-            if (content) {
-                content.style.transform = 'none';
-                content.style.transition = 'none';
-            }
             makeCalculatorDraggable();
-        }, 50);
+        }, 100);
     } else {
         modal.style.display = 'none';
         btn.textContent = '🧮 Show Calculator';
@@ -607,11 +480,31 @@ function togglePracticeCalculator() {
         // Reset position when closing
         const content = modal.querySelector('.calculator-modal-content');
         if (content) {
-            content.style.transform = 'none';
+            content.style.transform = '';
+            content.style.top = '';
+            content.style.left = '';
         }
     }
 }
 
+// Close calculator modal
+function closePracticeCalculator() {
+    const modal = document.getElementById('practiceCalculatorModal');
+    const btn = document.getElementById('practiceCalculatorToggle');
+    
+    modal.style.display = 'none';
+    btn.textContent = '🧮 Show Calculator';
+    
+    // Reset position
+    const content = modal.querySelector('.calculator-modal-content');
+    if (content) {
+        content.style.transform = '';
+        content.style.top = '';
+        content.style.left = '';
+    }
+}
+
+// Render calculator
 function renderPracticeCalculator() {
     const container = document.getElementById('practiceCalculator');
     
@@ -621,7 +514,7 @@ function renderPracticeCalculator() {
             <div class="calc-result" id="practiceCalcResult">0</div>
         </div>
         
-        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 10px;">
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 10px;">
             <button class="calc-btn operator" onclick="practiceCalculatorMemory('clear')">MC</button>
             <button class="calc-btn operator" onclick="practiceCalculatorMemory('recall')">MR</button>
             <button class="calc-btn operator" onclick="practiceCalculatorMemory('add')">M+</button>
@@ -637,24 +530,24 @@ function renderPracticeCalculator() {
             <button class="calc-btn number" onclick="practiceCalculatorAppend('7')">7</button>
             <button class="calc-btn number" onclick="practiceCalculatorAppend('8')">8</button>
             <button class="calc-btn number" onclick="practiceCalculatorAppend('9')">9</button>
-            <button class="calc-btn operator" onclick="practiceCalculatorAppend('*')">×</button>
+            <button class="calc-btn operator" onclick="practiceCalculatorSetOperator('*')">×</button>
             
             <button class="calc-btn number" onclick="practiceCalculatorAppend('4')">4</button>
             <button class="calc-btn number" onclick="practiceCalculatorAppend('5')">5</button>
             <button class="calc-btn number" onclick="practiceCalculatorAppend('6')">6</button>
-            <button class="calc-btn operator" onclick="practiceCalculatorAppend('-')">−</button>
+            <button class="calc-btn operator" onclick="practiceCalculatorSetOperator('-')">−</button>
             
             <button class="calc-btn number" onclick="practiceCalculatorAppend('1')">1</button>
             <button class="calc-btn number" onclick="practiceCalculatorAppend('2')">2</button>
             <button class="calc-btn number" onclick="practiceCalculatorAppend('3')">3</button>
-            <button class="calc-btn operator" onclick="practiceCalculatorAppend('+')">+</button>
+            <button class="calc-btn operator" onclick="practiceCalculatorSetOperator('+')">+</button>
             
             <button class="calc-btn number" onclick="practiceCalculatorAppend('0')">0</button>
             <button class="calc-btn number" onclick="practiceCalculatorAppend('.')">.</button>
             <button class="calc-btn equals" onclick="practiceCalculatorCalculate()" style="grid-column: span 2;">=</button>
         </div>
         
-        <div style="margin-top: 15px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
+        <div style="margin-top: 15px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
             <button class="calc-btn operator" onclick="practiceCalculatorScientific('sqrt')">√</button>
             <button class="calc-btn operator" onclick="practiceCalculatorScientific('square')">x²</button>
             <button class="calc-btn operator" onclick="practiceCalculatorScientific('sin')">sin</button>
@@ -663,34 +556,17 @@ function renderPracticeCalculator() {
     `;
     
     updatePracticeCalculatorDisplay();
-    
-    // Make the header draggable after rendering
-    setTimeout(() => {
-        makeCalculatorDraggable();
-    }, 100);
 }
 
-function practiceCalculatorAppend(value) {
-    if (value === '.' && practiceCalculator.currentInput.includes('.')) return;
-    practiceCalculator.currentInput += value;
-    updatePracticeCalculatorDisplay();
-    
-    // Add haptic feedback if available (mobile)
-    if (window.navigator && window.navigator.vibrate) {
-        window.navigator.vibrate(10);
-    }
-}
-
+// FIXED: Calculate function - Now works properly!
 function practiceCalculatorCalculate() {
-    if (!practiceCalculator.operator && practiceCalculator.previousInput === '') {
-        // If no operator, just use current input
-        return;
-    }
-    
+    // Case 1: We have an operator and both inputs
     if (practiceCalculator.operator && practiceCalculator.previousInput !== '' && practiceCalculator.currentInput !== '') {
         let result;
         const prev = parseFloat(practiceCalculator.previousInput);
         const curr = parseFloat(practiceCalculator.currentInput);
+        
+        if (isNaN(prev) || isNaN(curr)) return;
         
         switch(practiceCalculator.operator) {
             case '+': result = prev + curr; break;
@@ -707,6 +583,7 @@ function practiceCalculatorCalculate() {
             default: return;
         }
         
+        // Store result and clear operator
         practiceCalculator.currentInput = result.toString();
         practiceCalculator.operator = null;
         practiceCalculator.previousInput = '';
@@ -716,60 +593,63 @@ function practiceCalculatorCalculate() {
         if (window.navigator && window.navigator.vibrate) {
             window.navigator.vibrate([10, 10, 10]);
         }
-    } else if (practiceCalculator.currentInput !== '') {
-        // Just update previous input with current
+    }
+    // Case 2: Only one number entered - just show it
+    else if (practiceCalculator.currentInput !== '') {
+        updatePracticeCalculatorDisplay();
+    }
+}
+
+// FIXED: Set operator
+function practiceCalculatorSetOperator(op) {
+    // If we have both previous and current, calculate first
+    if (practiceCalculator.previousInput !== '' && practiceCalculator.currentInput !== '' && practiceCalculator.operator) {
+        practiceCalculatorCalculate();
+    }
+    
+    // Store current as previous and set operator
+    if (practiceCalculator.currentInput !== '') {
+        practiceCalculator.operator = op;
         practiceCalculator.previousInput = practiceCalculator.currentInput;
         practiceCalculator.currentInput = '';
+    } else if (practiceCalculator.previousInput !== '' && practiceCalculator.operator) {
+        // Just change operator if we have previous
+        practiceCalculator.operator = op;
     }
+    
+    updatePracticeCalculatorDisplay();
 }
 
-function practiceCalculatorScientific(func) {
-    if (practiceCalculator.currentInput === '') return;
-    let value = parseFloat(practiceCalculator.currentInput);
-    let result;
+// Append number or decimal
+function practiceCalculatorAppend(value) {
+    // Don't add multiple decimals
+    if (value === '.' && practiceCalculator.currentInput.includes('.')) return;
     
-    switch(func) {
-        case 'sqrt': result = Math.sqrt(value); break;
-        case 'square': result = Math.pow(value, 2); break;
-        case 'sin': result = Math.sin(value * Math.PI / 180); break;
-        case 'cos': result = Math.cos(value * Math.PI / 180); break;
-        default: return;
+    // Limit length to prevent overflow
+    if (practiceCalculator.currentInput.length < 15) {
+        practiceCalculator.currentInput += value;
     }
     
-    practiceCalculator.currentInput = result.toString();
     updatePracticeCalculatorDisplay();
     
     // Add haptic feedback
     if (window.navigator && window.navigator.vibrate) {
-        window.navigator.vibrate(15);
+        window.navigator.vibrate(5);
     }
 }
 
-function practiceCalculatorMemory(action) {
-    switch(action) {
-        case 'clear': practiceCalculator.memory = 0; break;
-        case 'recall': 
-            practiceCalculator.currentInput = practiceCalculator.memory.toString();
-            break;
-        case 'add': 
-            if (practiceCalculator.currentInput !== '') {
-                practiceCalculator.memory += parseFloat(practiceCalculator.currentInput);
-            }
-            break;
-        case 'subtract':
-            if (practiceCalculator.currentInput !== '') {
-                practiceCalculator.memory -= parseFloat(practiceCalculator.currentInput);
-            }
-            break;
-    }
+// Backspace function
+function practiceCalculatorBackspace() {
+    practiceCalculator.currentInput = practiceCalculator.currentInput.slice(0, -1);
     updatePracticeCalculatorDisplay();
     
     // Add haptic feedback
     if (window.navigator && window.navigator.vibrate) {
-        window.navigator.vibrate(10);
+        window.navigator.vibrate(3);
     }
 }
 
+// Clear function
 function practiceCalculatorClear() {
     practiceCalculator.currentInput = '';
     practiceCalculator.previousInput = '';
@@ -782,28 +662,222 @@ function practiceCalculatorClear() {
     }
 }
 
-function practiceCalculatorBackspace() {
-    practiceCalculator.currentInput = practiceCalculator.currentInput.slice(0, -1);
+// Scientific functions
+function practiceCalculatorScientific(func) {
+    if (practiceCalculator.currentInput === '') return;
+    
+    let value = parseFloat(practiceCalculator.currentInput);
+    if (isNaN(value)) return;
+    
+    let result;
+    
+    switch(func) {
+        case 'sqrt': 
+            if (value < 0) {
+                alert('Cannot calculate square root of negative number');
+                return;
+            }
+            result = Math.sqrt(value); 
+            break;
+        case 'square': result = Math.pow(value, 2); break;
+        case 'sin': result = Math.sin(value * Math.PI / 180); break;
+        case 'cos': result = Math.cos(value * Math.PI / 180); break;
+        default: return;
+    }
+    
+    practiceCalculator.currentInput = result.toString();
+    practiceCalculator.operator = null;
+    practiceCalculator.previousInput = '';
     updatePracticeCalculatorDisplay();
     
     // Add haptic feedback
     if (window.navigator && window.navigator.vibrate) {
-        window.navigator.vibrate(5);
+        window.navigator.vibrate(10);
     }
 }
 
+// Memory functions
+function practiceCalculatorMemory(action) {
+    switch(action) {
+        case 'clear': 
+            practiceCalculator.memory = 0; 
+            break;
+        case 'recall': 
+            practiceCalculator.currentInput = practiceCalculator.memory.toString();
+            practiceCalculator.operator = null;
+            practiceCalculator.previousInput = '';
+            break;
+        case 'add': 
+            if (practiceCalculator.currentInput !== '') {
+                practiceCalculator.memory += parseFloat(practiceCalculator.currentInput) || 0;
+            }
+            break;
+        case 'subtract':
+            if (practiceCalculator.currentInput !== '') {
+                practiceCalculator.memory -= parseFloat(practiceCalculator.currentInput) || 0;
+            }
+            break;
+    }
+    updatePracticeCalculatorDisplay();
+    
+    // Add haptic feedback
+    if (window.navigator && window.navigator.vibrate) {
+        window.navigator.vibrate(8);
+    }
+}
+
+// Update display
 function updatePracticeCalculatorDisplay() {
     const expression = document.getElementById('practiceCalcExpression');
     const result = document.getElementById('practiceCalcResult');
     
     if (expression) {
-        expression.textContent = practiceCalculator.operator && practiceCalculator.previousInput ? 
-            `${practiceCalculator.previousInput} ${practiceCalculator.operator}` : practiceCalculator.previousInput || '';
+        if (practiceCalculator.previousInput && practiceCalculator.operator) {
+            expression.textContent = `${practiceCalculator.previousInput} ${practiceCalculator.operator}`;
+        } else if (practiceCalculator.previousInput) {
+            expression.textContent = practiceCalculator.previousInput;
+        } else {
+            expression.textContent = '';
+        }
     }
-    if (result) result.textContent = practiceCalculator.currentInput || '0';
+    
+    if (result) {
+        result.textContent = practiceCalculator.currentInput || '0';
+    }
 }
 
-// Make functions global
+function makeCalculatorDraggable() {
+    const modal = document.getElementById('practiceCalculatorModal');
+    const header = modal?.querySelector('.calculator-modal-header');
+    const content = modal?.querySelector('.calculator-modal-content');
+    
+    if (!header || !content || !modal) return;
+    
+    // Reset any existing transforms on open
+    if (modal.style.display === 'block') {
+        content.style.transform = '';
+        content.style.top = '';
+        content.style.left = '';
+    }
+    
+    dragState.modal = modal;
+    dragState.header = header;
+    dragState.content = content;
+    
+    // Remove existing listeners
+    header.removeEventListener('mousedown', startDrag);
+    header.removeEventListener('touchstart', startDrag);
+    document.removeEventListener('mousemove', onDrag);
+    document.removeEventListener('touchmove', onDrag);
+    document.removeEventListener('mouseup', stopDrag);
+    document.removeEventListener('touchend', stopDrag);
+    
+    // Add new listeners
+    header.addEventListener('mousedown', startDrag);
+    header.addEventListener('touchstart', startDrag, { passive: false });
+}
+
+function startDrag(e) {
+    // Don't drag if clicking the close button
+    if (e.target.classList.contains('close-btn')) {
+        // Let the close button work normally
+        return;
+    }
+    
+    e.preventDefault();
+    
+    const modal = document.getElementById('practiceCalculatorModal');
+    const content = modal.querySelector('.calculator-modal-content');
+    
+    // Store initial positions
+    const clientX = e.type === 'mousedown' ? e.clientX : e.touches[0].clientX;
+    const clientY = e.type === 'mousedown' ? e.clientY : e.touches[0].clientY;
+    
+    // Get current transform
+    const transform = content.style.transform;
+    let currentX = 0, currentY = 0;
+    
+    if (transform && transform !== 'none') {
+        const match = transform.match(/translate\(([^,]+)px,\s*([^)]+)px\)/);
+        if (match) {
+            currentX = parseFloat(match[1]) || 0;
+            currentY = parseFloat(match[2]) || 0;
+        }
+    }
+    
+    dragState.isDragging = true;
+    dragState.startX = clientX;
+    dragState.startY = clientY;
+    dragState.offsetX = currentX;
+    dragState.offsetY = currentY;
+    
+    modal.classList.add('dragging');
+    content.style.cursor = 'grabbing';
+    content.style.transition = 'none';
+    content.style.userSelect = 'none';
+    
+    // Add class for mobile
+    if (window.innerWidth <= 768) {
+        content.classList.add('dragging-mobile');
+    }
+    
+    document.addEventListener('mousemove', onDrag);
+    document.addEventListener('touchmove', onDrag, { passive: false });
+    document.addEventListener('mouseup', stopDrag);
+    document.addEventListener('touchend', stopDrag);
+}
+
+function onDrag(e) {
+    if (!dragState.isDragging) return;
+    
+    e.preventDefault();
+    
+    const clientX = e.type === 'mousemove' ? e.clientX : e.touches[0].clientX;
+    const clientY = e.type === 'mousemove' ? e.clientY : e.touches[0].clientY;
+    
+    const deltaX = clientX - dragState.startX;
+    const deltaY = clientY - dragState.startY;
+    
+    const newX = dragState.offsetX + deltaX;
+    const newY = dragState.offsetY + deltaY;
+    
+    // Apply transform
+    const content = dragState.content;
+    content.style.transform = `translate(${newX}px, ${newY}px)`;
+}
+
+function stopDrag() {
+    if (!dragState.isDragging) return;
+    
+    dragState.isDragging = false;
+    
+    const modal = document.getElementById('practiceCalculatorModal');
+    const content = modal.querySelector('.calculator-modal-content');
+    
+    modal.classList.remove('dragging');
+    content.style.cursor = '';
+    content.style.transition = 'transform 0.1s ease';
+    content.style.userSelect = '';
+    content.classList.remove('dragging-mobile');
+    
+    document.removeEventListener('mousemove', onDrag);
+    document.removeEventListener('touchmove', onDrag);
+    document.removeEventListener('mouseup', stopDrag);
+    document.removeEventListener('touchend', stopDrag);
+}
+
+// Test function to verify calculator is working
+function testCalculator() {
+    console.log('✅ Calculator functions loaded successfully');
+    console.log('- Calculate function:', typeof practiceCalculatorCalculate);
+    console.log('- Set Operator function:', typeof practiceCalculatorSetOperator);
+    console.log('- Append function:', typeof practiceCalculatorAppend);
+}
+
+// Run test on load
+setTimeout(testCalculator, 1000);
+
+// ============ MAKE ALL FUNCTIONS GLOBAL ============
 window.startPractice = startPractice;
 window.selectOption = selectOption;
 window.checkAnswer = checkAnswer;
@@ -812,10 +886,15 @@ window.practiceAgain = practiceAgain;
 window.reviewMistakes = reviewMistakes;
 window.sharePracticeResults = sharePracticeResults;
 window.togglePracticeCalculator = togglePracticeCalculator;
+window.closePracticeCalculator = closePracticeCalculator;
+window.renderPracticeCalculator = renderPracticeCalculator;
 window.practiceCalculatorAppend = practiceCalculatorAppend;
+window.practiceCalculatorSetOperator = practiceCalculatorSetOperator;
 window.practiceCalculatorCalculate = practiceCalculatorCalculate;
 window.practiceCalculatorClear = practiceCalculatorClear;
 window.practiceCalculatorBackspace = practiceCalculatorBackspace;
 window.practiceCalculatorMemory = practiceCalculatorMemory;
 window.practiceCalculatorScientific = practiceCalculatorScientific;
 window.makeCalculatorDraggable = makeCalculatorDraggable;
+window.updatePracticeCalculatorDisplay = updatePracticeCalculatorDisplay;
+window.testCalculator = testCalculator;
