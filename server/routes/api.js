@@ -30,15 +30,15 @@ router.post('/exam/questions', auth, async (req, res) => {
             // ===== MATHEMATICS (40 questions) =====
             else if (subject.name === 'Mathematics') {
                 topicDistribution = [
-                    { topic: 'Number Bases', count: 3 },
+                    { topic: 'Number Bases', count: 2 },
                     { topic: 'Fractions, Decimals, Approximations', count: 3 },
                     { topic: 'Indices, Logarithms and Surds', count: 3 },
-                    { topic: 'Sets', count: 3 },
+                    { topic: 'Sets', count: 2 },
                     { topic: 'Polynomials', count: 3 },
                     { topic: 'Variation', count: 2 },
                     { topic: 'Inequalities', count: 2 },
                     { topic: 'Progression', count: 2 },
-                    { topic: 'Binary Operations', count: 1 },
+                    { topic: 'Binary Operations', count: 2 },
                     { topic: 'Matrices and Determinants', count: 1 },
                     { topic: 'Euclidean Geometry', count: 2 },
                     { topic: 'Mensuration', count: 2 },
