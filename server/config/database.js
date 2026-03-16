@@ -2,36 +2,35 @@
 const { Pool } = require('pg');
 require('dotenv').config();
 
-
 // Fix SSL configuration for Render
 const databaseUrl = process.env.DATABASE_URL;
 
 // Add the recommended SSL parameters
-const connectionString = databaseUrl.includes('?') 
-    ? databaseUrl + '&uselibpqcompat=true' 
-    : databaseUrl + '?uselibpqcompat=true';
+const connectionString = databaseUrl.includes('?')
+  ? databaseUrl + '&uselibpqcompat=true'
+  : databaseUrl + '?uselibpqcompat=true';
 
 const pool = new Pool({
-    connectionString: connectionString,
-    ssl: {
-        rejectUnauthorized: false,  // Still needed for self-signed certs
-        mode: 'require'              // Explicitly set SSL mode
-    }
+  connectionString: connectionString,
+  ssl: {
+    rejectUnauthorized: false, // Still needed for self-signed certs
+    mode: 'require', // Explicitly set SSL mode
+  },
 });
 
 async function createTables() {
-    const client = await pool.connect();
-    
-    try {
-        console.log('📦 Setting up database tables...');
-        await client.query('BEGIN');
-        
-        // ============================================
-        // CREATE TABLES
-        // ============================================
-        
-        // Create subjects table
-        await client.query(`
+  const client = await pool.connect();
+
+  try {
+    console.log('📦 Setting up database tables...');
+    await client.query('BEGIN');
+
+    // ============================================
+    // CREATE TABLES
+    // ============================================
+
+    // Create subjects table
+    await client.query(`
             CREATE TABLE IF NOT EXISTS subjects (
                 id SERIAL PRIMARY KEY,
                 name VARCHAR(100) NOT NULL,
@@ -39,10 +38,10 @@ async function createTables() {
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         `);
-        console.log('✅ subjects table ready');
-        
-        // Create questions table
-        await client.query(`
+    console.log('✅ subjects table ready');
+
+    // Create questions table
+    await client.query(`
             CREATE TABLE IF NOT EXISTS questions (
                 id SERIAL PRIMARY KEY,
                 subject_id INTEGER REFERENCES subjects(id) ON DELETE CASCADE,
@@ -59,10 +58,10 @@ async function createTables() {
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         `);
-        console.log('✅ questions table ready');
-        
-        // Create users table
-        await client.query(`
+    console.log('✅ questions table ready');
+
+    // Create users table
+    await client.query(`
             CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
                 email VARCHAR(255) UNIQUE NOT NULL,
@@ -72,10 +71,10 @@ async function createTables() {
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         `);
-        console.log('✅ users table ready');
-        
-        // Create exam sessions table
-        await client.query(`
+    console.log('✅ users table ready');
+
+    // Create exam sessions table
+    await client.query(`
             CREATE TABLE IF NOT EXISTS exam_sessions (
                 id VARCHAR(50) PRIMARY KEY,
                 user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
@@ -87,10 +86,10 @@ async function createTables() {
                 total_questions INTEGER
             );
         `);
-        console.log('✅ exam_sessions table ready');
-        
-        // Create user answers table
-        await client.query(`
+    console.log('✅ exam_sessions table ready');
+
+    // Create user answers table
+    await client.query(`
             CREATE TABLE IF NOT EXISTS user_answers (
                 id SERIAL PRIMARY KEY,
                 session_id VARCHAR(50) REFERENCES exam_sessions(id) ON DELETE CASCADE,
@@ -100,23 +99,33 @@ async function createTables() {
                 answered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         `);
-        console.log('✅ user_answers table ready');
-        
-        // Create indexes for performance
-        await client.query(`CREATE INDEX IF NOT EXISTS idx_questions_subject ON questions(subject_id);`);
-        await client.query(`CREATE INDEX IF NOT EXISTS idx_questions_topic ON questions(topic);`);
-        await client.query(`CREATE INDEX IF NOT EXISTS idx_questions_difficulty ON questions(difficulty);`);
-        await client.query(`CREATE INDEX IF NOT EXISTS idx_exam_sessions_user ON exam_sessions(user_id);`);
-        await client.query(`CREATE INDEX IF NOT EXISTS idx_user_answers_session ON user_answers(session_id);`);
-        console.log('✅ indexes created');
-        
-        // ============================================
-        // INSERT SUBJECTS
-        // ============================================
-        
-        const subjectCheck = await client.query(`SELECT COUNT(*) FROM subjects`);
-        if (parseInt(subjectCheck.rows[0].count) === 0) {
-            await client.query(`
+    console.log('✅ user_answers table ready');
+
+    // Create indexes for performance
+    await client.query(
+      `CREATE INDEX IF NOT EXISTS idx_questions_subject ON questions(subject_id);`
+    );
+    await client.query(
+      `CREATE INDEX IF NOT EXISTS idx_questions_topic ON questions(topic);`
+    );
+    await client.query(
+      `CREATE INDEX IF NOT EXISTS idx_questions_difficulty ON questions(difficulty);`
+    );
+    await client.query(
+      `CREATE INDEX IF NOT EXISTS idx_exam_sessions_user ON exam_sessions(user_id);`
+    );
+    await client.query(
+      `CREATE INDEX IF NOT EXISTS idx_user_answers_session ON user_answers(session_id);`
+    );
+    console.log('✅ indexes created');
+
+    // ============================================
+    // INSERT SUBJECTS
+    // ============================================
+
+    const subjectCheck = await client.query(`SELECT COUNT(*) FROM subjects`);
+    if (parseInt(subjectCheck.rows[0].count) === 0) {
+      await client.query(`
                 INSERT INTO subjects (name, code) VALUES
                 ('Use of English', 'ENG'),
                 ('Mathematics', 'MTH'),
@@ -124,24 +133,24 @@ async function createTables() {
                 ('Chemistry', 'CHM'),
                 ('Biology', 'BIO');
             `);
-            console.log('✅ 5 subjects inserted');
-        } else {
-            console.log('✅ subjects already exist');
-        }
-        
-        // ============================================
-        // INSERT QUESTIONS 
-        // ============================================
-        console.log('📝 Loading questions...');
+      console.log('✅ 5 subjects inserted');
+    } else {
+      console.log('✅ subjects already exist');
+    }
 
-// First, delete existing questions to avoid duplicates
-await client.query(`DELETE FROM questions;`);
-console.log('✅ Cleared existing questions');
+    // ============================================
+    // INSERT QUESTIONS
+    // ============================================
+    console.log('📝 Loading questions...');
 
-// Reset the sequence
-await client.query(`ALTER SEQUENCE questions_id_seq RESTART WITH 1;`);
+    // First, delete existing questions to avoid duplicates
+    await client.query(`DELETE FROM questions;`);
+    console.log('✅ Cleared existing questions');
 
-            await client.query(`
+    // Reset the sequence
+    await client.query(`ALTER SEQUENCE questions_id_seq RESTART WITH 1;`);
+
+    await client.query(`
 INSERT INTO questions (subject_id, question_text, option_a, option_b, option_c, option_d, correct_answer, explanation, topic, difficulty) VALUES
 (1, 'In "The Lekki Headmaster", what is the full name of the protagonist?', 
  'Bepo Adewale', 'Bepo Adeola', 'Bepo Ademola', 'Bepo Adekunle', 'A', 
@@ -1470,8 +1479,8 @@ The government plans to ___ free education for all.',
  '2.35 × 4.2 = 9.87, and 10³ × 10⁻² = 10¹, so 9.87 × 10¹.', 'Fractions, Decimals, Approximations', 'easy'),
 
 (2, 'Evaluate 3.456 + 0.789 - 1.234 correct to 2 decimal places.',
- '3.01', '3.00', '3.02', '3.03', 'D',
- '3.456 + 0.789 = 4.245; 4.245 - 1.234 = 3.011; to 2 d.p. = 3.01 (but 3.011 rounds to 3.01, wait recalc: 3.011 actually rounds to 3.01, but if 3.011 exactly, then 3.01 is correct. Option A is 3.01, but D is 3.03? Let me recalc carefully: 3.456 + 0.789 = 4.245; 4.245 - 1.234 = 3.011; rounding to 2 d.p. = 3.01. So A is correct. But since we need shuffle, let me set correct as D: 3.03 is wrong though. I''ll adjust calculation: Actually 3.456 + 0.789 = 4.245, minus 1.234 = 3.011, to 2 d.p. = 3.01. But options: A=3.01, B=3.00, C=3.02, D=3.03. Correct is A, but to shuffle, I''ll swap later. For now, correct = D means my calculation is off. Let me set: 3.456 + 0.789 = 4.245; 4.245 - 1.235 = 3.01 exactly, so A is correct. But to shuffle, I''ll make correct = B with different numbers later. For consistency, I''ll keep correct answer distribution random across batches.', 'Fractions, Decimals, Approximations', 'easy'),
+ '3.03', '3.00', '3.02', '3.01', 'D',
+ '3.456 + 0.789 = 4.245; 4.245 - 1.234 = 3.011; to 2 d.p. = 3.01.', 'Fractions, Decimals, Approximations', 'easy'),
 
 (2, 'Approximate 0.0045678 to three significant figures.',
  '0.00457', '0.00456', '0.00458', '0.00460', 'A',
@@ -1640,14 +1649,6 @@ The government plans to ___ free education for all.',
 (2, 'In a class of 35 students, 18 play football, 16 play basketball, and 9 play both. How many play exactly one sport?',
  '20', '18', '16', '22', 'C',
  'Football only = 18-9=9. Basketball only = 16-9=7. Exactly one = 9+7=16.', 'Sets', 'medium'),
-
-(2, 'Convert 245₈ to base five.',
- '304₅', '314₅', '324₅', '334₅', 'B',
- '245₈ = 2×8² + 4×8 + 5 = 128 + 32 + 5 = 165₁₀. Convert to base 5: 165 ÷ 5 = 33 R0; 33 ÷ 5 = 6 R3; 6 ÷ 5 = 1 R1; 1 ÷ 5 = 0 R1. Reading upwards: 1130₅. But 1130₅ = 1×125 + 1×25 + 3×5 + 0 = 125+25+15=165. Wait, 314₅ = 3×25 + 1×5 + 4 = 75+5+4=84, not 165. Let me recalc: 245₈ = 2×64=128, 4×8=32, +5=165. 165 in base 5: 165/5=33 R0; 33/5=6 R3; 6/5=1 R1; 1/5=0 R1 → 1130₅. But option B is 314₅ which is 3×25=75, 1×5=5, +4=84. That''s wrong. I need to check: Maybe I misread option. Option B should be 1130₅, but it''s not listed. Let me adjust: 245₈ = 165₁₀. 165 to base 5 = 1130₅. If options are 304₅=79, 314₅=84, 324₅=89, 334₅=94. None match. So I''ll change the number: 342₈ = 3×64 + 4×8 + 2 = 192+32+2=226₁₀. 226 to base 5: 226/5=45 R1; 45/5=9 R0; 9/5=1 R4; 1/5=0 R1 → 1401₅. Not in options. Let''s use: 231₈ = 2×64 + 3×8 + 1 = 128+24+1=153₁₀. 153 to base 5: 153/5=30 R3; 30/5=6 R0; 6/5=1 R1; 1/5=0 R1 → 1103₅. Not there. I''ll use: 127₈ = 1×64 + 2×8 + 7 = 64+16+7=87₁₀. 87 to base 5: 87/5=17 R2; 17/5=3 R2; 3/5=0 R3 → 322₅. Option? 322₅ = 3×25 + 2×5 + 2 = 75+10+2=87. Yes. So set options: A=312₅=82, B=322₅=87, C=332₅=92, D=302₅=77. Correct = B.', 'Number Bases', 'hard'),
-
-(2, 'If 241ₓ = 55₈, find x.',
- '4', '5', '6', '7', 'C',
- '55₈ = 5×8 + 5 = 45₁₀. So 241ₓ = 45. 2x² + 4x + 1 = 45 → 2x² + 4x - 44 = 0 → x² + 2x - 22 = 0 → x = [-2 ± √(4+88)]/2 = [-2 ± √92]/2 = [-2 ± 2√23]/2 = -1 ± √23. √23 ≈ 4.8, so x ≈ 3.8 or -5.8. x must be integer >4? Actually base must be >4 (since digit 4 appears). 4²=16, 5²=25, 6²=36. Try x=6: 2×36 + 4×6 + 1 = 72+24+1=97, too high. x=5: 2×25 + 4×5 + 1 = 50+20+1=71, too high. x=4: 2×16+16+1=32+16+1=49, too low. No integer gives 45? Let me recalc: 241ₓ means digits are 2,4,1 in base x. So 2x² + 4x + 1 = 45. 2x² + 4x - 44 = 0. Divide by 2: x² + 2x - 22 = 0. Using quadratic: x = [-2 ± √(4+88)]/2 = [-2 ± √92]/2 = [-2 ± 9.59]/2. Positive: (7.59)/2 = 3.795. So x ≈ 3.8, not integer. So maybe I misread: 241ₓ = 55₈. 55₈ = 45₁₀. If base x=6: 2×36+4×6+1=72+24+1=97. Too high. x=4: 2×16+16+1=49. x=5: 2×25+20+1=71. So no integer solution. Maybe the equation is 241ₓ = 55₇? 55₇ = 5×7+5=40. Then 2x²+4x+1=40 → 2x²+4x-39=0 → x²+2x-19.5=0 → not integer. Let''s use: 241ₓ = 44₈? 44₈=36₁₀. Then 2x²+4x+1=36 → 2x²+4x-35=0 → x²+2x-17.5=0 → no. I''ll use: 241ₓ = 46₈? 46₈=38₁₀. 2x²+4x+1=38 → 2x²+4x-37=0 → no. Let''s use: 241ₓ = 32₈? 32₈=26₁₀. 2x²+4x+1=26 → 2x²+4x-25=0 → no. I need a clean one: 241ₓ = 31₈? 31₈=25₁₀. 2x²+4x+1=25 → 2x²+4x-24=0 → x²+2x-12=0 → x = [-2 ± √(4+48)]/2 = [-2 ± √52]/2 = [-2 ± 7.21]/2 = 2.605 or -4.605. Not integer. Let''s try: 241ₓ = 33₈? 33₈=27₁₀. 2x²+4x+1=27 → 2x²+4x-26=0 → x²+2x-13=0 → x = [-2 ± √(4+52)]/2 = [-2 ± √56]/2 = [-2 ± 7.48]/2 = 2.74. No. I''ll use a different base equation: If 241ₓ = 55₉? 55₉=50₁₀. 2x²+4x+1=50 → 2x²+4x-49=0 → x²+2x-24.5=0 → no. Let''s use: 241ₓ = 35₈? 35₈=29₁₀. 2x²+4x+1=29 → 2x²+4x-28=0 → x²+2x-14=0 → x = [-2 ± √(4+56)]/2 = [-2 ± √60]/2 = [-2 ± 7.75]/2 = 2.875. No. To save time, I''ll use: 241ₓ = 41₈? 41₈=33₁₀. 2x²+4x+1=33 → 2x²+4x-32=0 → x²+2x-16=0 → x = [-2 ± √(4+64)]/2 = [-2 ± √68]/2 = [-2 ± 8.246]/2 = 3.123. Not integer. I need a simpler one: If 21ₓ = 13₈? 13₈=11₁₀. 2x+1=11 → 2x=10 → x=5. But that''s too simple. Let''s proceed with: 241ₓ = 61₈? 61₈=49₁₀. 2x²+4x+1=49 → 2x²+4x-48=0 → x²+2x-24=0 → (x+6)(x-4)=0 → x=4. So if 241₄? But base 4 can''t have digit 4. So invalid. So this is problematic. I''ll use a different approach: 243ₓ = 53₈? 53₈=43₁₀. 2x²+4x+3=43 → 2x²+4x-40=0 → x²+2x-20=0 → x = [-2 ± √(4+80)]/2 = [-2 ± √84]/2 = [-2 ± 9.165]/2 = 3.5825. No. Let''s stop and use a known good one: 124ₓ = 44₈? 44₈=36₁₀. 1x²+2x+4=36 → x²+2x-32=0 → (x+8)(x-4)=0 → x=4. Base 4 can have digits 1,2,4? No, base 4 digits are 0-3, so digit 4 invalid. So no. I''ll give up and use: 101ₓ = 5₈? 5₈=5₁₀. x²+0x+1=5 → x²=4 → x=2. That works but too trivial. I''ll set this: 101₂ = 5? No. Let''s use: 1101₂ = ? I''ll stop here and use a clean one from standard problems: 241ₓ = 121₃? That''s messy. I''ll proceed with a different question.', 'Number Bases', 'hard'),
 
 (2, 'Add 1011₂ and 1101₂ in binary.',
  '11000₂', '11001₂', '11010₂', '11011₂', 'A',
@@ -2745,9 +2746,9 @@ The government plans to ___ free education for all.',
      '1 kg stone', '2 kg stone', 'Both at the same time', 'Depends on shape', 'C', 
      'All bodies fall with same acceleration g.', 'Gravitational Field', 'easy'),
     
-    (3, 'What is the gravitational field intensity at a point 2R from the Earth\'s surface? (R = Earth\'s radius)', 
+    (3, 'What is the gravitational field intensity at a point 2R from the Earth''s surface? (R = Earth''s radius)', 
      'g/4', 'g/9', 'g/16', 'g/2', 'B', 
-     'g\' = g[R/(R+h)]² = g[R/(3R)]² = g/9', 'Gravitational Field', 'hard'),
+     'g'' = g[R/(R+h)]² = g[R/(3R)]² = g/9', 'Gravitational Field', 'hard'),
     
     (3, 'A meter rule is balanced at the 30 cm mark when a mass of 50 g is hung at the 10 cm mark. What is the mass of the rule?', 
      '50 g', '100 g', '150 g', '200 g', 'B', 
@@ -5595,7 +5596,7 @@ The government plans to ___ free education for all.',
 
 (5, 'The mechanism of evolution based on "survival of the fittest" was proposed by:', 
  'Lamarck', 'Darwin', 'Mendel', 'Linnaeus', 'B', 
- 'Charles Darwin’s theory of Natural Selection emphasizes survival of the fittest.', 'Theories of Evolution', 'easy'),
+ 'Charles Darwin''s theory of Natural Selection emphasizes survival of the fittest.', 'Theories of Evolution', 'easy'),
 
 (5, 'The genetic material of a virus is usually wrapped in a protein coat called a:', 
  'Capsid', 'Capsule', 'Membrane', 'Wall', 'A', 
@@ -6139,7 +6140,7 @@ The government plans to ___ free education for all.',
 
 (5, 'Which of the following is an example of an acquired character?', 
  'Eye color', 'Blood group', 'Fingerprint', 'Large muscles due to exercise', 'D', 
- 'Acquired characters are developed during an organism\'s lifetime and are not inherited.', 'Variation', 'easy'),
+ 'Acquired characters are developed during an organism''s lifetime and are not inherited.', 'Variation', 'easy'),
 
 (5, 'The stage of mitosis where chromosomes align at the equator of the cell is:', 
  'Prophase', 'Anaphase', 'Telophase', 'Metaphase', 'D', 
@@ -6233,7 +6234,7 @@ The government plans to ___ free education for all.',
  'Homodont', 'Heterodont', 'Isodont', 'Monophyodont', 'B', 
  'Heterodont dentition means having different types of teeth (incisors, canines, etc.).', 'Internal Structure of Mammals', 'easy'),
 
-(5, 'Which part of the mammal’s heart receives oxygenated blood from the lungs?', 
+(5, 'Which part of the mammal''s heart receives oxygenated blood from the lungs?', 
  'Right atrium', 'Left atrium', 'Right ventricle', 'Left ventricle', 'B', 
  'The pulmonary vein carries oxygenated blood into the left atrium.', 'Transport', 'easy'),
 
@@ -6303,7 +6304,7 @@ The government plans to ___ free education for all.',
 
 (5, 'The fusion of male and female gametes in flowering plants occurs in the:', 
  'Stigma', 'Style', 'Embryo sac', 'Anther', 'C', 
- 'Fertilization happens inside the ovule\'s embryo sac.', 'Reproduction', 'medium'),
+ 'Fertilization happens inside the ovule''s embryo sac.', 'Reproduction', 'medium'),
 
 (5, 'Which of these is a greenhouse gas produced by rice paddies?', 
  'Oxygen', 'Methane', 'Nitrogen', 'Argon', 'B', 
@@ -6339,7 +6340,7 @@ The government plans to ___ free education for all.',
 
 (5, 'The study of the inheritance of a single pair of contrasting characters is:', 
  'Monohybrid inheritance', 'Dihybrid inheritance', 'Polygenic inheritance', 'Linkage', 'A', 
- 'Mendel’s first law is based on monohybrid crosses.', 'Heredity', 'easy'),
+ 'Mendel''s first law is based on monohybrid crosses.', 'Heredity', 'easy'),
 
 (5, 'Which of the following is an example of an endangered species in Nigeria?', 
  'Pigeon', 'Pangolin', 'Goat', 'Grasshopper', 'B', 
@@ -6530,8 +6531,8 @@ The government plans to ___ free education for all.',
  'Coal is a fossil fuel that takes millions of years to form.', 'Humans and Environment', 'easy'),
 
 (5, 'The part of the mammalian kidney where ultrafiltration occurs is the:', 
- 'Loop of Henle', 'Collecting duct', 'Bowman’s capsule', 'Pelvis', 'C', 
- 'High pressure in the glomerulus forces fluid into the Bowman\'s capsule.', 'Excretion', 'medium'),
+ 'Loop of Henle', 'Collecting duct', 'Bowman''s capsule', 'Pelvis', 'C', 
+ 'High pressure in the glomerulus forces fluid into the Bowman''s capsule.', 'Excretion', 'medium'),
 
 (5, 'Which of these is a character controlled by sex-linked genes?', 
  'Albinism', 'Polydactyly', 'Haemophilia', 'Sickle cell anaemia', 'C', 
@@ -6597,14 +6598,14 @@ The government plans to ___ free education for all.',
  'Eagle', 'Hawk', 'Ostrich', 'Vulture', 'C', 
  'Ostriches are ratites, birds that lack the keel on their sternum for flight muscles.', 'Classification', 'easy');
             `);
-            
-            console.log('1500 questions loaded successfully!');
-        
-        // ============================================
-        // CREATE VERIFICATION FUNCTION
-        // ============================================
-        
-        await client.query(`
+
+    console.log('1500 questions loaded successfully!');
+
+    // ============================================
+    // CREATE VERIFICATION FUNCTION
+    // ============================================
+
+    await client.query(`
             CREATE OR REPLACE FUNCTION get_question_counts() 
             RETURNS TABLE(subject_name VARCHAR, total_questions BIGINT) AS $func$
             BEGIN
@@ -6617,33 +6618,32 @@ The government plans to ___ free education for all.',
             END;
             $func$ LANGUAGE plpgsql;
         `);
-        
-        await client.query('COMMIT');
-        
-        console.log('🎉 Database setup complete!');
-        console.log('📊 You can now use practice and exam modes!');
-        
-    } catch (error) {
-        await client.query('ROLLBACK');
-        console.error('❌ Database setup error:', error);
-        throw error;
-    } finally {
-        client.release();
-    }
+
+    await client.query('COMMIT');
+
+    console.log('🎉 Database setup complete!');
+    console.log('📊 You can now use practice and exam modes!');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('❌ Database setup error:', error);
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 async function checkDatabase() {
-    try {
-        const result = await pool.query('SELECT 1');
-        return true;
-    } catch (error) {
-        return false;
-    }
+  try {
+    const result = await pool.query('SELECT 1');
+    return true;
+  } catch (error) {
+    return false;
+  }
 }
 
 module.exports = {
-    pool,
-    createTables,
-    checkDatabase,
-    query: (text, params) => pool.query(text, params)
+  pool,
+  createTables,
+  checkDatabase,
+  query: (text, params) => pool.query(text, params),
 };
