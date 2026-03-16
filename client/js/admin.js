@@ -587,18 +587,32 @@ function showLoading(message) {
 
 function generatePagination(totalItems, itemsPerPage) {
     const totalPages = Math.ceil(totalItems / itemsPerPage);
+    if (totalPages <= 1) return ''; // No pagination needed
+    
     let html = '';
     
     // Previous button
     html += `<button class="page-btn" onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>Prev</button>`;
     
-    // Page numbers
-    for (let i = 1; i <= totalPages; i++) {
-        if (i === 1 || i === totalPages || (i >= currentPage - 2 && i <= currentPage + 2)) {
-            html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="changePage(${i})">${i}</button>`;
-        } else if (i === currentPage - 3 || i === currentPage + 3) {
+    // Always show first page
+    if (currentPage > 3) {
+        html += `<button class="page-btn" onclick="changePage(1)">1</button>`;
+        if (currentPage > 4) {
             html += `<span class="page-dots">...</span>`;
         }
+    }
+    
+    // Page numbers around current page
+    for (let i = Math.max(1, currentPage - 2); i <= Math.min(totalPages, currentPage + 2); i++) {
+        html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="changePage(${i})">${i}</button>`;
+    }
+    
+    // Always show last page
+    if (currentPage < totalPages - 2) {
+        if (currentPage < totalPages - 3) {
+            html += `<span class="page-dots">...</span>`;
+        }
+        html += `<button class="page-btn" onclick="changePage(${totalPages})">${totalPages}</button>`;
     }
     
     // Next button
@@ -610,11 +624,33 @@ function generatePagination(totalItems, itemsPerPage) {
 function changePage(page) {
     if (page < 1) return;
     
-    const totalItems = currentTab === 'users' ? usersData.length : 
-                      currentTab === 'exams' ? examsData.length : 0;
+    let totalItems = 0;
+    if (currentTab === 'users') {
+        totalItems = usersData.length;
+    } else if (currentTab === 'exams') {
+        totalItems = examsData.length;
+    } else if (currentTab === 'questions') {
+        // For questions tab, we need to handle filtered data
+        const filteredQuestions = currentSubjectFilter !== 'all' 
+            ? questionsData.filter(q => q.subject_id === parseInt(currentSubjectFilter))
+            : questionsData;
+        totalItems = filteredQuestions.length;
+        // Questions uses its own pagination
+        if (currentTab === 'questions') {
+            goToQuestionPage(page);
+            return;
+        }
+    }
+    
     const totalPages = Math.ceil(totalItems / 10);
     
-    if (page > totalPages) return;
+    if (page > totalPages) {
+        page = totalPages;
+    }
+    
+    if (page < 1) {
+        page = 1;
+    }
     
     currentPage = page;
     

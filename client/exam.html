@@ -149,6 +149,56 @@
             font-weight: 600;
         }
 
+        /* Subject Tabs */
+        .subject-tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .subject-tab {
+            padding: 12px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            background: #f0f0f0;
+            color: #666;
+            flex: 1;
+            text-align: center;
+            min-width: 120px;
+            border: none;
+            font-size: 1rem;
+        }
+
+        .subject-tab:hover {
+            background: #e0e0e0;
+        }
+
+        .subject-tab.active {
+            background: #667eea;
+            color: white;
+            box-shadow: 0 4px 10px rgba(102, 126, 234, 0.3);
+        }
+
+        .subject-tab .count-badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            padding: 2px 8px;
+            border-radius: 20px;
+            margin-left: 8px;
+            font-size: 0.8rem;
+        }
+
+        .subject-tab.active .count-badge {
+            background: rgba(255,255,255,0.3);
+        }
+
         .progress-bar {
             width: 100%;
             height: 10px;
@@ -182,10 +232,11 @@
             display: inline-block;
             background: #e8f0fe;
             color: #4a6fa5;
-            padding: 3px 10px;
-            border-radius: 15px;
+            padding: 5px 15px;
+            border-radius: 20px;
             font-size: 0.9rem;
             margin-bottom: 20px;
+            font-weight: 600;
         }
 
         .question-text {
@@ -307,6 +358,30 @@
             font-weight: bold;
             margin-bottom: 15px;
             color: #444;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .subject-filter {
+            display: flex;
+            gap: 10px;
+        }
+
+        .filter-btn {
+            padding: 5px 10px;
+            border: 1px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.3s;
+        }
+
+        .filter-btn.active {
+            background: #667eea;
+            color: white;
         }
 
         .palette-grid {
@@ -325,6 +400,7 @@
             cursor: pointer;
             font-weight: 600;
             transition: all 0.3s ease;
+            position: relative;
         }
 
         .palette-item.unanswered {
@@ -342,6 +418,22 @@
             transform: scale(1.1);
         }
 
+        .palette-item[data-subject]:hover::after {
+            content: attr(data-subject);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            white-space: nowrap;
+            margin-bottom: 5px;
+            z-index: 10;
+        }
+
         .warning-message {
             background: #fef5e7;
             color: #f39c12;
@@ -352,7 +444,7 @@
             font-weight: 600;
         }
 
-        /* Calculator Modal */
+        /* Calculator Modal - Mobile Optimized with Dragging */
         .calculator-modal {
             display: none;
             position: fixed;
@@ -363,25 +455,60 @@
             height: 100%;
             background-color: rgba(0,0,0,0.5);
             animation: fadeIn 0.3s;
+            touch-action: none; /* Prevent scrolling while dragging */
         }
 
         .calculator-modal-content {
             background: white;
             margin: 5% auto;
-            padding: 20px;
+            padding: 15px;
             border-radius: 15px;
             width: 90%;
-            max-width: 400px;
+            max-width: 350px;
             box-shadow: 0 5px 30px rgba(0,0,0,0.3);
+            cursor: grab;
+            transition: box-shadow 0.2s;
+            position: relative;
+            touch-action: none;
+            user-select: none;
+        }
+
+        .calculator-modal-content:active {
+            cursor: grabbing;
+            box-shadow: 0 8px 40px rgba(0,0,0,0.4);
         }
 
         .calculator-modal-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
+            margin-bottom: 15px;
+            padding: 8px 0;
             border-bottom: 2px solid #f0f0f0;
+            cursor: grab;
+            background: linear-gradient(to right, #f8f9fa, #ffffff);
+            border-radius: 8px 8px 0 0;
+            touch-action: none;
+        }
+
+        .calculator-modal-header:active {
+            cursor: grabbing;
+        }
+
+        .calculator-modal-header h3 {
+            margin: 0;
+            font-size: 1.2rem;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding-left: 5px;
+        }
+
+        .drag-indicator {
+            color: #999;
+            font-size: 0.9rem;
+            margin-right: 10px;
         }
 
         .close-btn {
@@ -390,25 +517,31 @@
             font-size: 1.5rem;
             cursor: pointer;
             color: #999;
+            padding: 5px 10px;
+            transition: all 0.2s;
+            z-index: 2001;
         }
 
         .close-btn:hover {
             color: #e74c3c;
+            transform: scale(1.1);
         }
 
         .exam-calculator .calc-display {
             background: #f5f7fa;
-            padding: 15px;
+            padding: 12px;
             border-radius: 8px;
-            margin-bottom: 15px;
+            margin-bottom: 12px;
             text-align: right;
-            min-height: 80px;
+            min-height: 70px;
+            border: 1px solid #e0e0e0;
         }
 
         .exam-calculator .calc-expression {
             font-size: 0.9rem;
             color: #666;
             margin-bottom: 5px;
+            min-height: 20px;
         }
 
         .exam-calculator .calc-result {
@@ -416,23 +549,26 @@
             font-weight: bold;
             color: #333;
             font-family: monospace;
+            word-wrap: break-word;
         }
 
         .calc-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 10px;
-            margin-top: 15px;
+            gap: 8px;
+            margin-top: 12px;
         }
 
         .calc-btn {
-            padding: 15px;
-            font-size: 1.2rem;
+            padding: 12px;
+            font-size: 1.1rem;
             border: none;
-            border-radius: 8px;
+            border-radius: 6px;
             cursor: pointer;
             transition: all 0.2s;
             font-weight: 600;
+            min-width: 0;
+            touch-action: manipulation;
         }
 
         .calc-btn.number {
@@ -465,6 +601,115 @@
         .calc-btn.clear {
             background: #e74c3c;
             color: white;
+        }
+
+        /* Mobile-specific calculator styles */
+        @media (max-width: 768px) {
+            .calculator-modal-content {
+                margin: 2% auto;
+                width: 95%;
+                max-width: 320px;
+                padding: 12px;
+            }
+
+            .exam-calculator .calc-display {
+                padding: 10px;
+                min-height: 60px;
+                margin-bottom: 10px;
+            }
+
+            .exam-calculator .calc-result {
+                font-size: 1.5rem;
+            }
+
+            .exam-calculator .calc-expression {
+                font-size: 0.8rem;
+            }
+
+            .calc-grid {
+                gap: 6px;
+                margin-top: 10px;
+            }
+
+            .calc-btn {
+                padding: 10px;
+                font-size: 1rem;
+                min-height: 44px;
+                min-width: 44px;
+            }
+
+            .calc-btn:active {
+                transform: scale(0.95);
+                opacity: 0.8;
+            }
+
+            /* Memory buttons row */
+            [style*="grid-template-columns: repeat(2, 1fr)"] {
+                gap: 6px !important;
+                margin-bottom: 8px !important;
+            }
+
+            /* Scientific buttons row */
+            [style*="grid-template-columns: repeat(4, 1fr)"] {
+                gap: 6px !important;
+                margin-top: 10px !important;
+            }
+
+            .calculator-btn {
+                padding: 8px 12px;
+                font-size: 0.9rem;
+            }
+
+            .calculator-modal-header h3 {
+                font-size: 1.1rem;
+            }
+
+            .close-btn {
+                font-size: 1.2rem;
+                padding: 8px;
+            }
+
+            .drag-indicator {
+                font-size: 0.8rem;
+            }
+        }
+
+        /* Small phones */
+        @media (max-width: 480px) {
+            .calculator-modal-content {
+                max-width: 280px;
+                padding: 10px;
+            }
+
+            .calc-btn {
+                padding: 8px;
+                font-size: 0.9rem;
+            }
+
+            .exam-calculator .calc-result {
+                font-size: 1.3rem;
+            }
+
+            .exam-calculator .calc-display {
+                padding: 8px;
+                min-height: 50px;
+            }
+        }
+
+        /* Landscape mode on mobile */
+        @media (max-width: 900px) and (orientation: landscape) {
+            .calculator-modal-content {
+                margin: 1% auto;
+                max-width: 500px;
+            }
+
+            .calc-grid {
+                grid-template-columns: repeat(6, 1fr);
+            }
+
+            [style*="grid-template-columns: repeat(2, 1fr)"] {
+                grid-template-columns: repeat(4, 1fr) !important;
+            }
         }
 
         @keyframes fadeIn {
@@ -517,10 +762,13 @@
             .navigation-buttons {
                 flex-direction: column;
             }
-            
-            .calculator-modal-content {
-                margin: 10% auto;
-                width: 95%;
+
+            .subject-tabs {
+                flex-direction: column;
+            }
+
+            .subject-tab {
+                width: 100%;
             }
         }
     </style>
@@ -550,9 +798,10 @@
                 <h2 id="examTitle">JAMB UTME 2026 Mock Exam</h2>
                 <div class="subjects-badge" id="subjectsBadge"></div>
             </div>
-            <div style="display: flex; gap: 15px; align-items: center;">
+            <div style="display: flex; gap: 10px; align-items: center;">
                 <button id="calculatorToggle" class="calculator-btn" onclick="toggleCalculator()">
-                    🧮 Show Calculator
+                    <span>🧮</span>
+                    <span class="btn-text">Calculator</span>
                 </button>
                 <div class="timer" id="timer">02:00:00</div>
             </div>
@@ -561,6 +810,9 @@
         <div class="warning-message" id="scoringWarning">
             ⚡ English: 60 questions × 1.67 marks | Other subjects: 40 questions × 2.5 marks
         </div>
+
+        <!-- Subject Tabs -->
+        <div class="subject-tabs" id="subjectTabs"></div>
 
         <div class="progress-bar">
             <div class="progress-fill" id="progressFill" style="width: 0%"></div>
@@ -575,16 +827,22 @@
         </div>
 
         <div class="question-palette">
-            <div class="palette-title">Question Palette</div>
+            <div class="palette-title">
+                Question Palette
+                <div class="subject-filter" id="subjectFilter"></div>
+            </div>
             <div class="palette-grid" id="paletteGrid"></div>
         </div>
     </div>
 
-    <!-- Calculator Modal -->
+    <!-- Calculator Modal with Dragging -->
     <div id="calculatorModal" class="calculator-modal" style="display: none;">
-        <div class="calculator-modal-content">
-            <div class="calculator-modal-header">
-                <h3>🧮 Exam Calculator</h3>
+        <div class="calculator-modal-content" id="calculatorContent">
+            <div class="calculator-modal-header" id="calculatorHeader">
+                <h3>
+                    <span>🧮</span> Calculator
+                    <span class="drag-indicator">↗️ Drag me</span>
+                </h3>
                 <button onclick="toggleCalculator()" class="close-btn">✖</button>
             </div>
             <div id="examCalculator" class="exam-calculator"></div>

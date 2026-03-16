@@ -20,16 +20,30 @@ let examState = {
     timerInterval: null,
     subjects: [],
     examId: null,
-    startTime: null
+    startTime: null,
+    currentSubject: 'all',
+    subjectRanges: {}
 };
 
-// Calculator state
+// Calculator state with drag functionality
 let examCalculator = {
     currentInput: '',
     previousInput: '',
     operator: null,
     memory: 0,
     shouldReset: false
+};
+
+// Drag state for calculator
+let dragState = {
+    isDragging: false,
+    currentX: 0,
+    currentY: 0,
+    initialX: 0,
+    initialY: 0,
+    xOffset: 0,
+    yOffset: 0,
+    activated: false
 };
 
 // Initialize
@@ -47,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
     startTimer();
     displayUserInfo();
 
- document.getElementById('logoutBtn').addEventListener('click', logout);
+    document.getElementById('logoutBtn').addEventListener('click', logout);
 });
 
 function displayUserInfo() {
@@ -71,7 +85,87 @@ function loadExamData() {
     examState.startTime = new Date().toISOString();
     
     displaySubjectsBadge(selectedSubjects);
+    renderSubjectTabs(selectedSubjects);
+    renderSubjectFilter(selectedSubjects);
     fetchExamQuestions(selectedSubjects);
+}
+
+function renderSubjectTabs(subjects) {
+    const tabsContainer = document.getElementById('subjectTabs');
+    if (!tabsContainer) return;
+    
+    let tabsHtml = subjects.map((subject, index) => {
+        const isEnglish = subject.name === 'Use of English';
+        const questionCount = isEnglish ? 60 : 40;
+        const displayName = isEnglish ? 'English' : subject.name;
+        
+        return `
+            <button class="subject-tab ${index === 0 ? 'active' : ''}" 
+                    onclick="switchSubject('${subject.name}')">
+                ${displayName}
+                <span class="count-badge">${questionCount}</span>
+            </button>
+        `;
+    }).join('');
+    
+    tabsContainer.innerHTML = tabsHtml;
+}
+
+function renderSubjectFilter(subjects) {
+    const filterContainer = document.getElementById('subjectFilter');
+    if (!filterContainer) return;
+    
+    let filterHtml = `<button class="filter-btn active" onclick="filterPalette('all')">All</button>`;
+    
+    subjects.forEach(subject => {
+        const displayName = subject.name === 'Use of English' ? 'English' : subject.name;
+        filterHtml += `
+            <button class="filter-btn" onclick="filterPalette('${subject.name}')">
+                ${displayName}
+            </button>
+        `;
+    });
+    
+    filterContainer.innerHTML = filterHtml;
+}
+
+function switchSubject(subjectName) {
+    examState.currentSubject = subjectName;
+    
+    document.querySelectorAll('.subject-tab').forEach((tab, index) => {
+        const tabSubject = examState.subjects[index].name;
+        if (tabSubject === subjectName) {
+            tab.classList.add('active');
+        } else {
+            tab.classList.remove('active');
+        }
+    });
+    
+    const firstIndex = examState.questions.findIndex(q => q.subject === subjectName);
+    if (firstIndex !== -1) {
+        examState.currentIndex = firstIndex;
+        renderQuestion(firstIndex);
+        updateNavButtons();
+        highlightCurrentInPalette(firstIndex);
+    }
+    
+    renderPalette();
+}
+
+function filterPalette(subject) {
+    examState.currentSubject = subject;
+    
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        const btnSubject = btn.textContent.trim();
+        if ((subject === 'all' && btnSubject === 'All') || 
+            (subject !== 'all' && btnSubject === subject)) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+    
+    renderPalette();
 }
 
 function displaySubjectsBadge(subjects) {
@@ -79,7 +173,7 @@ function displaySubjectsBadge(subjects) {
     if (!badgeContainer) return;
     
     badgeContainer.innerHTML = subjects.map(s => 
-        `<span class="subject-tag">${s.code}</span>`
+        `<span class="subject-tag">${s.code || s.name.substring(0, 3).toUpperCase()}</span>`
     ).join('');
 }
 
@@ -106,28 +200,40 @@ async function fetchExamQuestions(subjects) {
         examState.questions = questions;
         examState.examId = generateExamId();
         
+        calculateSubjectRanges();
+        
         renderQuestion(0);
         renderPalette();
         
-} catch (error) {
-    console.error('Full error object:', error);
-    console.error('Error message:', error.message);
-    
-    // Try to get response details
-    if (error.response) {
-        error.response.text().then(text => {
-            console.error('Response body:', text);
-        });
+    } catch (error) {
+        console.error('Full error object:', error);
+        
+        if (error.response) {
+            error.response.text().then(text => {
+                console.error('Response body:', text);
+            });
+        }
+        
+        document.getElementById('questionContainer').innerHTML = `
+            <div style="text-align: center; padding: 50px; color: #e74c3c;">
+                ❌ Failed to load questions: ${error.message}
+                <br><br>
+                <button onclick="location.reload()" style="padding: 10px 20px;">Retry</button>
+            </div>
+        `;
     }
-    
-    document.getElementById('questionContainer').innerHTML = `
-        <div style="text-align: center; padding: 50px; color: #e74c3c;">
-            ❌ Failed to load questions: ${error.message}
-            <br><br>
-            <button onclick="location.reload()" style="padding: 10px 20px;">Retry</button>
-        </div>
-    `;
 }
+
+function calculateSubjectRanges() {
+    const ranges = {};
+    examState.subjects.forEach(subject => {
+        ranges[subject.name] = {
+            start: examState.questions.findIndex(q => q.subject === subject.name),
+            end: examState.questions.findLastIndex(q => q.subject === subject.name),
+            count: examState.questions.filter(q => q.subject === subject.name).length
+        };
+    });
+    examState.subjectRanges = ranges;
 }
 
 function renderQuestion(index) {
@@ -137,7 +243,6 @@ function renderQuestion(index) {
     const container = document.getElementById('questionContainer');
     const savedAnswer = examState.answers[question.id];
     
-    // ✅ FIX: Handle both database format and frontend format
     const options = {
         A: question.option_a || question.options?.A || 'Option A',
         B: question.option_b || question.options?.B || 'Option B',
@@ -184,12 +289,27 @@ function renderPalette() {
     const palette = document.getElementById('paletteGrid');
     if (!palette) return;
     
-    palette.innerHTML = examState.questions.map((q, index) => {
+    let filteredQuestions = examState.questions;
+    if (examState.currentSubject !== 'all') {
+        filteredQuestions = examState.questions.filter(q => q.subject === examState.currentSubject);
+    }
+    
+    palette.innerHTML = filteredQuestions.map((q, idx) => {
+        const originalIndex = examState.questions.findIndex(question => question.id === q.id);
         const answered = examState.answers[q.id] ? 'answered' : 'unanswered';
-        const current = index === examState.currentIndex ? 'current' : '';
+        const current = originalIndex === examState.currentIndex ? 'current' : '';
+        const subjectShort = q.subject === 'Use of English' ? 'ENG' : 
+                            q.subject === 'Mathematics' ? 'MTH' :
+                            q.subject === 'Physics' ? 'PHY' :
+                            q.subject === 'Chemistry' ? 'CHM' :
+                            q.subject === 'Biology' ? 'BIO' : 'SUB';
+        
         return `
-            <div class="palette-item ${answered} ${current}" onclick="jumpToQuestion(${index})">
-                ${index + 1}
+            <div class="palette-item ${answered} ${current}" 
+                 onclick="jumpToQuestion(${originalIndex})"
+                 data-subject="${subjectShort}"
+                 title="${q.subject} - Question ${originalIndex + 1}">
+                ${originalIndex + 1}
             </div>
         `;
     }).join('');
@@ -198,14 +318,21 @@ function renderPalette() {
 function updatePaletteItem(questionId) {
     const index = examState.questions.findIndex(q => q.id === questionId);
     const paletteItems = document.querySelectorAll('.palette-item');
-    if (paletteItems[index]) {
-        paletteItems[index].className = 'palette-item answered';
-    }
+    
+    paletteItems.forEach(item => {
+        if (item.textContent.trim() === (index + 1).toString()) {
+            item.className = 'palette-item answered';
+            if (index === examState.currentIndex) {
+                item.classList.add('current');
+            }
+        }
+    });
 }
 
 function highlightCurrentInPalette(index) {
     document.querySelectorAll('.palette-item').forEach((item, i) => {
-        if (i === index) {
+        const itemNumber = parseInt(item.textContent.trim());
+        if (itemNumber === index + 1) {
             item.classList.add('current');
         } else {
             item.classList.remove('current');
@@ -216,6 +343,18 @@ function highlightCurrentInPalette(index) {
 function jumpToQuestion(index) {
     examState.currentIndex = index;
     renderQuestion(index);
+    
+    const question = examState.questions[index];
+    if (question) {
+        document.querySelectorAll('.subject-tab').forEach((tab, i) => {
+            const tabSubject = examState.subjects[i].name;
+            if (tabSubject === question.subject) {
+                tab.classList.add('active');
+            } else {
+                tab.classList.remove('active');
+            }
+        });
+    }
 }
 
 function updateNavButtons() {
@@ -329,7 +468,6 @@ function calculateJAMBScores() {
         
         subjectScores[q.subject].total++;
         
-        // ✅ FIX: Handle both formats
         const correctAnswer = q.correct_answer || q.correctAnswer;
         const isCorrect = examState.answers[q.id] === correctAnswer;
         
@@ -369,18 +507,166 @@ function generateExamId() {
     return 'EXAM_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 }
 
-// Calculator functions
+// Draggable Calculator Functions
+function initDraggableCalculator() {
+    const modal = document.getElementById('calculatorModal');
+    const content = document.getElementById('calculatorContent');
+    const header = document.getElementById('calculatorHeader');
+    
+    if (!modal || !content || !header) return;
+    
+    // Remove any existing listeners
+    header.removeEventListener('mousedown', dragMouseDown);
+    header.removeEventListener('touchstart', dragTouchStart);
+    document.removeEventListener('mousemove', dragMouseMove);
+    document.removeEventListener('mouseup', dragMouseUp);
+    document.removeEventListener('touchmove', dragTouchMove);
+    document.removeEventListener('touchend', dragTouchEnd);
+    
+    // Add new listeners
+    header.addEventListener('mousedown', dragMouseDown);
+    header.addEventListener('touchstart', dragTouchStart, { passive: false });
+}
+
+function dragMouseDown(e) {
+    e.preventDefault();
+    const content = document.getElementById('calculatorContent');
+    if (!content) return;
+    
+    dragState.initialX = e.clientX - dragState.xOffset;
+    dragState.initialY = e.clientY - dragState.yOffset;
+    dragState.isDragging = true;
+    dragState.activated = true;
+    
+    document.addEventListener('mousemove', dragMouseMove);
+    document.addEventListener('mouseup', dragMouseUp);
+    
+    content.style.cursor = 'grabbing';
+    content.style.transition = 'none';
+}
+
+function dragTouchStart(e) {
+    e.preventDefault();
+    const touch = e.touches[0];
+    const content = document.getElementById('calculatorContent');
+    if (!content) return;
+    
+    dragState.initialX = touch.clientX - dragState.xOffset;
+    dragState.initialY = touch.clientY - dragState.yOffset;
+    dragState.isDragging = true;
+    dragState.activated = true;
+    
+    document.addEventListener('touchmove', dragTouchMove, { passive: false });
+    document.addEventListener('touchend', dragTouchEnd);
+    document.addEventListener('touchcancel', dragTouchEnd);
+    
+    content.style.cursor = 'grabbing';
+    content.style.transition = 'none';
+}
+
+function dragMouseMove(e) {
+    if (!dragState.isDragging) return;
+    e.preventDefault();
+    
+    dragState.currentX = e.clientX - dragState.initialX;
+    dragState.currentY = e.clientY - dragState.initialY;
+    
+    dragState.xOffset = dragState.currentX;
+    dragState.yOffset = dragState.currentY;
+    
+    setTranslate(dragState.currentX, dragState.currentY, document.getElementById('calculatorContent'));
+}
+
+function dragTouchMove(e) {
+    if (!dragState.isDragging) return;
+    e.preventDefault();
+    
+    const touch = e.touches[0];
+    dragState.currentX = touch.clientX - dragState.initialX;
+    dragState.currentY = touch.clientY - dragState.initialY;
+    
+    dragState.xOffset = dragState.currentX;
+    dragState.yOffset = dragState.currentY;
+    
+    setTranslate(dragState.currentX, dragState.currentY, document.getElementById('calculatorContent'));
+}
+
+function dragMouseUp(e) {
+    dragState.isDragging = false;
+    dragState.activated = false;
+    
+    document.removeEventListener('mousemove', dragMouseMove);
+    document.removeEventListener('mouseup', dragMouseUp);
+    
+    const content = document.getElementById('calculatorContent');
+    if (content) {
+        content.style.cursor = 'grab';
+        content.style.transition = 'box-shadow 0.2s';
+    }
+}
+
+function dragTouchEnd(e) {
+    dragState.isDragging = false;
+    dragState.activated = false;
+    
+    document.removeEventListener('touchmove', dragTouchMove);
+    document.removeEventListener('touchend', dragTouchEnd);
+    document.removeEventListener('touchcancel', dragTouchEnd);
+    
+    const content = document.getElementById('calculatorContent');
+    if (content) {
+        content.style.cursor = 'grab';
+        content.style.transition = 'box-shadow 0.2s';
+    }
+}
+
+function setTranslate(xPos, yPos, el) {
+    if (!el) return;
+    
+    // Add bounds checking to keep calculator on screen
+    const rect = el.getBoundingClientRect();
+    const maxX = window.innerWidth - rect.width;
+    const maxY = window.innerHeight - rect.height;
+    
+    xPos = Math.min(Math.max(xPos, 10), maxX - 10);
+    yPos = Math.min(Math.max(yPos, 10), maxY - 10);
+    
+    el.style.transform = `translate(${xPos}px, ${yPos}px)`;
+}
+
+// Updated toggleCalculator function with drag initialization
 function toggleCalculator() {
     const modal = document.getElementById('calculatorModal');
     const btn = document.getElementById('calculatorToggle');
+    const content = document.getElementById('calculatorContent');
     
-    if (modal.style.display === 'none') {
+    if (modal.style.display === 'none' || modal.style.display === '') {
         modal.style.display = 'block';
-        btn.textContent = '🧮 Hide Calculator';
+        btn.innerHTML = '<span>🧮</span> <span class="btn-text">Hide Calculator</span>';
         renderCalculator();
+        
+        // Reset position
+        if (content) {
+            content.style.transform = 'none';
+            dragState.xOffset = 0;
+            dragState.yOffset = 0;
+        }
+        
+        // Initialize draggable
+        setTimeout(() => {
+            initDraggableCalculator();
+        }, 100);
     } else {
         modal.style.display = 'none';
-        btn.textContent = '🧮 Show Calculator';
+        btn.innerHTML = '<span>🧮</span> <span class="btn-text">Calculator</span>';
+        
+        // Reset drag state
+        dragState.isDragging = false;
+        dragState.xOffset = 0;
+        dragState.yOffset = 0;
+        if (content) {
+            content.style.transform = 'none';
+        }
     }
 }
 
@@ -393,7 +679,7 @@ function renderCalculator() {
             <div class="calc-result" id="calcResult">0</div>
         </div>
         
-        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 10px;">
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 8px;">
             <button class="calc-btn operator" onclick="calculatorMemory('clear')">MC</button>
             <button class="calc-btn operator" onclick="calculatorMemory('recall')">MR</button>
             <button class="calc-btn operator" onclick="calculatorMemory('add')">M+</button>
@@ -423,10 +709,10 @@ function renderCalculator() {
             
             <button class="calc-btn number" onclick="calculatorAppend('0')">0</button>
             <button class="calc-btn number" onclick="calculatorAppend('.')">.</button>
-            <button class="calc-btn equals" colspan="2" onclick="calculatorCalculate()">=</button>
+            <button class="calc-btn equals" onclick="calculatorCalculate()">=</button>
         </div>
         
-        <div style="margin-top: 15px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px;">
             <button class="calc-btn operator" onclick="calculatorScientific('sqrt')">√</button>
             <button class="calc-btn operator" onclick="calculatorScientific('square')">x²</button>
             <button class="calc-btn operator" onclick="calculatorScientific('sin')">sin</button>
@@ -549,6 +835,7 @@ function updateCalculatorDisplay() {
     }
 }
 
+// Make functions globally available
 window.selectAnswer = selectAnswer;
 window.jumpToQuestion = jumpToQuestion;
 window.toggleCalculator = toggleCalculator;
@@ -559,3 +846,5 @@ window.calculatorClear = calculatorClear;
 window.calculatorBackspace = calculatorBackspace;
 window.calculatorMemory = calculatorMemory;
 window.calculatorScientific = calculatorScientific;
+window.switchSubject = switchSubject;
+window.filterPalette = filterPalette;
