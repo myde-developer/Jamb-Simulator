@@ -13,7 +13,7 @@ function logout(e) {
 
 // Flashcards state
 let flashcardState = {
-    deck: [],
+    deck: null,
     currentIndex: 0,
     cards: [],
     results: {
@@ -22,20 +22,107 @@ let flashcardState = {
         hard: 0
     },
     spacedRepetition: {
-        1: 1,
-        2: 3,
-        3: 7,
-        4: 14,
-        5: 30
+        1: 1,  // Level 1: review after 1 day
+        2: 3,  // Level 2: review after 3 days
+        3: 7,  // Level 3: review after 7 days
+        4: 14, // Level 4: review after 14 days
+        5: 30  // Level 5: review after 30 days
     }
 };
 
+// Topics from your database (extracted from your JSON files)
 const topicsBySubject = {
-    1: ['The Lekki Headmaster', 'Comprehension', 'Lexis & Structure', 'Oral English'],
-    2: ['Algebra', 'Geometry', 'Trigonometry', 'Statistics', 'Calculus'],
-    3: ['Mechanics', 'Waves', 'Electricity', 'Modern Physics', 'Heat'],
-    4: ['Organic Chemistry', 'Inorganic Chemistry', 'Physical Chemistry', 'Analytical'],
-    5: ['Cell Biology', 'Genetics', 'Ecology', 'Human Physiology', 'Evolution']
+    1: [ // Use of English
+        'The Lekki Headmaster',
+        'Comprehension',
+        'Cloze Passage',
+        'Sentence Interpretation',
+        'Antonyms',
+        'Synonyms',
+        'Sentence Completion',
+        'Oral English'
+    ],
+    2: [ // Mathematics
+        'Number Bases',
+        'Fractions, Decimals, Approximations',
+        'Indices, Logarithms and Surds',
+        'Sets',
+        'Polynomials',
+        'Variation',
+        'Inequalities',
+        'Progression',
+        'Binary Operations',
+        'Matrices and Determinants',
+        'Euclidean Geometry',
+        'Mensuration',
+        'Loci',
+        'Coordinate Geometry',
+        'Trigonometry',
+        'Differentiation',
+        'Application of Differentiation',
+        'Integration',
+        'Measures of Location',
+        'Measures of Dispersion',
+        'Permutation and Combination',
+        'Probability'
+    ],
+    3: [ // Physics
+        'Measurements and Units',
+        'Scalars and Vectors',
+        'Motion',
+        'Gravitational Field',
+        'Equilibrium of Forces',
+        'Work, Energy and Power',
+        'Friction',
+        'Simple Machines',
+        'Elasticity',
+        'Pressure',
+        'Heat Energy',
+        'Waves',
+        'Light',
+        'Sound'
+    ],
+    4: [ // Chemistry
+        'Separation of Mixtures',
+        'Chemical Combination',
+        'Gas Laws',
+        'Atomic Structure',
+        'Water',
+        'Solubility',
+        'Environmental Pollution',
+        'Acids and Bases',
+        'Salts',
+        'Oxidation and Reduction',
+        'Electrolysis',
+        'Organic Chemistry'
+    ],
+    5: [ // Biology
+        'Living Organisms',
+        'Classification',
+        'Internal Structure of Plants',
+        'Internal Structure of Mammals',
+        'Nutrition',
+        'Transport',
+        'Respiration',
+        'Excretion',
+        'Support and Movement',
+        'Reproduction',
+        'Growth',
+        'Coordination and Control',
+        'Homeostasis',
+        'Factors Affecting Distribution',
+        'Symbiotic Interactions',
+        'Natural Habitats',
+        'Nigerian Biomes',
+        'Population Ecology',
+        'Soil',
+        'Humans and Environment',
+        'Variation',
+        'Heredity',
+        'Sex-linked Characters',
+        'Theories of Evolution',
+        'Evidence of Evolution'
+    ]
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -45,7 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
     displayUserInfo();
     if (window.studyStreak) studyStreak.init();
 
- document.getElementById('logoutBtn').addEventListener('click', logout);
+    document.getElementById('logoutBtn').addEventListener('click', logout);
 });
 
 function checkAuth() {
@@ -77,33 +164,77 @@ function loadDecks() {
         return;
     }
     
-    deckList.innerHTML = decks.map(deck => `
-        <div class="deck-item" onclick="selectDeck('${deck.id}')">
-            <h3>${deck.name}</h3>
+    // Sort decks by most recently reviewed
+    decks.sort((a, b) => new Date(b.lastAccessed || 0) - new Date(a.lastAccessed || 0));
+    
+    deckList.innerHTML = decks.map(deck => {
+        const dueToday = deck.cards?.filter(c => new Date(c.nextReview) <= new Date()).length || 0;
+        const mastered = deck.cards?.filter(c => c.level >= 4).length || 0;
+        
+        return `
+        <div class="deck-card">
+            <div class="deck-header">
+                <h3>${deck.name}</h3>
+                <button class="delete-deck-btn" onclick="deleteDeck('${deck.id}', event)">🗑️</button>
+            </div>
             <p style="color: #666; margin-bottom: 10px;">${deck.subject}</p>
+            ${deck.topic ? `<p style="color: #888; font-size: 0.9rem;">Topic: ${deck.topic}</p>` : ''}
             <div class="deck-stats">
-                <span>📇 ${deck.totalCards} cards</span>
-                <span>✅ ${deck.mastered} mastered</span>
-                <span>📅 ${deck.dueToday} due today</span>
+                <span>📇 ${deck.cards?.length || 0} cards</span>
+                <span>✅ ${mastered} mastered</span>
+                <span>📅 ${dueToday} due</span>
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <button class="start-flashcard-btn" style="flex: 2;" onclick="selectDeck('${deck.id}')">Study Now</button>
+                <button class="secondary-btn" style="flex: 1;" onclick="editDeck('${deck.id}')">✏️</button>
             </div>
         </div>
-    `).join('');
+    `}).join('');
 }
 
 function loadStats() {
     const decks = JSON.parse(localStorage.getItem('flashcardDecks') || '[]');
-    const totalCards = decks.reduce((sum, d) => sum + d.totalCards, 0);
-    const masteredCards = decks.reduce((sum, d) => sum + d.mastered, 0);
-    const dueToday = decks.reduce((sum, d) => sum + d.dueToday, 0);
+    const totalCards = decks.reduce((sum, d) => sum + (d.cards?.length || 0), 0);
+    const masteredCards = decks.reduce((sum, d) => sum + (d.cards?.filter(c => c.level >= 4).length || 0), 0);
+    const dueToday = decks.reduce((sum, d) => sum + (d.cards?.filter(c => new Date(c.nextReview) <= new Date()).length || 0), 0);
     
     document.getElementById('totalCards').textContent = totalCards;
     document.getElementById('masteredCards').textContent = masteredCards;
     document.getElementById('dueCards').textContent = dueToday;
 }
 
-function showSetup() {
+function showSetup(editDeckId = null) {
     document.getElementById('decksView').style.display = 'none';
     document.getElementById('setupView').style.display = 'block';
+    
+    // Store edit mode
+    if (editDeckId) {
+        const decks = JSON.parse(localStorage.getItem('flashcardDecks') || '[]');
+        const deck = decks.find(d => d.id === editDeckId);
+        if (deck) {
+            document.getElementById('setupTitle').textContent = 'Edit Deck';
+            document.getElementById('deckName').value = deck.name;
+            document.getElementById('subjectSelect').value = getSubjectId(deck.subject);
+            setupSubjectListener();
+            
+            // Set topic after subject topics load
+            setTimeout(() => {
+                document.getElementById('topicSelect').value = deck.topic || '';
+            }, 100);
+            
+            document.getElementById('cardCount').value = deck.cards?.length || 20;
+            document.getElementById('setupView').dataset.editId = editDeckId;
+        }
+    } else {
+        document.getElementById('setupTitle').textContent = 'Create New Deck';
+        document.getElementById('deckName').value = '';
+        document.getElementById('subjectSelect').value = '';
+        document.getElementById('topicSelect').innerHTML = '<option value="">Select Topic</option>';
+        document.getElementById('topicSelect').disabled = true;
+        document.getElementById('cardCount').value = 20;
+        delete document.getElementById('setupView').dataset.editId;
+    }
+    
     setupSubjectListener();
 }
 
@@ -111,12 +242,12 @@ function setupSubjectListener() {
     const subjectSelect = document.getElementById('subjectSelect');
     subjectSelect.addEventListener('change', function() {
         const topicSelect = document.getElementById('topicSelect');
-        topicSelect.innerHTML = '<option value="">Select Topic</option>';
+        topicSelect.innerHTML = '<option value="">All Topics</option>';
         topicSelect.disabled = !this.value;
         
         if (this.value) {
             const topics = topicsBySubject[this.value] || [];
-            topics.forEach(topic => {
+            topics.sort().forEach(topic => {
                 const option = document.createElement('option');
                 option.value = topic;
                 option.textContent = topic;
@@ -126,12 +257,17 @@ function setupSubjectListener() {
     });
 }
 
-// Modify the startFlashcards function in flashcards.js
-
 async function startFlashcards() {
+    const deckName = document.getElementById('deckName').value;
     const subject = document.getElementById('subjectSelect').value;
     const topic = document.getElementById('topicSelect').value;
     const count = parseInt(document.getElementById('cardCount').value) || 20;
+    const editId = document.getElementById('setupView').dataset.editId;
+    
+    if (!deckName) {
+        alert('Please enter a deck name');
+        return;
+    }
     
     if (!subject) {
         alert('Please select a subject');
@@ -141,7 +277,7 @@ async function startFlashcards() {
     try {
         const token = localStorage.getItem('token');
         
-        // Fetch questions from your existing exam endpoint
+        // Fetch questions from exam endpoint
         const response = await fetch(`${API_BASE}/api/exam/questions`, {
             method: 'POST',
             headers: {
@@ -161,51 +297,91 @@ async function startFlashcards() {
         let filteredQuestions = questions;
         if (topic) {
             filteredQuestions = questions.filter(q => 
-                q.topic && q.topic.toLowerCase().includes(topic.toLowerCase())
+                q.topic && q.topic.toLowerCase() === topic.toLowerCase()
             );
+            
+            // If no exact matches, try partial match
+            if (filteredQuestions.length === 0) {
+                filteredQuestions = questions.filter(q => 
+                    q.topic && q.topic.toLowerCase().includes(topic.toLowerCase())
+                );
+            }
         }
         
         // Take only the requested count
         const selectedQuestions = filteredQuestions.slice(0, count);
         
         if (selectedQuestions.length === 0) {
-            alert('No questions found for the selected criteria');
+            alert('No questions found for the selected criteria. Try a different topic or subject.');
             return;
         }
         
-        // Create deck
-        const deckId = 'deck_' + Date.now();
-        const deck = {
-            id: deckId,
-            name: topic || getSubjectName(subject),
-            subject: getSubjectName(subject),
-            topic: topic,
-            createdAt: new Date().toISOString(),
-            totalCards: selectedQuestions.length,
-            mastered: 0,
-            dueToday: selectedQuestions.length,
-            cards: selectedQuestions.map((q, index) => ({
-                id: `${deckId}_${index}`,
-                question_text: q.question_text,
-                options: {
-                    A: q.option_a,
-                    B: q.option_b,
-                    C: q.option_c,
-                    D: q.option_d
-                },
-                correct_answer: q.correct_answer,
-                explanation: q.explanation || '',
-                topic: q.topic,
-                level: 1,
-                lastReviewed: null,
-                nextReview: new Date().toISOString(),
-                history: []
-            }))
-        };
-        
-        // Save deck
+        // Create or update deck
         const decks = JSON.parse(localStorage.getItem('flashcardDecks') || '[]');
-        decks.push(deck);
+        let deck;
+        
+        if (editId) {
+            // Update existing deck
+            deck = decks.find(d => d.id === editId);
+            deck.name = deckName;
+            deck.topic = topic || null;
+            deck.lastAccessed = new Date().toISOString();
+            
+            // Update cards (keep existing mastered cards if possible)
+            const existingCards = deck.cards || [];
+            deck.cards = selectedQuestions.map((q, index) => {
+                const existingCard = existingCards.find(c => c.question_text === q.question_text);
+                return {
+                    id: `${editId}_${index}`,
+                    question_text: q.question_text,
+                    options: {
+                        A: q.option_a,
+                        B: q.option_b,
+                        C: q.option_c,
+                        D: q.option_d
+                    },
+                    correct_answer: q.correct_answer,
+                    explanation: q.explanation || 'No explanation available',
+                    topic: q.topic,
+                    level: existingCard?.level || 1,
+                    lastReviewed: existingCard?.lastReviewed || null,
+                    nextReview: existingCard?.nextReview || new Date().toISOString(),
+                    history: existingCard?.history || []
+                };
+            });
+            
+        } else {
+            // Create new deck
+            const deckId = 'deck_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            deck = {
+                id: deckId,
+                name: deckName,
+                subject: getSubjectName(subject),
+                subject_id: parseInt(subject),
+                topic: topic || null,
+                createdAt: new Date().toISOString(),
+                lastAccessed: new Date().toISOString(),
+                cards: selectedQuestions.map((q, index) => ({
+                    id: `${deckId}_${index}`,
+                    question_text: q.question_text,
+                    options: {
+                        A: q.option_a,
+                        B: q.option_b,
+                        C: q.option_c,
+                        D: q.option_d
+                    },
+                    correct_answer: q.correct_answer,
+                    explanation: q.explanation || 'No explanation available',
+                    topic: q.topic,
+                    level: 1,
+                    lastReviewed: null,
+                    nextReview: new Date().toISOString(),
+                    history: []
+                }))
+            };
+            decks.push(deck);
+        }
+        
         localStorage.setItem('flashcardDecks', JSON.stringify(decks));
         
         // Start session
@@ -229,12 +405,21 @@ function selectDeck(deckId) {
     
     if (!deck) return;
     
+    // Update last accessed
+    deck.lastAccessed = new Date().toISOString();
+    localStorage.setItem('flashcardDecks', JSON.stringify(decks));
+    
     flashcardState.deck = deck;
     flashcardState.cards = deck.cards.filter(c => new Date(c.nextReview) <= new Date());
     
     if (flashcardState.cards.length === 0) {
-        alert('No cards due for review today! Come back tomorrow.');
-        return;
+        alert('No cards due for review today! Come back tomorrow or study all cards.');
+        // Option to study all cards
+        if (confirm('No due cards. Would you like to review all cards in this deck?')) {
+            flashcardState.cards = deck.cards;
+        } else {
+            return;
+        }
     }
     
     flashcardState.currentIndex = 0;
@@ -242,6 +427,21 @@ function selectDeck(deckId) {
     
     showSession();
     renderFlashcard();
+}
+
+function editDeck(deckId) {
+    showSetup(deckId);
+}
+
+function deleteDeck(deckId, event) {
+    event.stopPropagation();
+    if (confirm('Are you sure you want to delete this deck?')) {
+        const decks = JSON.parse(localStorage.getItem('flashcardDecks') || '[]');
+        const filtered = decks.filter(d => d.id !== deckId);
+        localStorage.setItem('flashcardDecks', JSON.stringify(filtered));
+        loadDecks();
+        loadStats();
+    }
 }
 
 function showSession() {
@@ -259,9 +459,19 @@ function renderFlashcard() {
         `${flashcardState.currentIndex + 1}/${flashcardState.cards.length}`;
     document.getElementById('questionText').textContent = card.question_text;
     
+    // Format options nicely
+    const optionsText = `
+A: ${card.options.A}
+B: ${card.options.B}
+C: ${card.options.C}
+D: ${card.options.D}
+
+Correct Answer: ${card.correct_answer}
+${card.explanation ? '\n' + card.explanation : ''}
+    `;
+    
     document.getElementById('answerText').classList.remove('show');
-    document.getElementById('answerText').textContent = 
-        `Correct Answer: ${card.correct_answer}\n\n${card.options[card.correct_answer]}\n\n${card.explanation || ''}`;
+    document.getElementById('answerText').textContent = optionsText;
 }
 
 function flipCard() {
@@ -273,21 +483,31 @@ function rateCard(rating) {
     
     flashcardState.results[rating]++;
     
+    // Find card in deck
     const deckCard = flashcardState.deck.cards.find(c => c.id === card.id);
     
+    // Update level based on rating
     if (rating === 'easy') {
         deckCard.level = Math.min(deckCard.level + 1, 5);
     } else if (rating === 'hard') {
         deckCard.level = Math.max(deckCard.level - 1, 1);
     }
+    // 'medium' keeps same level
     
+    // Calculate next review date
     const daysToAdd = flashcardState.spacedRepetition[deckCard.level];
     const nextReview = new Date();
     nextReview.setDate(nextReview.getDate() + daysToAdd);
     
+    // Update card
     deckCard.lastReviewed = new Date().toISOString();
     deckCard.nextReview = nextReview.toISOString();
+    deckCard.history.push({
+        date: new Date().toISOString(),
+        rating: rating
+    });
     
+    // Save to localStorage
     const decks = JSON.parse(localStorage.getItem('flashcardDecks') || '[]');
     const deckIndex = decks.findIndex(d => d.id === flashcardState.deck.id);
     decks[deckIndex] = flashcardState.deck;
@@ -310,16 +530,15 @@ function showSummary() {
     document.getElementById('reviewCount').textContent = flashcardState.results.medium;
     document.getElementById('struggleCount').textContent = flashcardState.results.hard;
     
+    // Update deck stats
     const decks = JSON.parse(localStorage.getItem('flashcardDecks') || '[]');
     const deckIndex = decks.findIndex(d => d.id === flashcardState.deck.id);
-    decks[deckIndex].mastered = decks[deckIndex].cards.filter(c => c.level >= 4).length;
-    decks[deckIndex].dueToday = decks[deckIndex].cards.filter(c => new Date(c.nextReview) <= new Date()).length;
-    localStorage.setItem('flashcardDecks', JSON.stringify(decks));
+    if (deckIndex !== -1) {
+        decks[deckIndex] = flashcardState.deck;
+        localStorage.setItem('flashcardDecks', JSON.stringify(decks));
+    }
     
     loadStats();
-    if (window.updateFlashcardStats) {
-        window.updateFlashcardStats(flashcardState.cards.length);
-    }
 }
 
 function continueLearning() {
@@ -344,20 +563,23 @@ function backToDecks() {
     loadDecks();
 }
 
-function getSubjectName(id) {
+function getSubjectId(name) {
     const subjects = {
-        1: 'Use of English',
-        2: 'Mathematics',
-        3: 'Physics',
-        4: 'Chemistry',
-        5: 'Biology'
+        'Use of English': 1,
+        'Mathematics': 2,
+        'Physics': 3,
+        'Chemistry': 4,
+        'Biology': 5
     };
-    return subjects[id] || 'Unknown';
+    return subjects[name] || 1;
 }
 
+// Export functions to global scope
 window.showSetup = showSetup;
 window.startFlashcards = startFlashcards;
 window.selectDeck = selectDeck;
+window.editDeck = editDeck;
+window.deleteDeck = deleteDeck;
 window.flipCard = flipCard;
 window.rateCard = rateCard;
 window.continueLearning = continueLearning;
