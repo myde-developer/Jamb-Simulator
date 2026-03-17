@@ -240,19 +240,37 @@ function showSetup(editDeckId = null) {
 
 function setupSubjectListener() {
     const subjectSelect = document.getElementById('subjectSelect');
+    const topicSelect = document.getElementById('topicSelect');
+    
+    if (!subjectSelect || !topicSelect) {
+        console.error('Subject or topic select not found');
+        return;
+    }
+    
     subjectSelect.addEventListener('change', function() {
-        const topicSelect = document.getElementById('topicSelect');
-        topicSelect.innerHTML = '<option value="">All Topics</option>';
-        topicSelect.disabled = !this.value;
+        const subjectId = this.value;
+        console.log('Subject selected:', subjectId);
         
-        if (this.value) {
-            const topics = topicsBySubject[this.value] || [];
+        // Clear existing options
+        topicSelect.innerHTML = '<option value="">All Topics</option>';
+        
+        if (!subjectId) {
+            topicSelect.disabled = true;
+            return;
+        }
+        
+        const topics = topicsBySubject[parseInt(subjectId)] || [];
+        
+        if (topics.length > 0) {
             topics.sort().forEach(topic => {
                 const option = document.createElement('option');
                 option.value = topic;
                 option.textContent = topic;
                 topicSelect.appendChild(option);
             });
+            topicSelect.disabled = false;
+        } else {
+            topicSelect.disabled = true;
         }
     });
 }
