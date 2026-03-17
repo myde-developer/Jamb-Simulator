@@ -30,7 +30,7 @@ let flashcardState = {
     }
 };
 
-// Topics from your database (extracted from your JSON files)
+// Topics from your database
 const topicsBySubject = {
     1: [ // Use of English
         'The Lekki Headmaster',
@@ -126,18 +126,27 @@ const topicsBySubject = {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('Flashcards page loaded');
     checkAuth();
     loadDecks();
     loadStats();
     displayUserInfo();
-    if (window.studyStreak) studyStreak.init();
-
-    document.getElementById('logoutBtn').addEventListener('click', logout);
+    
+    // Setup the subject select listener
+    setupSubjectListener();
+    
+    // Add logout event listener
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', logout);
+    }
 });
 
 function checkAuth() {
     const token = localStorage.getItem('token');
-    if (!token) window.location.href = '/auth.html';
+    if (!token) {
+        window.location.href = '/auth.html';
+    }
 }
 
 function displayUserInfo() {
@@ -145,6 +154,55 @@ function displayUserInfo() {
     const userInfo = document.getElementById('userInfo');
     if (userInfo && user.full_name) {
         userInfo.textContent = `Hi, ${user.full_name}`;
+    }
+}
+
+function setupSubjectListener() {
+    const subjectSelect = document.getElementById('subjectSelect');
+    const topicSelect = document.getElementById('topicSelect');
+    
+    if (!subjectSelect) {
+        console.error('Subject select not found!');
+        return;
+    }
+    
+    console.log('Setting up subject listener');
+    
+    subjectSelect.addEventListener('change', function() {
+        const subjectId = this.value;
+        console.log('Subject changed to:', subjectId);
+        
+        // Clear and disable topic select
+        topicSelect.innerHTML = '<option value="">Select Topic</option>';
+        
+        if (!subjectId) {
+            topicSelect.disabled = true;
+            return;
+        }
+        
+        // Get topics for this subject
+        const topics = topicsBySubject[parseInt(subjectId)];
+        console.log('Topics found:', topics);
+        
+        if (topics && topics.length > 0) {
+            // Sort topics alphabetically
+            topics.sort().forEach(topic => {
+                const option = document.createElement('option');
+                option.value = topic;
+                option.textContent = topic;
+                topicSelect.appendChild(option);
+            });
+            topicSelect.disabled = false;
+            console.log(`Added ${topics.length} topics`);
+        } else {
+            topicSelect.disabled = true;
+            console.log('No topics found');
+        }
+    });
+    
+    // Trigger change event if a subject is already selected
+    if (subjectSelect.value) {
+        subjectSelect.dispatchEvent(new Event('change'));
     }
 }
 
@@ -164,7 +222,7 @@ function loadDecks() {
         return;
     }
     
-    // Sort decks by most recently reviewed
+    // Sort decks by most recently accessed
     decks.sort((a, b) => new Date(b.lastAccessed || 0) - new Date(a.lastAccessed || 0));
     
     deckList.innerHTML = decks.map(deck => {
@@ -172,24 +230,30 @@ function loadDecks() {
         const mastered = deck.cards?.filter(c => c.level >= 4).length || 0;
         
         return `
-        <div class="deck-card">
-            <div class="deck-header">
-                <h3>${deck.name}</h3>
-                <button class="delete-deck-btn" onclick="deleteDeck('${deck.id}', event)">🗑️</button>
+            <div class="deck-card" style="background: white; border-radius: 10px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); position: relative;">
+                <div style="position: absolute; top: 10px; right: 10px; display: flex; gap: 10px;">
+                    <button onclick="editDeck('${deck.id}', event)" 
+                            style="background: none; border: none; font-size: 1.2rem; cursor: pointer; color: #3498db;">
+                        ✏️
+                    </button>
+                    <button onclick="deleteDeck('${deck.id}', event)" 
+                            style="background: none; border: none; font-size: 1.2rem; cursor: pointer; color: #e74c3c;">
+                        🗑️
+                    </button>
+                </div>
+                <div onclick="selectDeck('${deck.id}')" style="cursor: pointer;">
+                    <h3 style="margin-bottom: 10px; padding-right: 60px;">${deck.name}</h3>
+                    <p style="color: #666; margin-bottom: 10px;">${deck.subject}</p>
+                    ${deck.topic ? `<p style="color: #888; font-size: 0.9rem; margin-bottom: 15px;">Topic: ${deck.topic}</p>` : ''}
+                    <div style="display: flex; justify-content: space-between; color: #666; font-size: 0.9rem;">
+                        <span>📇 ${deck.cards?.length || 0} cards</span>
+                        <span>✅ ${mastered} mastered</span>
+                        <span>📅 ${dueToday} due</span>
+                    </div>
+                </div>
             </div>
-            <p style="color: #666; margin-bottom: 10px;">${deck.subject}</p>
-            ${deck.topic ? `<p style="color: #888; font-size: 0.9rem;">Topic: ${deck.topic}</p>` : ''}
-            <div class="deck-stats">
-                <span>📇 ${deck.cards?.length || 0} cards</span>
-                <span>✅ ${mastered} mastered</span>
-                <span>📅 ${dueToday} due</span>
-            </div>
-            <div style="display: flex; gap: 10px; margin-top: 15px;">
-                <button class="start-flashcard-btn" style="flex: 2;" onclick="selectDeck('${deck.id}')">Study Now</button>
-                <button class="secondary-btn" style="flex: 1;" onclick="editDeck('${deck.id}')">✏️</button>
-            </div>
-        </div>
-    `}).join('');
+        `;
+    }).join('');
 }
 
 function loadStats() {
@@ -215,11 +279,16 @@ function showSetup(editDeckId = null) {
             document.getElementById('setupTitle').textContent = 'Edit Deck';
             document.getElementById('deckName').value = deck.name;
             document.getElementById('subjectSelect').value = getSubjectId(deck.subject);
-            setupSubjectListener();
             
-            // Set topic after subject topics load
+            // Trigger change event to load topics
+            const event = new Event('change');
+            document.getElementById('subjectSelect').dispatchEvent(event);
+            
+            // Set topic after topics load
             setTimeout(() => {
-                document.getElementById('topicSelect').value = deck.topic || '';
+                if (deck.topic) {
+                    document.getElementById('topicSelect').value = deck.topic;
+                }
             }, 100);
             
             document.getElementById('cardCount').value = deck.cards?.length || 20;
@@ -234,45 +303,23 @@ function showSetup(editDeckId = null) {
         document.getElementById('cardCount').value = 20;
         delete document.getElementById('setupView').dataset.editId;
     }
-    
-    setupSubjectListener();
 }
 
-function setupSubjectListener() {
-    const subjectSelect = document.getElementById('subjectSelect');
-    const topicSelect = document.getElementById('topicSelect');
+function editDeck(deckId, event) {
+    event.stopPropagation();
+    showSetup(deckId);
+}
+
+function deleteDeck(deckId, event) {
+    event.stopPropagation();
     
-    if (!subjectSelect || !topicSelect) {
-        console.error('Subject or topic select not found');
-        return;
+    if (confirm('Are you sure you want to delete this deck? This action cannot be undone.')) {
+        const decks = JSON.parse(localStorage.getItem('flashcardDecks') || '[]');
+        const filtered = decks.filter(d => d.id !== deckId);
+        localStorage.setItem('flashcardDecks', JSON.stringify(filtered));
+        loadDecks();
+        loadStats();
     }
-    
-    subjectSelect.addEventListener('change', function() {
-        const subjectId = this.value;
-        console.log('Subject selected:', subjectId);
-        
-        // Clear existing options
-        topicSelect.innerHTML = '<option value="">All Topics</option>';
-        
-        if (!subjectId) {
-            topicSelect.disabled = true;
-            return;
-        }
-        
-        const topics = topicsBySubject[parseInt(subjectId)] || [];
-        
-        if (topics.length > 0) {
-            topics.sort().forEach(topic => {
-                const option = document.createElement('option');
-                option.value = topic;
-                option.textContent = topic;
-                topicSelect.appendChild(option);
-            });
-            topicSelect.disabled = false;
-        } else {
-            topicSelect.disabled = true;
-        }
-    });
 }
 
 async function startFlashcards() {
@@ -281,6 +328,8 @@ async function startFlashcards() {
     const topic = document.getElementById('topicSelect').value;
     const count = parseInt(document.getElementById('cardCount').value) || 20;
     const editId = document.getElementById('setupView').dataset.editId;
+    
+    console.log('Starting flashcards with:', { deckName, subject, topic, count, editId });
     
     if (!deckName) {
         alert('Please enter a deck name');
@@ -292,10 +341,15 @@ async function startFlashcards() {
         return;
     }
     
+    // Show loading state
+    const startBtn = document.querySelector('.start-flashcard-btn');
+    const originalText = startBtn.textContent;
+    startBtn.textContent = 'Loading...';
+    startBtn.disabled = true;
+    
     try {
         const token = localStorage.getItem('token');
         
-        // Fetch questions from exam endpoint
         const response = await fetch(`${API_BASE}/api/exam/questions`, {
             method: 'POST',
             headers: {
@@ -310,10 +364,11 @@ async function startFlashcards() {
         if (!response.ok) throw new Error('Failed to fetch questions');
         
         const questions = await response.json();
+        console.log(`Received ${questions.length} questions`);
         
-        // Filter by topic if specified
+        // Filter by topic if selected
         let filteredQuestions = questions;
-        if (topic) {
+        if (topic && topic !== 'Select Topic') {
             filteredQuestions = questions.filter(q => 
                 q.topic && q.topic.toLowerCase() === topic.toLowerCase()
             );
@@ -324,9 +379,11 @@ async function startFlashcards() {
                     q.topic && q.topic.toLowerCase().includes(topic.toLowerCase())
                 );
             }
+            
+            console.log(`Filtered to ${filteredQuestions.length} questions for topic: ${topic}`);
         }
         
-        // Take only the requested count
+        // Take only requested count
         const selectedQuestions = filteredQuestions.slice(0, count);
         
         if (selectedQuestions.length === 0) {
@@ -334,7 +391,7 @@ async function startFlashcards() {
             return;
         }
         
-        // Create or update deck
+        // Get existing decks
         const decks = JSON.parse(localStorage.getItem('flashcardDecks') || '[]');
         let deck;
         
@@ -342,7 +399,9 @@ async function startFlashcards() {
             // Update existing deck
             deck = decks.find(d => d.id === editId);
             deck.name = deckName;
-            deck.topic = topic || null;
+            deck.subject = getSubjectName(subject);
+            deck.subject_id = parseInt(subject);
+            deck.topic = topic !== 'Select Topic' ? topic : null;
             deck.lastAccessed = new Date().toISOString();
             
             // Update cards (keep existing mastered cards if possible)
@@ -376,7 +435,7 @@ async function startFlashcards() {
                 name: deckName,
                 subject: getSubjectName(subject),
                 subject_id: parseInt(subject),
-                topic: topic || null,
+                topic: topic !== 'Select Topic' ? topic : null,
                 createdAt: new Date().toISOString(),
                 lastAccessed: new Date().toISOString(),
                 cards: selectedQuestions.map((q, index) => ({
@@ -412,8 +471,12 @@ async function startFlashcards() {
         renderFlashcard();
         
     } catch (error) {
-        console.error('Error:', error);
+        console.error('Error starting flashcards:', error);
         alert('Failed to generate flashcards. Please try again.');
+    } finally {
+        // Restore button state
+        startBtn.textContent = originalText;
+        startBtn.disabled = false;
     }
 }
 
@@ -431,9 +494,8 @@ function selectDeck(deckId) {
     flashcardState.cards = deck.cards.filter(c => new Date(c.nextReview) <= new Date());
     
     if (flashcardState.cards.length === 0) {
-        alert('No cards due for review today! Come back tomorrow or study all cards.');
-        // Option to study all cards
-        if (confirm('No due cards. Would you like to review all cards in this deck?')) {
+        // Option to study all cards if none due
+        if (confirm('No cards due for review today. Would you like to review all cards in this deck?')) {
             flashcardState.cards = deck.cards;
         } else {
             return;
@@ -445,21 +507,6 @@ function selectDeck(deckId) {
     
     showSession();
     renderFlashcard();
-}
-
-function editDeck(deckId) {
-    showSetup(deckId);
-}
-
-function deleteDeck(deckId, event) {
-    event.stopPropagation();
-    if (confirm('Are you sure you want to delete this deck?')) {
-        const decks = JSON.parse(localStorage.getItem('flashcardDecks') || '[]');
-        const filtered = decks.filter(d => d.id !== deckId);
-        localStorage.setItem('flashcardDecks', JSON.stringify(filtered));
-        loadDecks();
-        loadStats();
-    }
 }
 
 function showSession() {
@@ -581,6 +628,17 @@ function backToDecks() {
     loadDecks();
 }
 
+function getSubjectName(id) {
+    const subjects = {
+        1: 'Use of English',
+        2: 'Mathematics',
+        3: 'Physics',
+        4: 'Chemistry',
+        5: 'Biology'
+    };
+    return subjects[id] || 'Unknown';
+}
+
 function getSubjectId(name) {
     const subjects = {
         'Use of English': 1,
@@ -592,7 +650,7 @@ function getSubjectId(name) {
     return subjects[name] || 1;
 }
 
-// Export functions to global scope
+// Make functions globally available
 window.showSetup = showSetup;
 window.startFlashcards = startFlashcards;
 window.selectDeck = selectDeck;
