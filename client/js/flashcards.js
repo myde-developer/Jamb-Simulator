@@ -126,10 +126,12 @@ function setupSubjectListener() {
     });
 }
 
+// Modify the startFlashcards function in flashcards.js
+
 async function startFlashcards() {
     const subject = document.getElementById('subjectSelect').value;
     const topic = document.getElementById('topicSelect').value;
-    const count = document.getElementById('cardCount').value;
+    const count = parseInt(document.getElementById('cardCount').value) || 20;
     
     if (!subject) {
         alert('Please select a subject');
@@ -138,23 +140,40 @@ async function startFlashcards() {
     
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE}/api/flashcards/generate`, {
+        
+        // Fetch questions from your existing exam endpoint
+        const response = await fetch(`${API_BASE}/api/exam/questions`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({
-                subject_id: subject,
-                topic: topic || null,
-                count: count
+                subjects: [{ id: parseInt(subject), name: getSubjectName(subject) }]
             })
         });
         
-        if (!response.ok) throw new Error('Failed to generate flashcards');
+        if (!response.ok) throw new Error('Failed to fetch questions');
         
-        const cards = await response.json();
+        const questions = await response.json();
         
+        // Filter by topic if specified
+        let filteredQuestions = questions;
+        if (topic) {
+            filteredQuestions = questions.filter(q => 
+                q.topic && q.topic.toLowerCase().includes(topic.toLowerCase())
+            );
+        }
+        
+        // Take only the requested count
+        const selectedQuestions = filteredQuestions.slice(0, count);
+        
+        if (selectedQuestions.length === 0) {
+            alert('No questions found for the selected criteria');
+            return;
+        }
+        
+        // Create deck
         const deckId = 'deck_' + Date.now();
         const deck = {
             id: deckId,
@@ -162,11 +181,21 @@ async function startFlashcards() {
             subject: getSubjectName(subject),
             topic: topic,
             createdAt: new Date().toISOString(),
-            totalCards: cards.length,
+            totalCards: selectedQuestions.length,
             mastered: 0,
-            dueToday: cards.length,
-            cards: cards.map(c => ({
-                ...c,
+            dueToday: selectedQuestions.length,
+            cards: selectedQuestions.map((q, index) => ({
+                id: `${deckId}_${index}`,
+                question_text: q.question_text,
+                options: {
+                    A: q.option_a,
+                    B: q.option_b,
+                    C: q.option_c,
+                    D: q.option_d
+                },
+                correct_answer: q.correct_answer,
+                explanation: q.explanation || '',
+                topic: q.topic,
                 level: 1,
                 lastReviewed: null,
                 nextReview: new Date().toISOString(),
@@ -174,12 +203,14 @@ async function startFlashcards() {
             }))
         };
         
+        // Save deck
         const decks = JSON.parse(localStorage.getItem('flashcardDecks') || '[]');
         decks.push(deck);
         localStorage.setItem('flashcardDecks', JSON.stringify(decks));
         
+        // Start session
         flashcardState.deck = deck;
-        flashcardState.cards = deck.cards.filter(c => new Date(c.nextReview) <= new Date());
+        flashcardState.cards = deck.cards;
         flashcardState.currentIndex = 0;
         flashcardState.results = { easy: 0, medium: 0, hard: 0 };
         
@@ -187,6 +218,7 @@ async function startFlashcards() {
         renderFlashcard();
         
     } catch (error) {
+        console.error('Error:', error);
         alert('Failed to generate flashcards. Please try again.');
     }
 }
