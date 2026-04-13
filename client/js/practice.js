@@ -17,7 +17,9 @@ let practiceState = {
     streak: 0
 };
 
+// Wait for DOM to be fully loaded
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('Practice page loaded');
     checkAuth();
     loadPracticeStats();
     loadSubjects();
@@ -59,7 +61,7 @@ async function loadSubjects() {
         const subjects = data.subjects;
         
         const categories = {
-            compulsory: { title: 'Compulsory', subjects: [] },
+            compulsory: { title: '📖 Compulsory', subjects: [] },
             science: { title: '🔬 Sciences', subjects: [] },
             arts: { title: '🎭 Arts & Humanities', subjects: [] },
             commercial: { title: '📊 Commercial & Social Sciences', subjects: [] }
@@ -72,6 +74,11 @@ async function loadSubjects() {
         });
         
         const subjectSelect = document.getElementById('subjectSelect');
+        if (!subjectSelect) {
+            console.error('Subject select element not found');
+            return;
+        }
+        
         let html = '<option value="">Select Subject</option>';
         
         for (const [key, category] of Object.entries(categories)) {
@@ -86,14 +93,22 @@ async function loadSubjects() {
         subjectSelect.innerHTML = html;
         subjectSelect.addEventListener('change', loadTopics);
         
+        console.log('Subjects loaded successfully');
+        
     } catch (error) {
         console.error('Error loading subjects:', error);
+        const subjectSelect = document.getElementById('subjectSelect');
+        if (subjectSelect) {
+            subjectSelect.innerHTML = '<option value="">Error loading subjects. Please refresh.</option>';
+        }
     }
 }
 
 async function loadTopics() {
-    const subjectId = document.getElementById('subjectSelect').value;
+    const subjectId = document.getElementById('subjectSelect')?.value;
     const topicSelect = document.getElementById('topicSelect');
+    
+    if (!subjectId || !topicSelect) return;
     
     if (!subjectId) {
         topicSelect.innerHTML = '<option value="all">All Topics</option>';
@@ -112,9 +127,11 @@ async function loadTopics() {
         const data = await response.json();
         
         let options = '<option value="all">All Topics</option>';
-        data.topics.forEach(topic => {
-            options += `<option value="${topic}">${topic}</option>`;
-        });
+        if (data.topics && data.topics.length > 0) {
+            data.topics.forEach(topic => {
+                options += `<option value="${topic}">${topic}</option>`;
+            });
+        }
         
         topicSelect.innerHTML = options;
         topicSelect.disabled = false;
@@ -128,17 +145,21 @@ async function loadTopics() {
 
 function loadPracticeStats() {
     const stats = JSON.parse(localStorage.getItem('practiceStats') || '{"total":0,"correct":0,"streak":0}');
-    document.getElementById('totalPracticed').textContent = stats.total || 0;
-    document.getElementById('correctRate').textContent = 
-        stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) + '%' : '0%';
-    document.getElementById('streakCount').textContent = stats.streak || 0;
+    
+    const totalPracticed = document.getElementById('totalPracticed');
+    const correctRate = document.getElementById('correctRate');
+    const streakCount = document.getElementById('streakCount');
+    
+    if (totalPracticed) totalPracticed.textContent = stats.total || 0;
+    if (correctRate) correctRate.textContent = stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) + '%' : '0%';
+    if (streakCount) streakCount.textContent = stats.streak || 0;
 }
 
 function startPractice() {
-    const subjectId = document.getElementById('subjectSelect').value;
-    const topic = document.getElementById('topicSelect').value;
-    const difficulty = document.getElementById('difficultySelect').value;
-    const count = parseInt(document.getElementById('questionCount').value);
+    const subjectId = document.getElementById('subjectSelect')?.value;
+    const topic = document.getElementById('topicSelect')?.value;
+    const difficulty = document.getElementById('difficultySelect')?.value;
+    const count = parseInt(document.getElementById('questionCount')?.value || 10);
     
     if (!subjectId) {
         alert('Please select a subject');
@@ -198,11 +219,23 @@ function randomizeQuestionOptions(question) {
 
 async function loadPracticeQuestions() {
     try {
-        document.getElementById('practiceSetup').style.display = 'none';
-        document.getElementById('practiceArea').style.display = 'block';
-        document.getElementById('questionText').textContent = 'Generating questions...';
+        // Hide setup, show practice area
+        const practiceSetup = document.getElementById('practiceSetup');
+        const practiceArea = document.getElementById('practiceArea');
+        const questionText = document.getElementById('questionText');
+        
+        if (practiceSetup) practiceSetup.style.display = 'none';
+        if (practiceArea) practiceArea.style.display = 'block';
+        if (questionText) questionText.textContent = 'Generating questions...';
         
         const token = localStorage.getItem('token');
+        
+        console.log('Generating questions for:', {
+            subjectId: parseInt(practiceState.subject),
+            topic: practiceState.topic,
+            count: practiceState.count,
+            difficulty: practiceState.difficulty || 'medium'
+        });
         
         const response = await fetch(`${API_BASE}/api/ai-questions/generate`, {
             method: 'POST',
@@ -239,7 +272,9 @@ async function loadPracticeQuestions() {
         practiceState.checked = false;
         practiceState.results = { correct: 0, wrong: 0 };
         
-        document.getElementById('totalQuestions').textContent = practiceState.questions.length;
+        const totalQuestionsEl = document.getElementById('totalQuestions');
+        if (totalQuestionsEl) totalQuestionsEl.textContent = practiceState.questions.length;
+        
         renderQuestion();
         
     } catch (error) {
@@ -253,11 +288,19 @@ function renderQuestion() {
     const question = practiceState.questions[practiceState.currentIndex];
     if (!question) return;
     
-    document.getElementById('currentSubject').textContent = question.subject;
-    document.getElementById('currentTopic').innerHTML = question.topic || 'General';
-    document.getElementById('currentDifficulty').textContent = question.difficulty || 'medium';
-    document.getElementById('progressText').textContent = `Question ${practiceState.currentIndex + 1}/${practiceState.questions.length}`;
+    const currentSubject = document.getElementById('currentSubject');
+    const currentTopic = document.getElementById('currentTopic');
+    const currentDifficulty = document.getElementById('currentDifficulty');
+    const progressText = document.getElementById('progressText');
+    const questionText = document.getElementById('questionText');
+    const optionsContainer = document.getElementById('optionsContainer');
     
+    if (currentSubject) currentSubject.textContent = question.subject;
+    if (currentTopic) currentTopic.innerHTML = question.topic || 'General';
+    if (currentDifficulty) currentDifficulty.textContent = question.difficulty || 'medium';
+    if (progressText) progressText.textContent = `Question ${practiceState.currentIndex + 1}/${practiceState.questions.length}`;
+    
+    // Display question with diagram if available
     let questionHtml = question.question_text;
     if (question.diagram_url) {
         questionHtml += `
@@ -266,7 +309,7 @@ function renderQuestion() {
             </div>
         `;
     }
-    document.getElementById('questionText').innerHTML = questionHtml;
+    if (questionText) questionText.innerHTML = questionHtml;
     
     const options = {
         A: question.option_a,
@@ -277,18 +320,23 @@ function renderQuestion() {
     
     const savedAnswer = practiceState.answers[question.id];
     
-    const optionsContainer = document.getElementById('optionsContainer');
-    optionsContainer.innerHTML = ['A', 'B', 'C', 'D'].map(letter => `
-        <div class="practice-option ${savedAnswer === letter ? 'selected' : ''}" 
-             onclick="selectOption('${question.id}', '${letter}')">
-            <span class="option-letter">${letter}</span>
-            <span>${options[letter]}</span>
-        </div>
-    `).join('');
+    if (optionsContainer) {
+        optionsContainer.innerHTML = ['A', 'B', 'C', 'D'].map(letter => `
+            <div class="practice-option ${savedAnswer === letter ? 'selected' : ''}" 
+                 onclick="selectOption('${question.id}', '${letter}')">
+                <span class="option-letter">${letter}</span>
+                <span>${options[letter]}</span>
+            </div>
+        `).join('');
+    }
     
-    document.getElementById('feedbackBox').classList.remove('show');
-    document.getElementById('checkBtn').disabled = !!savedAnswer;
-    document.getElementById('nextBtn').disabled = true;
+    const feedbackBox = document.getElementById('feedbackBox');
+    const checkBtn = document.getElementById('checkBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    
+    if (feedbackBox) feedbackBox.classList.remove('show');
+    if (checkBtn) checkBtn.disabled = !!savedAnswer;
+    if (nextBtn) nextBtn.disabled = true;
 }
 
 function selectOption(questionId, letter) {
@@ -297,7 +345,7 @@ function selectOption(questionId, letter) {
     practiceState.answers[questionId] = letter;
     
     document.querySelectorAll('.practice-option').forEach(opt => {
-        const optLetter = opt.querySelector('.option-letter').textContent;
+        const optLetter = opt.querySelector('.option-letter')?.textContent;
         if (optLetter === letter) {
             opt.classList.add('selected');
         } else {
@@ -305,7 +353,8 @@ function selectOption(questionId, letter) {
         }
     });
     
-    document.getElementById('checkBtn').disabled = false;
+    const checkBtn = document.getElementById('checkBtn');
+    if (checkBtn) checkBtn.disabled = false;
 }
 
 function checkAnswer() {
@@ -323,7 +372,7 @@ function checkAnswer() {
     const isCorrect = selectedAnswer === correctAnswer;
     
     document.querySelectorAll('.practice-option').forEach(opt => {
-        const letter = opt.querySelector('.option-letter').textContent;
+        const letter = opt.querySelector('.option-letter')?.textContent;
         if (letter === correctAnswer) {
             opt.classList.add('correct');
         } else if (letter === selectedAnswer && !isCorrect) {
@@ -346,16 +395,22 @@ function checkAnswer() {
     
     const correctAnswerText = question[`option_${correctAnswer.toLowerCase()}`];
     
-    feedbackMessage.innerHTML = isCorrect ? 
-        '<div class="feedback-correct">✓ Correct! Well done!</div>' :
-        `<div class="feedback-wrong">✗ Wrong. The correct answer is: ${correctAnswer}. ${correctAnswerText}</div>`;
+    if (feedbackMessage) {
+        feedbackMessage.innerHTML = isCorrect ? 
+            '<div class="feedback-correct">✓ Correct! Well done!</div>' :
+            `<div class="feedback-wrong">✗ Wrong. The correct answer is: ${correctAnswer}. ${correctAnswerText}</div>`;
+    }
     
-    explanation.textContent = question.explanation || 'No explanation available.';
-    feedbackBox.classList.add('show');
+    if (explanation) explanation.textContent = question.explanation || 'No explanation available.';
+    if (feedbackBox) feedbackBox.classList.add('show');
     
-    document.getElementById('nextBtn').disabled = false;
-    document.getElementById('checkBtn').disabled = true;
-    document.getElementById('streakCount').textContent = practiceState.streak;
+    const nextBtn = document.getElementById('nextBtn');
+    const checkBtn = document.getElementById('checkBtn');
+    const streakCount = document.getElementById('streakCount');
+    
+    if (nextBtn) nextBtn.disabled = false;
+    if (checkBtn) checkBtn.disabled = true;
+    if (streakCount) streakCount.textContent = practiceState.streak;
 }
 
 function nextQuestion() {
@@ -369,17 +424,24 @@ function nextQuestion() {
 }
 
 function showPracticeSummary() {
-    document.getElementById('practiceArea').style.display = 'none';
-    document.getElementById('practiceSummary').style.display = 'block';
+    const practiceArea = document.getElementById('practiceArea');
+    const practiceSummary = document.getElementById('practiceSummary');
+    
+    if (practiceArea) practiceArea.style.display = 'none';
+    if (practiceSummary) practiceSummary.style.display = 'block';
     
     const total = practiceState.questions.length;
     const correct = practiceState.results.correct;
     const wrong = practiceState.results.wrong;
     const accuracy = Math.round((correct / total) * 100);
     
-    document.getElementById('summaryCorrect').textContent = correct;
-    document.getElementById('summaryWrong').textContent = wrong;
-    document.getElementById('summaryAccuracy').textContent = accuracy + '%';
+    const summaryCorrect = document.getElementById('summaryCorrect');
+    const summaryWrong = document.getElementById('summaryWrong');
+    const summaryAccuracy = document.getElementById('summaryAccuracy');
+    
+    if (summaryCorrect) summaryCorrect.textContent = correct;
+    if (summaryWrong) summaryWrong.textContent = wrong;
+    if (summaryAccuracy) summaryAccuracy.textContent = accuracy + '%';
     
     savePracticeStats();
     showMotivationalMessage(accuracy, correct, total);
@@ -387,6 +449,8 @@ function showPracticeSummary() {
 
 function showMotivationalMessage(accuracy, correct, total) {
     const messageDiv = document.getElementById('motivationalMessage');
+    if (!messageDiv) return;
+    
     let message = '', emoji = '';
     
     if (accuracy >= 90) {
@@ -422,6 +486,17 @@ function showEncouragement() {
     
     const popup = document.createElement('div');
     popup.className = 'encouragement-popup';
+    popup.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: white;
+        padding: 0.75rem 1.25rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        z-index: 1000;
+        border-left: 3px solid #e6a017;
+    `;
     popup.innerHTML = `
         <div style="font-size: 1.5rem;">${msg.emoji}</div>
         <h4 style="margin: 5px 0; color: #333;">${msg.quote}</h4>
@@ -438,12 +513,19 @@ function savePracticeStats() {
     stats.correct += practiceState.results.correct;
     stats.streak = practiceState.streak;
     localStorage.setItem('practiceStats', JSON.stringify(stats));
+    
+    // Update the stats display
+    loadPracticeStats();
 }
 
 function resetPractice() {
-    document.getElementById('practiceSetup').style.display = 'flex';
-    document.getElementById('practiceArea').style.display = 'none';
-    document.getElementById('practiceSummary').style.display = 'none';
+    const practiceSetup = document.getElementById('practiceSetup');
+    const practiceArea = document.getElementById('practiceArea');
+    const practiceSummary = document.getElementById('practiceSummary');
+    
+    if (practiceSetup) practiceSetup.style.display = 'block';
+    if (practiceArea) practiceArea.style.display = 'none';
+    if (practiceSummary) practiceSummary.style.display = 'none';
 }
 
 function practiceAgain() {
@@ -469,6 +551,7 @@ function sharePracticeResults() {
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
 }
 
+// Global functions
 window.startPractice = startPractice;
 window.selectOption = selectOption;
 window.checkAnswer = checkAnswer;

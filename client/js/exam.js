@@ -16,7 +16,8 @@ let examState = {
     examId: null,
     startTime: null,
     subjectOrder: [],
-    subjectConfigs: {}
+    subjectConfigs: {},
+    isReady: false  // Timer won't start until this is true
 };
 
 // Calculator state
@@ -49,7 +50,6 @@ let dragState = {
 document.addEventListener('DOMContentLoaded', () => {
     loadExamData();
     setupEventListeners();
-    startTimer();
     displayUserInfo();
     document.getElementById('logoutBtn')?.addEventListener('click', logout);
 });
@@ -159,8 +159,11 @@ function switchSubject(subjectName) {
     
     document.querySelectorAll('.subject-tab').forEach((tab, index) => {
         const tabSubject = examState.subjects[index].name;
-        if (tabSubject === subjectName) tab.classList.add('active');
-        else tab.classList.remove('active');
+        if (tabSubject === subjectName) {
+            tab.classList.add('active');
+        } else {
+            tab.classList.remove('active');
+        }
     });
     
     renderSubjectQuestion(subjectName);
@@ -234,7 +237,7 @@ async function fetchExamQuestions(subjects) {
         
         const token = localStorage.getItem('token');
         
-        // Step 1: Fetch ALL existing questions from database
+        // Step 1: Fetch from database
         const response = await fetch(`${API_BASE}/api/exam/questions`, {
             method: 'POST',
             headers: {
@@ -246,204 +249,62 @@ async function fetchExamQuestions(subjects) {
             })
         });
         
-        let dbQuestions = [];
+        let allQuestions = [];
+        
         if (response.ok) {
-            dbQuestions = await response.json();
-            console.log(`📦 Found ${dbQuestions.length} total questions in database`);
+            const dbQuestions = await response.json();
+            allQuestions = dbQuestions;
+            console.log(`📦 Found ${allQuestions.length} questions in database`);
         }
         
-        // Step 2: Define which subjects need DIAGRAM questions
-        const subjectsNeedingDiagrams = ['Mathematics', 'Physics', 'Biology', 'Geography'];
-        
-        // Step 3: Define which subjects have FULL database coverage
-        const subjectsWithFullDB = ['Use of English', 'Mathematics', 'Physics', 'Chemistry', 'Biology'];
-        
-        // Step 4: Process each subject
+        // Step 2: Generate missing questions with AI
         const allAIQuestions = [];
         
         for (const subject of subjects) {
             const config = examState.subjectConfigs[subject.name];
             const requiredCount = config?.totalQuestions || (subject.name === 'Use of English' ? 60 : 40);
-            const existingDBQuestions = dbQuestions.filter(q => q.subject === subject.name);
-            const existingCount = existingDBQuestions.length;
+            const existingCount = allQuestions.filter(q => q.subject === subject.name).length;
+            const needed = requiredCount - existingCount;
             
-            // Check if this subject has full database coverage
-            const hasFullDB = subjectsWithFullDB.includes(subject.name);
-            const needsDiagrams = subjectsNeedingDiagrams.includes(subject.name);
-            
-            if (hasFullDB && existingCount >= requiredCount) {
-                // Subject has enough database questions - use them directly
-                console.log(`✅ ${subject.name}: Using ${requiredCount} database questions (${existingCount} available)`);
+            if (needed > 0) {
+                console.log(`🤖 Generating ${needed} AI questions for ${subject.name}`);
+                const forceDiagrams = config?.hasDiagrams || false;
                 
-            } else if (hasFullDB && existingCount < requiredCount) {
-                // Subject has some DB questions but not enough (shouldn't happen with 300 each)
-                const needed = requiredCount - existingCount;
-                console.log(`⚠️ ${subject.name}: Only ${existingCount}/${requiredCount} in DB. Need ${needed} AI questions.`);
+                const aiResponse = await fetch(`${API_BASE}/api/ai-questions/generate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        subjectId: subject.id,
+                        topic: null,
+                        count: needed,
+                        difficulty: 'medium',
+                        includeDiagrams: forceDiagrams,
+                        forceDiagrams: forceDiagrams,
+                        examMode: true
+                    })
+                });
                 
-                if (needsDiagrams) {
-                    // Generate DIAGRAM questions for topics that need them
-                    const diagramTopics = getDiagramTopics(subject.name);
-                    for (const topic of diagramTopics) {
-                        const questionsNeeded = Math.ceil(needed / diagramTopics.length);
-                        if (questionsNeeded > 0) {
-                            const aiResponse = await fetch(`${API_BASE}/api/ai-questions/generate`, {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'Authorization': `Bearer ${token}`
-                                },
-                                body: JSON.stringify({
-                                    subjectId: subject.id,
-                                    topic: topic,
-                                    count: questionsNeeded,
-                                    difficulty: 'medium',
-                                    includeDiagrams: true,
-                                    forceDiagrams: true,
-                                    examMode: true
-                                })
-                            });
-                            
-                            if (aiResponse.ok) {
-                                const aiData = await aiResponse.json();
-                                allAIQuestions.push(...aiData.questions);
-                                console.log(`   📐 Generated ${aiData.questions.length} diagram questions for ${topic}`);
-                            }
-                        }
-                    }
-                } else {
-                    // Generate regular AI questions (no diagrams needed)
-                    const aiResponse = await fetch(`${API_BASE}/api/ai-questions/generate`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`
-                        },
-                        body: JSON.stringify({
-                            subjectId: subject.id,
-                            topic: null,
-                            count: needed,
-                            difficulty: 'medium',
-                            includeDiagrams: false,
-                            forceDiagrams: false,
-                            examMode: true
-                        })
-                    });
-                    
-                    if (aiResponse.ok) {
-                        const aiData = await aiResponse.json();
-                        allAIQuestions.push(...aiData.questions);
-                        console.log(`🤖 Generated ${aiData.questions.length} AI questions for ${subject.name}`);
-                    }
-                }
-                
-            } else if (!hasFullDB) {
-                // Subject has NO database questions - generate ALL with AI
-                console.log(`🤖 ${subject.name}: No DB questions. Generating all ${requiredCount} with AI.`);
-                
-                const needsDiagramsForSubject = subjectsNeedingDiagrams.includes(subject.name);
-                
-                if (needsDiagramsForSubject && subject.name !== 'Mathematics' && subject.name !== 'Physics') {
-                    // For Biology/Geography: mix of regular and diagram questions
-                    const diagramCount = Math.ceil(requiredCount * 0.2); // 20% diagram questions
-                    const regularCount = requiredCount - diagramCount;
-                    
-                    if (diagramCount > 0) {
-                        const diagramTopics = getDiagramTopics(subject.name);
-                        for (const topic of diagramTopics) {
-                            const perTopic = Math.ceil(diagramCount / diagramTopics.length);
-                            const aiResponse = await fetch(`${API_BASE}/api/ai-questions/generate`, {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'Authorization': `Bearer ${token}`
-                                },
-                                body: JSON.stringify({
-                                    subjectId: subject.id,
-                                    topic: topic,
-                                    count: perTopic,
-                                    difficulty: 'medium',
-                                    includeDiagrams: true,
-                                    forceDiagrams: true,
-                                    examMode: true
-                                })
-                            });
-                            if (aiResponse.ok) {
-                                const aiData = await aiResponse.json();
-                                allAIQuestions.push(...aiData.questions);
-                            }
-                        }
-                    }
-                    
-                    if (regularCount > 0) {
-                        const aiResponse = await fetch(`${API_BASE}/api/ai-questions/generate`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${token}`
-                            },
-                            body: JSON.stringify({
-                                subjectId: subject.id,
-                                topic: null,
-                                count: regularCount,
-                                difficulty: 'medium',
-                                includeDiagrams: false,
-                                forceDiagrams: false,
-                                examMode: true
-                            })
-                        });
-                        if (aiResponse.ok) {
-                            const aiData = await aiResponse.json();
-                            allAIQuestions.push(...aiData.questions);
-                        }
-                    }
-                    
-                } else {
-                    // Generate all questions with AI (with diagrams if applicable)
-                    const aiResponse = await fetch(`${API_BASE}/api/ai-questions/generate`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`
-                        },
-                        body: JSON.stringify({
-                            subjectId: subject.id,
-                            topic: null,
-                            count: requiredCount,
-                            difficulty: 'medium',
-                            includeDiagrams: needsDiagramsForSubject,
-                            forceDiagrams: needsDiagramsForSubject,
-                            examMode: true
-                        })
-                    });
-                    
-                    if (aiResponse.ok) {
-                        const aiData = await aiResponse.json();
-                        allAIQuestions.push(...aiData.questions);
-                        console.log(`🤖 Generated ${aiData.questions.length} AI questions for ${subject.name}`);
-                        if (needsDiagramsForSubject) {
-                            const diagramCount = aiData.questions.filter(q => q.diagram_url).length;
-                            console.log(`   📐 Included ${diagramCount} diagram questions`);
-                        }
-                    }
+                if (aiResponse.ok) {
+                    const aiData = await aiResponse.json();
+                    allAIQuestions.push(...aiData.questions);
+                    console.log(`✅ Generated ${aiData.questions.length} AI questions for ${subject.name}`);
                 }
             }
         }
         
-        // Step 5: Combine database questions + AI generated questions
-        let combinedQuestions = [...dbQuestions, ...allAIQuestions];
-        
-        // Step 6: Randomize all options
+        // Step 3: Combine and randomize
+        const combinedQuestions = [...allQuestions, ...allAIQuestions];
         const randomizedQuestions = combinedQuestions.map(q => randomizeQuestionOptions(q));
         
-        // Step 7: Organize by subject with exact counts
+        // Step 4: Organize by subject
         examState.subjectQuestions = {};
         for (const subject of subjects) {
             const config = examState.subjectConfigs[subject.name];
             const targetCount = config?.totalQuestions || (subject.name === 'Use of English' ? 60 : 40);
             let subjectQuestions = randomizedQuestions.filter(q => q.subject === subject.name);
-            
-            // Shuffle within subject to ensure randomness
-            subjectQuestions = shuffleArray(subjectQuestions);
             
             if (subjectQuestions.length > targetCount) {
                 subjectQuestions = subjectQuestions.slice(0, targetCount);
@@ -455,12 +316,17 @@ async function fetchExamQuestions(subjects) {
         examState.questions = randomizedQuestions;
         examState.examId = generateExamId();
         
+        // Step 5: Render the first question
         const firstSubject = subjects[0].name;
         renderSubjectQuestion(firstSubject);
         renderPalette();
         
-        // Step 8: Log final statistics
-        logDetailedExamStatistics();
+        // Step 6: Mark exam as ready and START TIMER
+        examState.isReady = true;
+        startTimer();
+        
+        console.log('✅ Exam fully loaded, timer started');
+        logExamStatistics();
         
     } catch (error) {
         console.error('Error loading questions:', error);
@@ -474,54 +340,21 @@ async function fetchExamQuestions(subjects) {
     }
 }
 
-// Helper function to get diagram-required topics for each subject
-function getDiagramTopics(subjectName) {
-    const diagramTopics = {
-        'Mathematics': ['Euclidean Geometry', 'Mensuration', 'Trigonometry', 'Coordinate Geometry'],
-        'Physics': ['Equilibrium of Forces', 'Simple Machines', 'Light', 'Waves', 'Electricity', 'Pressure'],
-        'Biology': ['Internal Structure of Plants', 'Internal Structure of Mammals', 'Cell Biology', 'Reproduction'],
-        'Geography': ['Map Reading', 'Landforms', 'Weather', 'GIS']
-    };
-    return diagramTopics[subjectName] || [];
-}
-
-// Helper function to shuffle array
-function shuffleArray(array) {
-    for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
-    }
-    return array;
-}
-
-function logDetailedExamStatistics() {
-    console.log('\n' + '='.repeat(60));
-    console.log('📊 FINAL EXAM STATISTICS');
-    console.log('='.repeat(60));
-    
+function logExamStatistics() {
+    console.log('\n📊 FINAL EXAM STATISTICS:');
+    console.log('=================================');
     for (const subject of examState.subjects) {
         const questions = examState.subjectQuestions[subject.name];
         const config = examState.subjectConfigs[subject.name];
         const required = config?.totalQuestions || (subject.name === 'Use of English' ? 60 : 40);
-        
         const dbCount = questions.filter(q => !q.is_ai_generated).length;
         const aiCount = questions.filter(q => q.is_ai_generated).length;
         const diagramCount = questions.filter(q => q.diagram_url).length;
         
-        let statusIcon = '✅';
-        if (dbCount > 0 && aiCount > 0) statusIcon = '🔄';
-        else if (aiCount > 0 && dbCount === 0) statusIcon = '🤖';
-        else if (dbCount > 0 && aiCount === 0) statusIcon = '📦';
-        
-        console.log(`${statusIcon} ${subject.name}: ${questions.length}/${required} questions`);
+        console.log(`📖 ${subject.name}: ${questions.length}/${required} questions`);
         console.log(`   📝 Database: ${dbCount} | 🤖 AI: ${aiCount} | 📐 Diagrams: ${diagramCount}`);
-        
-        if (diagramCount > 0) {
-            const diagramTopics = questions.filter(q => q.diagram_url).map(q => q.topic);
-            console.log(`   📐 Diagram topics: ${[...new Set(diagramTopics)].join(', ')}`);
-        }
     }
-    console.log('='.repeat(60) + '\n');
+    console.log('=================================\n');
 }
 
 function renderQuestion(question, subjectName, questionNumber, totalQuestions) {
@@ -570,8 +403,11 @@ function selectAnswer(questionId, answer) {
     
     document.querySelectorAll('.option').forEach(opt => {
         const letter = opt.querySelector('.option-letter').textContent;
-        if (letter === answer) opt.classList.add('selected');
-        else opt.classList.remove('selected');
+        if (letter === answer) {
+            opt.classList.add('selected');
+        } else {
+            opt.classList.remove('selected');
+        }
     });
     
     updatePaletteItem(questionId);
@@ -689,14 +525,17 @@ function jumpToQuestion(subjectName, index) {
     
     document.querySelectorAll('.subject-tab').forEach((tab, i) => {
         const tabSubject = examState.subjects[i].name;
-        if (tabSubject === subjectName) tab.classList.add('active');
-        else tab.classList.remove('active');
+        if (tabSubject === subjectName) {
+            tab.classList.add('active');
+        } else {
+            tab.classList.remove('active');
+        }
     });
     
     renderSubjectQuestion(subjectName);
 }
 
-function updateNavButtons(subjectName) {
+ function updateNavButtons(subjectName) {
     const prevBtn = document.getElementById('prevBtn');
     const nextBtn = document.getElementById('nextBtn');
     const submitBtn = document.getElementById('submitBtn');
@@ -737,8 +576,11 @@ function nextQuestion() {
             
             document.querySelectorAll('.subject-tab').forEach((tab, i) => {
                 const tabSubject = examState.subjects[i].name;
-                if (tabSubject === nextSubject) tab.classList.add('active');
-                else tab.classList.remove('active');
+                if (tabSubject === nextSubject) {
+                    tab.classList.add('active');
+                } else {
+                    tab.classList.remove('active');
+                }
             });
             
             renderSubjectQuestion(nextSubject);
@@ -765,8 +607,11 @@ function prevQuestion() {
             
             document.querySelectorAll('.subject-tab').forEach((tab, i) => {
                 const tabSubject = examState.subjects[i].name;
-                if (tabSubject === prevSubject) tab.classList.add('active');
-                else tab.classList.remove('active');
+                if (tabSubject === prevSubject) {
+                    tab.classList.add('active');
+                } else {
+                    tab.classList.remove('active');
+                }
             });
             
             renderSubjectQuestion(prevSubject);
@@ -784,11 +629,25 @@ function updateProgress() {
 }
 
 function startTimer() {
+    // Only start if exam is ready
+    if (!examState.isReady) {
+        console.log('⏳ Timer waiting for exam to be ready...');
+        return;
+    }
+    
+    if (examState.timerInterval) clearInterval(examState.timerInterval);
+    
     examState.timerInterval = setInterval(() => {
+        if (examState.timeRemaining <= 0) {
+            clearInterval(examState.timerInterval);
+            submitExam();
+            return;
+        }
         examState.timeRemaining--;
-        if (examState.timeRemaining <= 0) submitExam();
         updateTimerDisplay();
     }, 1000);
+    
+    console.log('⏰ Timer started!');
 }
 
 function updateTimerDisplay() {
@@ -801,8 +660,11 @@ function updateTimerDisplay() {
     
     timerElement.textContent = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
     
-    if (examState.timeRemaining < 300) timerElement.className = 'timer danger';
-    else if (examState.timeRemaining < 600) timerElement.className = 'timer warning';
+    if (examState.timeRemaining < 300) {
+        timerElement.className = 'timer danger';
+    } else if (examState.timeRemaining < 600) {
+        timerElement.className = 'timer warning';
+    }
 }
 
 function setupEventListeners() {
@@ -819,7 +681,8 @@ function submitExam() {
         if (!confirm(`You have answered ${answeredCount} out of ${totalQuestions} questions. Submit anyway?`)) return;
     }
     
-    clearInterval(examState.timerInterval);
+    if (examState.timerInterval) clearInterval(examState.timerInterval);
+    
     const results = calculateJAMBScores();
     
     localStorage.setItem('lastExamResults', JSON.stringify({
@@ -887,9 +750,10 @@ function filterPalette(subject) {
     renderPalette();
 }
 
-// Calculator Functions
 function renderCalculator() {
     const container = document.getElementById('examCalculator');
+    if (!container) return;
+    
     container.innerHTML = `
         <div class="calc-display">
             <div class="calc-expression" id="calcExpression"></div>
@@ -1068,6 +932,8 @@ function toggleCalculator(event) {
     if (event) { event.preventDefault(); event.stopPropagation(); }
     const modal = document.getElementById('calculatorModal');
     const btn = document.getElementById('calculatorToggle');
+    if (!modal) return;
+    
     if (modal.style.display === 'none' || modal.style.display === '') {
         modal.style.display = 'block';
         if (btn) btn.innerHTML = '<span>🧮</span> <span class="btn-text">Hide Calculator</span>';
