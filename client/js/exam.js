@@ -1,15 +1,7 @@
-// API Base URL
+// client/js/exam.js
 const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://localhost:5000'
     : 'https://jamb-simulator-api.onrender.com';
-
-function logout(e) {
-    e.preventDefault();
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    localStorage.removeItem('is_admin');
-    window.location.href = '/auth.html';
-}
 
 // Exam state
 let examState = {
@@ -23,7 +15,8 @@ let examState = {
     subjects: [],
     examId: null,
     startTime: null,
-    subjectOrder: []
+    subjectOrder: [],
+    subjectConfigs: {}
 };
 
 // Calculator state
@@ -36,7 +29,6 @@ let examCalculator = {
     lastResult: null
 };
 
-// Drag state for calculator
 let dragState = {
     isDragging: false,
     currentX: 0,
@@ -51,10 +43,7 @@ let dragState = {
 // Initialize
 (function() {
     const token = localStorage.getItem('token');
-    if (!token) {
-        window.location.replace('/auth.html');
-        return;
-    }
+    if (!token) window.location.replace('/auth.html');
 })();
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -62,19 +51,24 @@ document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
     startTimer();
     displayUserInfo();
-
-    document.getElementById('logoutBtn').addEventListener('click', logout);
+    document.getElementById('logoutBtn')?.addEventListener('click', logout);
 });
 
 function displayUserInfo() {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const userInfo = document.getElementById('userInfo');
-    if (userInfo && user.full_name) {
-        userInfo.textContent = `Welcome, ${user.full_name}`;
-    }
+    if (userInfo && user.full_name) userInfo.textContent = `Welcome, ${user.full_name}`;
 }
 
-function loadExamData() {
+function logout(e) {
+    e.preventDefault();
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('is_admin');
+    window.location.href = '/auth.html';
+}
+
+async function loadExamData() {
     const selectedSubjects = JSON.parse(localStorage.getItem('jambSelectedSubjects'));
     
     if (!selectedSubjects || selectedSubjects.length === 0) {
@@ -93,10 +87,37 @@ function loadExamData() {
     
     examState.currentSubject = selectedSubjects[0].name;
     
+    await loadSubjectConfigs(selectedSubjects);
+    
     displaySubjectsBadge(selectedSubjects);
     renderSubjectTabs(selectedSubjects);
     renderSubjectFilter(selectedSubjects);
     fetchExamQuestions(selectedSubjects);
+}
+
+async function loadSubjectConfigs(subjects) {
+    const token = localStorage.getItem('token');
+    
+    for (const subject of subjects) {
+        try {
+            const response = await fetch(`${API_BASE}/api/ai-questions/subject/${subject.id}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            if (response.ok) {
+                const config = await response.json();
+                examState.subjectConfigs[subject.name] = config;
+                console.log(`Loaded config for ${subject.name}: ${config.totalQuestions} questions`);
+            }
+        } catch (error) {
+            console.error(`Failed to load config for ${subject.name}:`, error);
+            examState.subjectConfigs[subject.name] = {
+                totalQuestions: subject.name === 'Use of English' ? 60 : 40,
+                hasDiagrams: false,
+                minDiagramQuestions: 0
+            };
+        }
+    }
 }
 
 function renderSubjectTabs(subjects) {
@@ -104,15 +125,15 @@ function renderSubjectTabs(subjects) {
     if (!tabsContainer) return;
     
     let tabsHtml = subjects.map((subject, index) => {
-        const isEnglish = subject.name === 'Use of English';
-        const questionCount = isEnglish ? 60 : 40;
-        const displayName = isEnglish ? 'English' : subject.name;
+        const config = examState.subjectConfigs[subject.name];
+        const questionCount = config?.totalQuestions || (subject.name === 'Use of English' ? 60 : 40);
+        const displayName = subject.name === 'Use of English' ? 'English' : subject.name;
         const isActive = index === 0 ? 'active' : '';
+        const diagramIcon = config?.hasDiagrams ? ' 📐' : '';
         
         return `
-            <button class="subject-tab ${isActive}" 
-                    onclick="switchSubject('${subject.name}')">
-                ${displayName}
+            <button class="subject-tab ${isActive}" onclick="switchSubject('${subject.name}')">
+                ${displayName}${diagramIcon}
                 <span class="count-badge">${questionCount}</span>
             </button>
         `;
@@ -126,16 +147,10 @@ function renderSubjectFilter(subjects) {
     if (!filterContainer) return;
     
     let filterHtml = `<button class="filter-btn active" onclick="filterPalette('all')">All</button>`;
-    
     subjects.forEach(subject => {
         const displayName = subject.name === 'Use of English' ? 'English' : subject.name;
-        filterHtml += `
-            <button class="filter-btn" onclick="filterPalette('${subject.name}')">
-                ${displayName}
-            </button>
-        `;
+        filterHtml += `<button class="filter-btn" onclick="filterPalette('${subject.name}')">${displayName}</button>`;
     });
-    
     filterContainer.innerHTML = filterHtml;
 }
 
@@ -144,11 +159,8 @@ function switchSubject(subjectName) {
     
     document.querySelectorAll('.subject-tab').forEach((tab, index) => {
         const tabSubject = examState.subjects[index].name;
-        if (tabSubject === subjectName) {
-            tab.classList.add('active');
-        } else {
-            tab.classList.remove('active');
-        }
+        if (tabSubject === subjectName) tab.classList.add('active');
+        else tab.classList.remove('active');
     });
     
     renderSubjectQuestion(subjectName);
@@ -161,25 +173,68 @@ function renderSubjectQuestion(subjectName) {
     
     const currentIndex = examState.subjectIndices[subjectName];
     const question = subjectQuestions[currentIndex];
-    
     renderQuestion(question, subjectName, currentIndex + 1, subjectQuestions.length);
 }
 
 function displaySubjectsBadge(subjects) {
     const badgeContainer = document.getElementById('subjectsBadge');
     if (!badgeContainer) return;
-    
     badgeContainer.innerHTML = subjects.map(s => 
         `<span class="subject-tag">${s.code || s.name.substring(0, 3).toUpperCase()}</span>`
     ).join('');
 }
 
+function randomizeQuestionOptions(question) {
+    const optionLetters = ['A', 'B', 'C', 'D'];
+    const originalCorrectLetter = question.correct_answer;
+    
+    const originalOptions = {
+        A: question.option_a,
+        B: question.option_b,
+        C: question.option_c,
+        D: question.option_d
+    };
+    
+    const correctText = originalOptions[originalCorrectLetter];
+    
+    const shuffledLetters = [...optionLetters];
+    for (let i = shuffledLetters.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffledLetters[i], shuffledLetters[j]] = [shuffledLetters[j], shuffledLetters[i]];
+    }
+    
+    const newOptions = {};
+    shuffledLetters.forEach((newLetter, idx) => {
+        const originalLetter = optionLetters[idx];
+        newOptions[newLetter] = originalOptions[originalLetter];
+    });
+    
+    let newCorrectLetter = '';
+    for (const [letter, text] of Object.entries(newOptions)) {
+        if (text === correctText) {
+            newCorrectLetter = letter;
+            break;
+        }
+    }
+    
+    return {
+        ...question,
+        option_a: newOptions.A,
+        option_b: newOptions.B,
+        option_c: newOptions.C,
+        option_d: newOptions.D,
+        correct_answer: newCorrectLetter
+    };
+}
+
 async function fetchExamQuestions(subjects) {
     try {
         document.getElementById('questionContainer').innerHTML = 
-            '<div style="text-align: center; padding: 50px;">Loading 180 questions...</div>';
+            '<div style="text-align: center; padding: 50px;">Loading questions...</div>';
         
         const token = localStorage.getItem('token');
+        
+        // Step 1: Fetch ALL existing questions from database
         const response = await fetch(`${API_BASE}/api/exam/questions`, {
             method: 'POST',
             headers: {
@@ -191,26 +246,224 @@ async function fetchExamQuestions(subjects) {
             })
         });
         
-        if (!response.ok) throw new Error('Failed to fetch questions');
+        let dbQuestions = [];
+        if (response.ok) {
+            dbQuestions = await response.json();
+            console.log(`📦 Found ${dbQuestions.length} total questions in database`);
+        }
         
-        const questions = await response.json();
+        // Step 2: Define which subjects need DIAGRAM questions
+        const subjectsNeedingDiagrams = ['Mathematics', 'Physics', 'Biology', 'Geography'];
         
+        // Step 3: Define which subjects have FULL database coverage
+        const subjectsWithFullDB = ['Use of English', 'Mathematics', 'Physics', 'Chemistry', 'Biology'];
+        
+        // Step 4: Process each subject
+        const allAIQuestions = [];
+        
+        for (const subject of subjects) {
+            const config = examState.subjectConfigs[subject.name];
+            const requiredCount = config?.totalQuestions || (subject.name === 'Use of English' ? 60 : 40);
+            const existingDBQuestions = dbQuestions.filter(q => q.subject === subject.name);
+            const existingCount = existingDBQuestions.length;
+            
+            // Check if this subject has full database coverage
+            const hasFullDB = subjectsWithFullDB.includes(subject.name);
+            const needsDiagrams = subjectsNeedingDiagrams.includes(subject.name);
+            
+            if (hasFullDB && existingCount >= requiredCount) {
+                // Subject has enough database questions - use them directly
+                console.log(`✅ ${subject.name}: Using ${requiredCount} database questions (${existingCount} available)`);
+                
+            } else if (hasFullDB && existingCount < requiredCount) {
+                // Subject has some DB questions but not enough (shouldn't happen with 300 each)
+                const needed = requiredCount - existingCount;
+                console.log(`⚠️ ${subject.name}: Only ${existingCount}/${requiredCount} in DB. Need ${needed} AI questions.`);
+                
+                if (needsDiagrams) {
+                    // Generate DIAGRAM questions for topics that need them
+                    const diagramTopics = getDiagramTopics(subject.name);
+                    for (const topic of diagramTopics) {
+                        const questionsNeeded = Math.ceil(needed / diagramTopics.length);
+                        if (questionsNeeded > 0) {
+                            const aiResponse = await fetch(`${API_BASE}/api/ai-questions/generate`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Authorization': `Bearer ${token}`
+                                },
+                                body: JSON.stringify({
+                                    subjectId: subject.id,
+                                    topic: topic,
+                                    count: questionsNeeded,
+                                    difficulty: 'medium',
+                                    includeDiagrams: true,
+                                    forceDiagrams: true,
+                                    examMode: true
+                                })
+                            });
+                            
+                            if (aiResponse.ok) {
+                                const aiData = await aiResponse.json();
+                                allAIQuestions.push(...aiData.questions);
+                                console.log(`   📐 Generated ${aiData.questions.length} diagram questions for ${topic}`);
+                            }
+                        }
+                    }
+                } else {
+                    // Generate regular AI questions (no diagrams needed)
+                    const aiResponse = await fetch(`${API_BASE}/api/ai-questions/generate`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            subjectId: subject.id,
+                            topic: null,
+                            count: needed,
+                            difficulty: 'medium',
+                            includeDiagrams: false,
+                            forceDiagrams: false,
+                            examMode: true
+                        })
+                    });
+                    
+                    if (aiResponse.ok) {
+                        const aiData = await aiResponse.json();
+                        allAIQuestions.push(...aiData.questions);
+                        console.log(`🤖 Generated ${aiData.questions.length} AI questions for ${subject.name}`);
+                    }
+                }
+                
+            } else if (!hasFullDB) {
+                // Subject has NO database questions - generate ALL with AI
+                console.log(`🤖 ${subject.name}: No DB questions. Generating all ${requiredCount} with AI.`);
+                
+                const needsDiagramsForSubject = subjectsNeedingDiagrams.includes(subject.name);
+                
+                if (needsDiagramsForSubject && subject.name !== 'Mathematics' && subject.name !== 'Physics') {
+                    // For Biology/Geography: mix of regular and diagram questions
+                    const diagramCount = Math.ceil(requiredCount * 0.2); // 20% diagram questions
+                    const regularCount = requiredCount - diagramCount;
+                    
+                    if (diagramCount > 0) {
+                        const diagramTopics = getDiagramTopics(subject.name);
+                        for (const topic of diagramTopics) {
+                            const perTopic = Math.ceil(diagramCount / diagramTopics.length);
+                            const aiResponse = await fetch(`${API_BASE}/api/ai-questions/generate`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Authorization': `Bearer ${token}`
+                                },
+                                body: JSON.stringify({
+                                    subjectId: subject.id,
+                                    topic: topic,
+                                    count: perTopic,
+                                    difficulty: 'medium',
+                                    includeDiagrams: true,
+                                    forceDiagrams: true,
+                                    examMode: true
+                                })
+                            });
+                            if (aiResponse.ok) {
+                                const aiData = await aiResponse.json();
+                                allAIQuestions.push(...aiData.questions);
+                            }
+                        }
+                    }
+                    
+                    if (regularCount > 0) {
+                        const aiResponse = await fetch(`${API_BASE}/api/ai-questions/generate`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`
+                            },
+                            body: JSON.stringify({
+                                subjectId: subject.id,
+                                topic: null,
+                                count: regularCount,
+                                difficulty: 'medium',
+                                includeDiagrams: false,
+                                forceDiagrams: false,
+                                examMode: true
+                            })
+                        });
+                        if (aiResponse.ok) {
+                            const aiData = await aiResponse.json();
+                            allAIQuestions.push(...aiData.questions);
+                        }
+                    }
+                    
+                } else {
+                    // Generate all questions with AI (with diagrams if applicable)
+                    const aiResponse = await fetch(`${API_BASE}/api/ai-questions/generate`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            subjectId: subject.id,
+                            topic: null,
+                            count: requiredCount,
+                            difficulty: 'medium',
+                            includeDiagrams: needsDiagramsForSubject,
+                            forceDiagrams: needsDiagramsForSubject,
+                            examMode: true
+                        })
+                    });
+                    
+                    if (aiResponse.ok) {
+                        const aiData = await aiResponse.json();
+                        allAIQuestions.push(...aiData.questions);
+                        console.log(`🤖 Generated ${aiData.questions.length} AI questions for ${subject.name}`);
+                        if (needsDiagramsForSubject) {
+                            const diagramCount = aiData.questions.filter(q => q.diagram_url).length;
+                            console.log(`   📐 Included ${diagramCount} diagram questions`);
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Step 5: Combine database questions + AI generated questions
+        let combinedQuestions = [...dbQuestions, ...allAIQuestions];
+        
+        // Step 6: Randomize all options
+        const randomizedQuestions = combinedQuestions.map(q => randomizeQuestionOptions(q));
+        
+        // Step 7: Organize by subject with exact counts
         examState.subjectQuestions = {};
-        subjects.forEach(subject => {
-            const subjectQuestions = questions.filter(q => q.subject === subject.name);
+        for (const subject of subjects) {
+            const config = examState.subjectConfigs[subject.name];
+            const targetCount = config?.totalQuestions || (subject.name === 'Use of English' ? 60 : 40);
+            let subjectQuestions = randomizedQuestions.filter(q => q.subject === subject.name);
+            
+            // Shuffle within subject to ensure randomness
+            subjectQuestions = shuffleArray(subjectQuestions);
+            
+            if (subjectQuestions.length > targetCount) {
+                subjectQuestions = subjectQuestions.slice(0, targetCount);
+            }
+            
             examState.subjectQuestions[subject.name] = subjectQuestions;
-        });
+        }
         
-        examState.questions = questions;
+        examState.questions = randomizedQuestions;
         examState.examId = generateExamId();
         
         const firstSubject = subjects[0].name;
         renderSubjectQuestion(firstSubject);
         renderPalette();
         
+        // Step 8: Log final statistics
+        logDetailedExamStatistics();
+        
     } catch (error) {
         console.error('Error loading questions:', error);
-        
         document.getElementById('questionContainer').innerHTML = `
             <div style="text-align: center; padding: 50px; color: #e74c3c;">
                 ❌ Failed to load questions: ${error.message}
@@ -221,6 +474,56 @@ async function fetchExamQuestions(subjects) {
     }
 }
 
+// Helper function to get diagram-required topics for each subject
+function getDiagramTopics(subjectName) {
+    const diagramTopics = {
+        'Mathematics': ['Euclidean Geometry', 'Mensuration', 'Trigonometry', 'Coordinate Geometry'],
+        'Physics': ['Equilibrium of Forces', 'Simple Machines', 'Light', 'Waves', 'Electricity', 'Pressure'],
+        'Biology': ['Internal Structure of Plants', 'Internal Structure of Mammals', 'Cell Biology', 'Reproduction'],
+        'Geography': ['Map Reading', 'Landforms', 'Weather', 'GIS']
+    };
+    return diagramTopics[subjectName] || [];
+}
+
+// Helper function to shuffle array
+function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+}
+
+function logDetailedExamStatistics() {
+    console.log('\n' + '='.repeat(60));
+    console.log('📊 FINAL EXAM STATISTICS');
+    console.log('='.repeat(60));
+    
+    for (const subject of examState.subjects) {
+        const questions = examState.subjectQuestions[subject.name];
+        const config = examState.subjectConfigs[subject.name];
+        const required = config?.totalQuestions || (subject.name === 'Use of English' ? 60 : 40);
+        
+        const dbCount = questions.filter(q => !q.is_ai_generated).length;
+        const aiCount = questions.filter(q => q.is_ai_generated).length;
+        const diagramCount = questions.filter(q => q.diagram_url).length;
+        
+        let statusIcon = '✅';
+        if (dbCount > 0 && aiCount > 0) statusIcon = '🔄';
+        else if (aiCount > 0 && dbCount === 0) statusIcon = '🤖';
+        else if (dbCount > 0 && aiCount === 0) statusIcon = '📦';
+        
+        console.log(`${statusIcon} ${subject.name}: ${questions.length}/${required} questions`);
+        console.log(`   📝 Database: ${dbCount} | 🤖 AI: ${aiCount} | 📐 Diagrams: ${diagramCount}`);
+        
+        if (diagramCount > 0) {
+            const diagramTopics = questions.filter(q => q.diagram_url).map(q => q.topic);
+            console.log(`   📐 Diagram topics: ${[...new Set(diagramTopics)].join(', ')}`);
+        }
+    }
+    console.log('='.repeat(60) + '\n');
+}
+
 function renderQuestion(question, subjectName, questionNumber, totalQuestions) {
     if (!question) return;
     
@@ -228,20 +531,28 @@ function renderQuestion(question, subjectName, questionNumber, totalQuestions) {
     const savedAnswer = examState.answers[question.id];
     
     const options = {
-        A: question.option_a || question.options?.A || 'Option A',
-        B: question.option_b || question.options?.B || 'Option B',
-        C: question.option_c || question.options?.C || 'Option C',
-        D: question.option_d || question.options?.D || 'Option D'
+        A: question.option_a,
+        B: question.option_b,
+        C: question.option_c,
+        D: question.option_d
     };
+    
+    let questionHtml = question.question_text;
+    if (question.diagram_url) {
+        questionHtml += `
+            <div style="margin: 20px 0; text-align: center;">
+                <img src="${question.diagram_url}" alt="Diagram" style="max-width: 100%; border-radius: 8px; border: 1px solid #e1e5eb;">
+            </div>
+        `;
+    }
     
     container.innerHTML = `
         <div class="question-number">Question ${questionNumber} of ${totalQuestions}</div>
         <div class="question-subject">${subjectName}</div>
-        <div class="question-text">${question.question_text || question.question || ''}</div>
+        <div class="question-text">${questionHtml}</div>
         <div class="options">
             ${['A', 'B', 'C', 'D'].map(letter => `
-                <div class="option ${savedAnswer === letter ? 'selected' : ''}" 
-                     onclick="selectAnswer('${question.id}', '${letter}')">
+                <div class="option ${savedAnswer === letter ? 'selected' : ''}" onclick="selectAnswer('${question.id}', '${letter}')">
                     <span class="option-letter">${letter}</span>
                     <span class="option-text">${options[letter]}</span>
                 </div>
@@ -259,11 +570,8 @@ function selectAnswer(questionId, answer) {
     
     document.querySelectorAll('.option').forEach(opt => {
         const letter = opt.querySelector('.option-letter').textContent;
-        if (letter === answer) {
-            opt.classList.add('selected');
-        } else {
-            opt.classList.remove('selected');
-        }
+        if (letter === answer) opt.classList.add('selected');
+        else opt.classList.remove('selected');
     });
     
     updatePaletteItem(questionId);
@@ -302,10 +610,8 @@ function renderPalette() {
         const current = isCurrent ? 'current' : '';
         
         return `
-            <div class="palette-item ${answered} ${current}" 
-                 onclick="jumpToQuestion('${q.subjectName}', ${q.subjectIndex - 1})"
-                 data-subject="${q.subjectDisplay}"
-                 title="${q.subjectName} - Question ${q.subjectIndex}">
+            <div class="palette-item ${answered} ${current}" onclick="jumpToQuestion('${q.subjectName}', ${q.subjectIndex - 1})"
+                 data-subject="${q.subjectDisplay}" title="${q.subjectName} - Question ${q.subjectIndex}">
                 ${q.subjectDisplay} ${q.subjectIndex}
             </div>
         `;
@@ -338,10 +644,7 @@ function updatePaletteItem(questionId) {
         
         if (itemText === `${subjectCode} ${targetIndex + 1}`) {
             item.className = 'palette-item answered';
-            
-            const isCurrent = examState.currentSubject === targetSubject && 
-                             examState.subjectIndices[targetSubject] === targetIndex;
-            if (isCurrent) {
+            if (examState.currentSubject === targetSubject && examState.subjectIndices[targetSubject] === targetIndex) {
                 item.classList.add('current');
             }
         }
@@ -386,11 +689,8 @@ function jumpToQuestion(subjectName, index) {
     
     document.querySelectorAll('.subject-tab').forEach((tab, i) => {
         const tabSubject = examState.subjects[i].name;
-        if (tabSubject === subjectName) {
-            tab.classList.add('active');
-        } else {
-            tab.classList.remove('active');
-        }
+        if (tabSubject === subjectName) tab.classList.add('active');
+        else tab.classList.remove('active');
     });
     
     renderSubjectQuestion(subjectName);
@@ -437,17 +737,13 @@ function nextQuestion() {
             
             document.querySelectorAll('.subject-tab').forEach((tab, i) => {
                 const tabSubject = examState.subjects[i].name;
-                if (tabSubject === nextSubject) {
-                    tab.classList.add('active');
-                } else {
-                    tab.classList.remove('active');
-                }
+                if (tabSubject === nextSubject) tab.classList.add('active');
+                else tab.classList.remove('active');
             });
             
             renderSubjectQuestion(nextSubject);
         }
     }
-    
     renderPalette();
 }
 
@@ -469,17 +765,13 @@ function prevQuestion() {
             
             document.querySelectorAll('.subject-tab').forEach((tab, i) => {
                 const tabSubject = examState.subjects[i].name;
-                if (tabSubject === prevSubject) {
-                    tab.classList.add('active');
-                } else {
-                    tab.classList.remove('active');
-                }
+                if (tabSubject === prevSubject) tab.classList.add('active');
+                else tab.classList.remove('active');
             });
             
             renderSubjectQuestion(prevSubject);
         }
     }
-    
     renderPalette();
 }
 
@@ -488,20 +780,13 @@ function updateProgress() {
     const totalQuestions = Object.values(examState.subjectQuestions).reduce((sum, q) => sum + q.length, 0);
     const progress = (answeredCount / totalQuestions) * 100;
     const progressFill = document.getElementById('progressFill');
-    if (progressFill) {
-        progressFill.style.width = `${progress}%`;
-    }
+    if (progressFill) progressFill.style.width = `${progress}%`;
 }
 
 function startTimer() {
     examState.timerInterval = setInterval(() => {
         examState.timeRemaining--;
-        
-        if (examState.timeRemaining <= 0) {
-            submitExam();
-            return;
-        }
-        
+        if (examState.timeRemaining <= 0) submitExam();
         updateTimerDisplay();
     }, 1000);
 }
@@ -516,11 +801,8 @@ function updateTimerDisplay() {
     
     timerElement.textContent = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
     
-    if (examState.timeRemaining < 300) {
-        timerElement.className = 'timer danger';
-    } else if (examState.timeRemaining < 600) {
-        timerElement.className = 'timer warning';
-    }
+    if (examState.timeRemaining < 300) timerElement.className = 'timer danger';
+    else if (examState.timeRemaining < 600) timerElement.className = 'timer warning';
 }
 
 function setupEventListeners() {
@@ -534,13 +816,10 @@ function submitExam() {
     const answeredCount = Object.keys(examState.answers).length;
     
     if (answeredCount < totalQuestions) {
-        if (!confirm(`You have answered ${answeredCount} out of ${totalQuestions} questions. Submit anyway?`)) {
-            return;
-        }
+        if (!confirm(`You have answered ${answeredCount} out of ${totalQuestions} questions. Submit anyway?`)) return;
     }
     
     clearInterval(examState.timerInterval);
-    
     const results = calculateJAMBScores();
     
     localStorage.setItem('lastExamResults', JSON.stringify({
@@ -555,10 +834,7 @@ function submitExam() {
 }
 
 function calculateJAMBScores() {
-    let englishCorrect = 0;
-    let englishTotal = 0;
-    let otherCorrect = 0;
-    let otherTotal = 0;
+    let englishCorrect = 0, englishTotal = 0, otherCorrect = 0, otherTotal = 0;
     const subjectScores = {};
     
     Object.keys(examState.subjectQuestions).forEach(subject => {
@@ -570,20 +846,13 @@ function calculateJAMBScores() {
             
             if (isCorrect) {
                 subjectScores[subject].correct++;
-                
-                if (subject === 'Use of English') {
-                    englishCorrect++;
-                } else {
-                    otherCorrect++;
-                }
+                if (subject === 'Use of English') englishCorrect++;
+                else otherCorrect++;
             }
         });
         
-        if (subject === 'Use of English') {
-            englishTotal = examState.subjectQuestions[subject].length;
-        } else {
-            otherTotal += examState.subjectQuestions[subject].length;
-        }
+        if (subject === 'Use of English') englishTotal = examState.subjectQuestions[subject].length;
+        else otherTotal += examState.subjectQuestions[subject].length;
     });
     
     const englishScore = englishCorrect * 1.67;
@@ -608,8 +877,7 @@ function filterPalette(subject) {
     
     document.querySelectorAll('.filter-btn').forEach(btn => {
         const btnSubject = btn.textContent.trim();
-        if ((subject === 'all' && btnSubject === 'All') || 
-            (subject !== 'all' && btnSubject === subject)) {
+        if ((subject === 'all' && btnSubject === 'All') || (subject !== 'all' && btnSubject === subject)) {
             btn.classList.add('active');
         } else {
             btn.classList.remove('active');
@@ -619,48 +887,41 @@ function filterPalette(subject) {
     renderPalette();
 }
 
+// Calculator Functions
 function renderCalculator() {
     const container = document.getElementById('examCalculator');
-    
     container.innerHTML = `
         <div class="calc-display">
             <div class="calc-expression" id="calcExpression"></div>
             <div class="calc-result" id="calcResult">0</div>
         </div>
-        
         <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 8px;">
             <button class="calc-btn operator" onclick="calculatorMemory('clear'); event.stopPropagation();">MC</button>
             <button class="calc-btn operator" onclick="calculatorMemory('recall'); event.stopPropagation();">MR</button>
             <button class="calc-btn operator" onclick="calculatorMemory('add'); event.stopPropagation();">M+</button>
             <button class="calc-btn operator" onclick="calculatorMemory('subtract'); event.stopPropagation();">M-</button>
         </div>
-        
         <div class="calc-grid">
             <button class="calc-btn clear" onclick="calculatorClear(); event.stopPropagation();">C</button>
             <button class="calc-btn operator" onclick="calculatorAppend('%'); event.stopPropagation();">%</button>
             <button class="calc-btn operator" onclick="calculatorOperator('/'); event.stopPropagation();">÷</button>
             <button class="calc-btn operator" onclick="calculatorBackspace(); event.stopPropagation();">⌫</button>
-            
             <button class="calc-btn number" onclick="calculatorAppend('7'); event.stopPropagation();">7</button>
             <button class="calc-btn number" onclick="calculatorAppend('8'); event.stopPropagation();">8</button>
             <button class="calc-btn number" onclick="calculatorAppend('9'); event.stopPropagation();">9</button>
             <button class="calc-btn operator" onclick="calculatorOperator('*'); event.stopPropagation();">×</button>
-            
             <button class="calc-btn number" onclick="calculatorAppend('4'); event.stopPropagation();">4</button>
             <button class="calc-btn number" onclick="calculatorAppend('5'); event.stopPropagation();">5</button>
             <button class="calc-btn number" onclick="calculatorAppend('6'); event.stopPropagation();">6</button>
             <button class="calc-btn operator" onclick="calculatorOperator('-'); event.stopPropagation();">−</button>
-            
             <button class="calc-btn number" onclick="calculatorAppend('1'); event.stopPropagation();">1</button>
             <button class="calc-btn number" onclick="calculatorAppend('2'); event.stopPropagation();">2</button>
             <button class="calc-btn number" onclick="calculatorAppend('3'); event.stopPropagation();">3</button>
             <button class="calc-btn operator" onclick="calculatorOperator('+'); event.stopPropagation();">+</button>
-            
             <button class="calc-btn number" onclick="calculatorAppend('0'); event.stopPropagation();">0</button>
             <button class="calc-btn number" onclick="calculatorAppend('.'); event.stopPropagation();">.</button>
             <button class="calc-btn equals" onclick="calculatorCalculate(); event.stopPropagation();" style="grid-column: span 2;">=</button>
         </div>
-        
         <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px;">
             <button class="calc-btn operator" onclick="calculatorScientific('sqrt'); event.stopPropagation();">√</button>
             <button class="calc-btn operator" onclick="calculatorScientific('square'); event.stopPropagation();">x²</button>
@@ -668,7 +929,6 @@ function renderCalculator() {
             <button class="calc-btn operator" onclick="calculatorScientific('cos'); event.stopPropagation();">cos</button>
         </div>
     `;
-    
     updateCalculatorDisplay();
 }
 
@@ -677,56 +937,35 @@ function calculatorAppend(value) {
         examCalculator.currentInput = '';
         examCalculator.shouldReset = false;
     }
-    
     if (value === '.') {
         if (examCalculator.currentInput.includes('.')) return;
-        if (examCalculator.currentInput === '') {
-            examCalculator.currentInput = '0.';
-            updateCalculatorDisplay();
-            return;
-        }
+        if (examCalculator.currentInput === '') examCalculator.currentInput = '0.';
     }
-    
     examCalculator.currentInput += value;
     updateCalculatorDisplay();
 }
 
 function calculatorOperator(op) {
-    if (examCalculator.operator && examCalculator.previousInput !== '' && examCalculator.currentInput !== '') {
-        calculatorCalculate();
-    }
-    
+    if (examCalculator.operator && examCalculator.previousInput !== '' && examCalculator.currentInput !== '') calculatorCalculate();
     examCalculator.operator = op;
-    
     if (examCalculator.currentInput !== '') {
         examCalculator.previousInput = examCalculator.currentInput;
         examCalculator.currentInput = '';
-    } else if (examCalculator.lastResult !== null) {
-        examCalculator.previousInput = examCalculator.lastResult.toString();
-    }
-    
+    } else if (examCalculator.lastResult !== null) examCalculator.previousInput = examCalculator.lastResult.toString();
     examCalculator.shouldReset = false;
     updateCalculatorDisplay();
 }
 
 function calculatorCalculate() {
-    if (!examCalculator.operator || examCalculator.previousInput === '') {
-        return;
-    }
+    if (!examCalculator.operator || examCalculator.previousInput === '') return;
     
     let currentValue;
     if (examCalculator.currentInput === '') {
-        if (examCalculator.lastResult !== null) {
-            currentValue = examCalculator.lastResult;
-        } else {
-            currentValue = parseFloat(examCalculator.previousInput);
-        }
-    } else {
-        currentValue = parseFloat(examCalculator.currentInput);
-    }
+        if (examCalculator.lastResult !== null) currentValue = examCalculator.lastResult;
+        else currentValue = parseFloat(examCalculator.previousInput);
+    } else currentValue = parseFloat(examCalculator.currentInput);
     
     const prevValue = parseFloat(examCalculator.previousInput);
-    
     if (isNaN(prevValue) || isNaN(currentValue)) {
         alert('Invalid input');
         calculatorClear();
@@ -734,129 +973,63 @@ function calculatorCalculate() {
     }
     
     let result;
-    
     switch(examCalculator.operator) {
-        case '+':
-            result = prevValue + currentValue;
-            break;
-        case '-':
-            result = prevValue - currentValue;
-            break;
-        case '*':
-            result = prevValue * currentValue;
-            break;
-        case '/':
-            if (currentValue === 0) {
-                alert('Cannot divide by zero!');
-                return;
-            }
-            result = prevValue / currentValue;
-            break;
-        case '%':
-            result = prevValue % currentValue;
-            break;
-        default:
-            return;
+        case '+': result = prevValue + currentValue; break;
+        case '-': result = prevValue - currentValue; break;
+        case '*': result = prevValue * currentValue; break;
+        case '/': if (currentValue === 0) { alert('Cannot divide by zero!'); return; } result = prevValue / currentValue; break;
+        case '%': result = prevValue % currentValue; break;
+        default: return;
     }
     
     result = Math.round(result * 100000000) / 100000000;
-    
     examCalculator.currentInput = result.toString();
     examCalculator.lastResult = result;
     examCalculator.operator = null;
     examCalculator.previousInput = '';
     examCalculator.shouldReset = true;
-    
     updateCalculatorDisplay();
 }
 
 function calculatorScientific(func) {
     if (examCalculator.currentInput === '') {
-        if (examCalculator.lastResult !== null) {
-            examCalculator.currentInput = examCalculator.lastResult.toString();
-        } else {
-            return;
-        }
+        if (examCalculator.lastResult !== null) examCalculator.currentInput = examCalculator.lastResult.toString();
+        else return;
     }
     
     let value = parseFloat(examCalculator.currentInput);
     if (isNaN(value)) return;
     
     let result;
-    
     switch(func) {
-        case 'sqrt':
-            if (value < 0) {
-                alert('Cannot calculate square root of negative number');
-                return;
-            }
-            result = Math.sqrt(value);
-            break;
-        case 'square':
-            result = Math.pow(value, 2);
-            break;
-        case 'sin':
-            result = Math.sin(value * Math.PI / 180);
-            break;
-        case 'cos':
-            result = Math.cos(value * Math.PI / 180);
-            break;
-        default:
-            return;
+        case 'sqrt': if (value < 0) { alert('Cannot calculate square root of negative number'); return; } result = Math.sqrt(value); break;
+        case 'square': result = Math.pow(value, 2); break;
+        case 'sin': result = Math.sin(value * Math.PI / 180); break;
+        case 'cos': result = Math.cos(value * Math.PI / 180); break;
+        default: return;
     }
     
     result = Math.round(result * 100000000) / 100000000;
-    
     examCalculator.currentInput = result.toString();
     examCalculator.lastResult = result;
     examCalculator.shouldReset = true;
     examCalculator.operator = null;
     examCalculator.previousInput = '';
-    
     updateCalculatorDisplay();
 }
 
 function calculatorMemory(action) {
     let currentValue;
-    
-    if (examCalculator.currentInput !== '') {
-        currentValue = parseFloat(examCalculator.currentInput);
-    } else if (examCalculator.lastResult !== null) {
-        currentValue = examCalculator.lastResult;
-    } else {
-        currentValue = 0;
-    }
-    
+    if (examCalculator.currentInput !== '') currentValue = parseFloat(examCalculator.currentInput);
+    else if (examCalculator.lastResult !== null) currentValue = examCalculator.lastResult;
+    else currentValue = 0;
     if (isNaN(currentValue)) currentValue = 0;
     
     switch(action) {
-        case 'clear':
-            examCalculator.memory = 0;
-            break;
-        case 'recall':
-            examCalculator.currentInput = examCalculator.memory.toString();
-            examCalculator.shouldReset = true;
-            examCalculator.operator = null;
-            examCalculator.previousInput = '';
-            updateCalculatorDisplay();
-            break;
-        case 'add':
-            examCalculator.memory += currentValue;
-            break;
-        case 'subtract':
-            examCalculator.memory -= currentValue;
-            break;
-    }
-    
-    const result = document.getElementById('calcResult');
-    if (result && action !== 'recall') {
-        const originalText = result.textContent;
-        result.textContent = action === 'clear' ? 'Memory Cleared' : 
-                            action === 'add' ? 'Memory +' : 
-                            action === 'subtract' ? 'Memory -' : '';
-        setTimeout(() => {
-            updateCalculatorDisplay();
-        }, 500);
+        case 'clear': examCalculator.memory = 0; break;
+        case 'recall': examCalculator.currentInput = examCalculator.memory.toString(); examCalculator.shouldReset = true; examCalculator.operator = null; examCalculator.previousInput = ''; updateCalculatorDisplay(); break;
+        case 'add': examCalculator.memory += currentValue; break;
+        case 'subtract': examCalculator.memory -= currentValue; break;
     }
 }
 
@@ -879,92 +1052,82 @@ function updateCalculatorDisplay() {
     const result = document.getElementById('calcResult');
     
     if (expression) {
-        if (examCalculator.operator && examCalculator.previousInput) {
-            expression.textContent = `${examCalculator.previousInput} ${examCalculator.operator}`;
-        } else {
-            expression.textContent = '';
-        }
+        if (examCalculator.operator && examCalculator.previousInput) expression.textContent = `${examCalculator.previousInput} ${examCalculator.operator}`;
+        else expression.textContent = '';
     }
     
     if (result) {
         if (examCalculator.currentInput === '') {
-            if (examCalculator.lastResult !== null && !examCalculator.operator) {
-                result.textContent = examCalculator.lastResult;
-            } else {
-                result.textContent = '0';
-            }
-        } else {
-            result.textContent = examCalculator.currentInput;
-        }
+            if (examCalculator.lastResult !== null && !examCalculator.operator) result.textContent = examCalculator.lastResult;
+            else result.textContent = '0';
+        } else result.textContent = examCalculator.currentInput;
     }
 }
 
-// Modal click handler
-function handleModalClick(event) {
-    if (event.target === document.getElementById('calculatorModal')) {
-        toggleCalculator(event);
+function toggleCalculator(event) {
+    if (event) { event.preventDefault(); event.stopPropagation(); }
+    const modal = document.getElementById('calculatorModal');
+    const btn = document.getElementById('calculatorToggle');
+    if (modal.style.display === 'none' || modal.style.display === '') {
+        modal.style.display = 'block';
+        if (btn) btn.innerHTML = '<span>🧮</span> <span class="btn-text">Hide Calculator</span>';
+        renderCalculator();
+        setTimeout(() => initDraggableCalculator(), 50);
+    } else {
+        modal.style.display = 'none';
+        if (btn) btn.innerHTML = '<span>🧮</span> <span class="btn-text">Calculator</span>';
+        dragState.isDragging = false;
     }
+}
+
+function handleModalClick(event) {
+    if (event.target === document.getElementById('calculatorModal')) toggleCalculator(event);
 }
 
 function initDraggableCalculator() {
     const content = document.getElementById('calculatorContent');
     const header = document.getElementById('calculatorHeader');
-    
     if (!content || !header) return;
-    
     content.style.transform = 'translate(-50%, -50%)';
-    dragState.xOffset = 0;
-    dragState.yOffset = 0;
-    
+    dragState.xOffset = 0; dragState.yOffset = 0;
     header.removeEventListener('mousedown', dragMouseDown);
     header.removeEventListener('touchstart', dragTouchStart);
-    
     header.addEventListener('mousedown', dragMouseDown);
     header.addEventListener('touchstart', dragTouchStart, { passive: false });
 }
 
 function dragMouseDown(e) {
-    e.preventDefault();
-    e.stopPropagation();
+    e.preventDefault(); e.stopPropagation();
     const content = document.getElementById('calculatorContent');
     if (!content) return;
-    
     const transform = window.getComputedStyle(content).transform;
     const matrix = new DOMMatrix(transform);
-    
     dragState.xOffset = matrix.m41;
     dragState.yOffset = matrix.m42;
     dragState.initialX = e.clientX - dragState.xOffset;
     dragState.initialY = e.clientY - dragState.yOffset;
     dragState.isDragging = true;
-    
     document.addEventListener('mousemove', dragMouseMove);
     document.addEventListener('mouseup', dragMouseUp);
-    
     content.style.cursor = 'grabbing';
     content.style.transition = 'none';
 }
 
 function dragTouchStart(e) {
-    e.preventDefault();
-    e.stopPropagation();
+    e.preventDefault(); e.stopPropagation();
     const touch = e.touches[0];
     const content = document.getElementById('calculatorContent');
     if (!content) return;
-    
     const transform = window.getComputedStyle(content).transform;
     const matrix = new DOMMatrix(transform);
-    
     dragState.xOffset = matrix.m41;
     dragState.yOffset = matrix.m42;
     dragState.initialX = touch.clientX - dragState.xOffset;
     dragState.initialY = touch.clientY - dragState.yOffset;
     dragState.isDragging = true;
-    
     document.addEventListener('touchmove', dragTouchMove, { passive: false });
     document.addEventListener('touchend', dragTouchEnd);
     document.addEventListener('touchcancel', dragTouchEnd);
-    
     content.style.cursor = 'grabbing';
     content.style.transition = 'none';
 }
@@ -972,101 +1135,48 @@ function dragTouchStart(e) {
 function dragMouseMove(e) {
     if (!dragState.isDragging) return;
     e.preventDefault();
-    
     dragState.currentX = e.clientX - dragState.initialX;
     dragState.currentY = e.clientY - dragState.initialY;
-    
     setTranslate(dragState.currentX, dragState.currentY, document.getElementById('calculatorContent'));
 }
 
 function dragTouchMove(e) {
     if (!dragState.isDragging) return;
     e.preventDefault();
-    
     const touch = e.touches[0];
     dragState.currentX = touch.clientX - dragState.initialX;
     dragState.currentY = touch.clientY - dragState.initialY;
-    
     setTranslate(dragState.currentX, dragState.currentY, document.getElementById('calculatorContent'));
 }
 
 function dragMouseUp(e) {
     dragState.isDragging = false;
-    
     document.removeEventListener('mousemove', dragMouseMove);
     document.removeEventListener('mouseup', dragMouseUp);
-    
     const content = document.getElementById('calculatorContent');
-    if (content) {
-        content.style.cursor = 'grab';
-        content.style.transition = 'box-shadow 0.2s';
-    }
+    if (content) { content.style.cursor = 'grab'; content.style.transition = 'box-shadow 0.2s'; }
 }
 
 function dragTouchEnd(e) {
     dragState.isDragging = false;
-    
     document.removeEventListener('touchmove', dragTouchMove);
     document.removeEventListener('touchend', dragTouchEnd);
     document.removeEventListener('touchcancel', dragTouchEnd);
-    
     const content = document.getElementById('calculatorContent');
-    if (content) {
-        content.style.cursor = 'grab';
-        content.style.transition = 'box-shadow 0.2s';
-    }
+    if (content) { content.style.cursor = 'grab'; content.style.transition = 'box-shadow 0.2s'; }
 }
 
 function setTranslate(xPos, yPos, el) {
     if (!el) return;
-    
     const rect = el.getBoundingClientRect();
     const maxX = window.innerWidth - rect.width;
     const maxY = window.innerHeight - rect.height;
-    
     xPos = Math.min(Math.max(xPos, 10), maxX - 10);
     yPos = Math.min(Math.max(yPos, 10), maxY - 10);
-    
     el.style.transform = `translate(${xPos}px, ${yPos}px)`;
 }
 
-function toggleCalculator(event) {
-    if (event) {
-        event.preventDefault();
-        event.stopPropagation();
-    }
-    
-    const modal = document.getElementById('calculatorModal');
-    const btn = document.getElementById('calculatorToggle');
-    const content = document.getElementById('calculatorContent');
-    
-    if (modal.style.display === 'none' || modal.style.display === '') {
-        modal.style.display = 'block';
-        if (btn) {
-            btn.innerHTML = '<span>🧮</span> <span class="btn-text">Hide Calculator</span>';
-        }
-        renderCalculator();
-        
-        setTimeout(() => {
-            initDraggableCalculator();
-        }, 50);
-    } else {
-        modal.style.display = 'none';
-        if (btn) {
-            btn.innerHTML = '<span>🧮</span> <span class="btn-text">Calculator</span>';
-        }
-        
-        if (content) {
-            content.style.transform = 'translate(-50%, -50%)';
-        }
-        
-        dragState.isDragging = false;
-        dragState.xOffset = 0;
-        dragState.yOffset = 0;
-    }
-}
-
-// Make functions globally available
+// Make functions global
 window.selectAnswer = selectAnswer;
 window.jumpToQuestion = jumpToQuestion;
 window.toggleCalculator = toggleCalculator;

@@ -2,963 +2,558 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JAMB Simulator - Practice Mode</title>
-    <!-- PWA Meta Tags -->
-<link rel="manifest" href="/manifest.json">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black">
-<meta name="apple-mobile-web-app-title" content="JAMB Simulator">
-<link rel="apple-touch-icon" href="/icons/icon-152x152.png">
-<meta name="theme-color" content="#667eea">
-    <!-- Sticky Header Fix and Styles -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="JAMB Simulator">
+    <link rel="apple-touch-icon" href="/icons/icon-152x152.png">
+    <meta name="theme-color" content="#1a1a2e">
+    
     <style>
-        /* Sticky Header */
-        .header {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            z-index: 1000;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 1rem 0;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
 
         body {
-            padding-top: 80px;
-            margin: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f5f7fa;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f7fb;
+            color: #1a1a2e;
+            line-height: 1.5;
+        }
+
+        .header {
+            background: white;
+            border-bottom: 1px solid #e1e5eb;
+            padding: 0.75rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
 
         .nav-container {
             max-width: 1200px;
             margin: 0 auto;
-            padding: 0 2rem;
+            padding: 0 1.5rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
         }
 
         .logo {
-            font-size: 1.5rem;
-            font-weight: bold;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #1a1a2e;
         }
 
         .nav-menu {
             display: flex;
             list-style: none;
-            gap: 2rem;
+            gap: 0.25rem;
+            flex-wrap: wrap;
             align-items: center;
-            margin: 0;
-            padding: 0;
         }
 
         .nav-menu a {
-            color: white;
+            color: #4a5568;
             text-decoration: none;
             padding: 0.5rem 1rem;
-            border-radius: 4px;
-            transition: background 0.3s;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            transition: all 0.2s;
         }
 
         .nav-menu a:hover,
         .nav-menu a.active {
-            background: rgba(255,255,255,0.2);
+            background: #f0f0f5;
+            color: #1a1a2e;
         }
 
-        .practice-container {
+        #userInfo {
+            font-size: 0.75rem;
+            color: #718096;
+            margin-left: 0.5rem;
+        }
+
+        .container {
             max-width: 900px;
-            margin: 100px auto 50px;
-            padding: 0 20px;
+            margin: 2rem auto;
+            padding: 0 1.5rem;
         }
 
-        .practice-header {
-            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
-            color: white;
-            padding: 30px;
-            border-radius: 15px;
-            margin-bottom: 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 20px;
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin-bottom: 2rem;
         }
 
-        .practice-header h1 {
-            font-size: 2rem;
-            margin-bottom: 5px;
-        }
-
-        .practice-stats {
-            display: flex;
-            gap: 20px;
-            background: rgba(255,255,255,0.2);
-            padding: 15px 25px;
-            border-radius: 10px;
-        }
-
-        .practice-stat {
+        .stat-card {
+            background: white;
+            padding: 1rem;
+            border-radius: 12px;
             text-align: center;
+            border: 1px solid #e1e5eb;
         }
 
-        .practice-stat .value {
-            font-size: 1.8rem;
-            font-weight: bold;
+        .stat-number {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1a1a2e;
         }
 
-        .practice-stat .label {
-            font-size: 0.9rem;
-            opacity: 0.9;
+        .stat-label {
+            font-size: 0.75rem;
+            color: #718096;
+            margin-top: 0.25rem;
         }
 
-        .calculator-btn {
-            background: rgba(255,255,255,0.2);
-            color: white;
-            border: 2px solid white;
-            padding: 12px 25px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 1rem;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .calculator-btn:hover {
+        /* Setup Panel */
+        .setup-panel {
             background: white;
-            color: #f39c12;
+            border-radius: 16px;
+            border: 1px solid #e1e5eb;
+            padding: 1.5rem;
         }
 
-        .practice-controls {
-            background: white;
-            border-radius: 15px;
-            padding: 25px;
-            margin-bottom: 30px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            display: flex;
-            gap: 20px;
-            flex-wrap: wrap;
-            align-items: center;
-        }
-
-        .subject-select, .topic-select, .difficulty-select {
-            flex: 1;
-            min-width: 200px;
-            padding: 12px;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 1rem;
-        }
-
-        .topic-select optgroup {
-            font-weight: bold;
-            color: #667eea;
-        }
-
-        .topic-select option {
-            padding: 8px;
-        }
-
-        .topic-select option:hover {
-            background-color: #f0f3ff;
-        }
-
-        .section-divider {
-            font-weight: bold;
-            color: #4a6fa5;
-            padding-left: 5px;
-            margin-top: 10px;
-        }
-
-        .start-practice-btn {
-            background: #f39c12;
-            color: white;
-            border: none;
-            padding: 12px 30px;
-            border-radius: 8px;
-            cursor: pointer;
+        .setup-title {
+            font-size: 1.25rem;
             font-weight: 600;
-            transition: all 0.3s;
+            margin-bottom: 1.5rem;
         }
 
-        .start-practice-btn:hover {
-            background: #e67e22;
-            transform: translateY(-2px);
+        .form-group {
+            margin-bottom: 1.25rem;
         }
 
-        .practice-question {
+        .form-group label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-bottom: 0.375rem;
+            color: #4a5568;
+        }
+
+        .form-group select,
+        .form-group input {
+            width: 100%;
+            padding: 0.625rem 0.75rem;
+            border: 1px solid #e1e5eb;
+            border-radius: 8px;
+            font-size: 0.875rem;
             background: white;
-            border-radius: 15px;
-            padding: 30px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
         }
 
-        .question-header {
+        .form-group select:focus,
+        .form-group input:focus {
+            outline: none;
+            border-color: #1a1a2e;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .btn {
+            padding: 0.625rem 1.25rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #1a1a2e;
+            color: white;
+            width: 100%;
+        }
+
+        .btn-primary:hover {
+            background: #2d2d44;
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Practice Area */
+        .practice-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid #f0f0f0;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            gap: 0.5rem;
         }
 
-        .question-tags {
-            display: flex;
-            gap: 10px;
-        }
-
-        .tag {
-            padding: 5px 12px;
+        .info-badge {
+            background: #f0f0f5;
+            padding: 0.25rem 0.75rem;
             border-radius: 20px;
-            font-size: 0.85rem;
-            font-weight: 600;
+            font-size: 0.75rem;
+            color: #4a5568;
         }
 
-        .tag.subject {
-            background: #667eea;
-            color: white;
-        }
-
-        .tag.topic {
-            background: #f39c12;
-            color: white;
-        }
-
-        .tag.difficulty {
-            background: #27ae60;
-            color: white;
-        }
-
-        .question-progress {
-            font-size: 1.1rem;
-            color: #666;
+        .question-card {
+            background: white;
+            border-radius: 16px;
+            border: 1px solid #e1e5eb;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
         }
 
         .question-text {
-            font-size: 1.3rem;
-            color: #333;
-            margin-bottom: 30px;
+            font-size: 1rem;
             line-height: 1.6;
+            margin-bottom: 1.5rem;
         }
 
-        .practice-options {
+        .options-list {
             display: flex;
             flex-direction: column;
-            gap: 12px;
-            margin: 25px 0;
+            gap: 0.75rem;
         }
 
         .practice-option {
             display: flex;
             align-items: center;
-            padding: 15px 20px;
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
+            gap: 1rem;
+            padding: 0.75rem;
+            border: 1px solid #e1e5eb;
+            border-radius: 8px;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.2s;
         }
 
         .practice-option:hover {
-            border-color: #f39c12;
-            background: #fff8e7;
+            background: #f8f9fc;
+            border-color: #cbd5e0;
         }
 
         .practice-option.selected {
-            border-color: #f39c12;
-            background: #fff8e7;
+            background: #f0f0f5;
+            border-color: #1a1a2e;
         }
 
         .practice-option.correct {
-            border-color: #27ae60;
-            background: #f0f9f0;
+            background: #e6f4ea;
+            border-color: #2d6a4f;
         }
 
         .practice-option.wrong {
-            border-color: #e74c3c;
-            background: #fef5f5;
+            background: #fee8e8;
+            border-color: #c92a2a;
         }
 
         .option-letter {
-            width: 35px;
-            height: 35px;
-            background: #f0f0f0;
-            border-radius: 50%;
+            font-weight: 600;
+            width: 28px;
+            height: 28px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: bold;
-            margin-right: 15px;
+            background: #f0f0f5;
+            border-radius: 6px;
+            font-size: 0.875rem;
         }
 
         .feedback-box {
             background: #f8f9fa;
-            border-left: 4px solid #f39c12;
-            padding: 20px;
-            border-radius: 8px;
-            margin: 20px 0;
+            border-radius: 12px;
+            padding: 1rem;
+            margin-top: 1rem;
             display: none;
         }
 
         .feedback-box.show {
             display: block;
-            animation: slideIn 0.3s;
         }
 
         .feedback-correct {
-            color: #27ae60;
-            font-size: 1.2rem;
-            margin-bottom: 10px;
+            color: #2d6a4f;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
         }
 
         .feedback-wrong {
-            color: #e74c3c;
-            font-size: 1.2rem;
-            margin-bottom: 10px;
+            color: #c92a2a;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
         }
 
-        .explanation {
-            color: #666;
-            line-height: 1.6;
-            margin: 15px 0;
+        .explanation-text {
+            color: #4a5568;
+            font-size: 0.875rem;
+            line-height: 1.5;
         }
 
-        .practice-navigation {
+        .action-buttons {
             display: flex;
-            justify-content: space-between;
-            gap: 15px;
-            margin-top: 20px;
+            gap: 1rem;
+            margin-top: 1rem;
         }
 
-        .practice-btn {
-            padding: 15px 30px;
+        .action-btn {
+            flex: 1;
+            padding: 0.625rem;
             border: none;
             border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 500;
             cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s;
-            flex: 1;
+            transition: all 0.2s;
         }
 
-        .check-btn {
-            background: #f39c12;
+        .action-btn-check {
+            background: #1a1a2e;
             color: white;
         }
 
-        .next-btn {
-            background: #667eea;
-            color: white;
-        }
-
-        .practice-btn:disabled {
+        .action-btn-check:disabled {
             opacity: 0.5;
             cursor: not-allowed;
         }
 
-        .practice-summary {
+        .action-btn-next {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+
+        .action-btn-next:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Summary Panel */
+        .summary-panel {
             background: white;
-            border-radius: 15px;
-            padding: 30px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-radius: 16px;
+            border: 1px solid #e1e5eb;
+            padding: 2rem;
             text-align: center;
         }
 
         .summary-stats {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 20px;
-            margin: 30px 0;
-        }
-
-        .mastered-card, .review-card, .struggle-card {
-            padding: 20px;
-            border-radius: 10px;
-            color: white;
-        }
-
-        .mastered-card {
-            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
-        }
-
-        .review-card {
-            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
-        }
-
-        .struggle-card {
-            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
-        }
-
-        .summary-stats .value {
-            font-size: 2.5rem;
-            font-weight: bold;
-        }
-
-        /* Calculator Modal - Fixed */
-        .calculator-modal {
-            display: none;
-            position: fixed;
-            z-index: 2000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.5);
-            animation: fadeIn 0.3s;
-            pointer-events: none; /* Allow clicking through to content */
-        }
-
-        .calculator-modal-content {
-            background: white;
-            margin: 20px auto;
-            padding: 20px;
-            border-radius: 15px;
-            width: 90%;
-            max-width: 380px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-            position: relative;
-            pointer-events: auto; /* Make calculator clickable */
-            transition: transform 0.2s ease;
-        }
-
-        .calculator-modal-header {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            cursor: move;
-            user-select: none;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            margin: -20px -20px 20px -20px;
-            padding: 15px 20px;
-            border-radius: 15px 15px 0 0;
-            color: white;
-            position: relative;
-        }
-
-        .calculator-modal-header h3 {
-            margin: 0;
-            font-size: 1.2rem;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .close-btn {
-            background: rgba(255,255,255,0.2);
-            border: none;
-            font-size: 1.2rem;
-            cursor: pointer;
-            color: white;
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
             justify-content: center;
-            transition: all 0.2s;
-            line-height: 1;
-            padding: 0;
-            font-weight: bold;
+            gap: 2rem;
+            margin: 1.5rem 0;
+            flex-wrap: wrap;
         }
 
-        .close-btn:hover,
-        .close-btn:active {
-            background: rgba(255,255,255,0.3);
-            transform: scale(1.1);
+        .summary-stat .number {
+            font-size: 1.75rem;
+            font-weight: 700;
         }
 
-        .calc-display {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            text-align: right;
-            font-size: 2rem;
-            font-family: monospace;
-            border: 2px solid #e0e0e0;
-            margin-bottom: 15px;
-            min-height: 80px;
-            word-wrap: break-word;
-            word-break: break-all;
+        .summary-stat .label {
+            font-size: 0.75rem;
+            color: #718096;
         }
 
-        .calc-expression {
-            font-size: 0.9rem;
-            color: #666;
-            margin-bottom: 5px;
-            min-height: 20px;
-        }
-
-        .calc-result {
-            font-size: 2rem;
-            font-weight: bold;
-            color: #333;
-        }
-
-        .calc-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 10px;
-            margin-top: 15px;
-        }
-
-        .calc-btn {
-            padding: 18px 10px;
-            font-size: 1.2rem;
-            border: none;
-            border-radius: 12px;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-weight: 600;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            touch-action: manipulation;
-        }
-
-        .calc-btn.number {
+        .motivation-message {
+            margin: 1rem 0;
+            padding: 1rem;
             background: #f8f9fa;
-            color: #333;
-            border: 1px solid #e0e0e0;
+            border-radius: 12px;
         }
 
-        .calc-btn.number:hover,
-        .calc-btn.number:active {
-            background: #667eea;
-            color: white;
-            transform: scale(0.95);
-            border-color: #667eea;
+        .summary-buttons {
+            display: flex;
+            gap: 0.75rem;
+            justify-content: center;
+            flex-wrap: wrap;
         }
 
-        .calc-btn.operator {
-            background: #667eea;
-            color: white;
+        .hidden {
+            display: none;
         }
 
-        .calc-btn.operator:hover,
-        .calc-btn.operator:active {
-            background: #5a6fd8;
-            transform: scale(0.95);
-        }
-
-        .calc-btn.equals {
-            background: #27ae60;
-            color: white;
-            grid-column: span 2;
-        }
-
-        .calc-btn.equals:hover,
-        .calc-btn.equals:active {
-            background: #219a52;
-            transform: scale(0.97);
-        }
-
-        .calc-btn.clear {
-            background: #e74c3c;
-            color: white;
-        }
-
-        .calc-btn.clear:hover,
-        .calc-btn.clear:active {
-            background: #c0392b;
-            transform: scale(0.95);
-        }
-
-        /* Mobile Responsive Calculator - Fixed */
-        @media (max-width: 768px) {
-            .calculator-modal-content {
-                width: 95%;
-                margin: 10px auto;
-                padding: 15px;
-                max-width: 340px;
-                position: absolute;
-                top: 10px;
-                left: 50%;
-                transform: translateX(-50%) !important; /* Center on mobile initially */
-            }
-            
-            /* Allow dragging but keep in viewport */
-            .calculator-modal-content.dragging-mobile {
-                transform: none !important; /* Allow free drag when active */
-                margin: 0;
-            }
-
-            .calc-grid {
-                gap: 8px;
-            }
-
-            .calc-btn {
-                padding: 15px 8px;
-                font-size: 1.1rem;
-                min-height: 50px;
-                min-width: 50px;
-                border-radius: 10px;
-            }
-
-            .calc-display {
-                padding: 15px;
-                font-size: 1.5rem;
-                min-height: 70px;
-            }
-
-            .calc-expression {
-                font-size: 0.85rem;
-            }
-
-            .calc-result {
-                font-size: 1.8rem;
-            }
-
-            /* Draggable header for mobile */
-            .calculator-modal-header {
-                margin: -15px -15px 15px -15px;
-                padding: 12px 15px;
-                cursor: move;
-                touch-action: none;
-            }
-
-            .calculator-modal-header h3 {
-                font-size: 1rem;
-            }
-
-            .close-btn {
-                width: 36px;
-                height: 36px;
-                font-size: 1.3rem;
-                background: rgba(255,255,255,0.25);
-            }
-
-            .close-btn:active {
-                background: rgba(255,255,255,0.4);
-                transform: scale(0.95);
-            }
-
-            /* Drag indicator */
-            .calculator-modal-header::after {
-                content: '⋮⋮';
-                position: absolute;
-                left: 50%;
-                bottom: -8px;
-                transform: translateX(-50%);
-                color: rgba(255,255,255,0.6);
-                font-size: 1.2rem;
-                letter-spacing: 3px;
-            }
-
-            /* Memory buttons row */
-            [style*="grid-template-columns: repeat(2, 1fr)"] {
-                gap: 8px;
-            }
-            
-            [style*="grid-template-columns: repeat(2, 1fr)"] .calc-btn {
-                padding: 12px 8px;
-                font-size: 1rem;
-            }
-            
-            /* Scientific buttons row */
-            [style*="grid-template-columns: repeat(4, 1fr)"] {
-                gap: 8px;
-            }
-            
-            [style*="grid-template-columns: repeat(4, 1fr)"] .calc-btn {
-                padding: 12px 5px;
-                font-size: 0.9rem;
-            }
-        }
-
-        /* Small phones */
-        @media (max-width: 380px) {
-            .calculator-modal-content {
-                width: 98%;
-                padding: 12px;
-                max-width: 320px;
-            }
-            
-            .calc-btn {
-                padding: 12px 5px;
-                font-size: 1rem;
-                min-height: 45px;
-            }
-            
-            .calc-display {
-                padding: 12px;
-                min-height: 60px;
-            }
-            
-            .calc-result {
-                font-size: 1.5rem;
-            }
-        }
-
-        /* Desktop hover effects */
-        @media (min-width: 769px) {
-            .calculator-modal-header {
-                cursor: move;
-            }
-            
-            .calculator-modal-header:hover {
-                background: linear-gradient(135deg, #5a6fd8 0%, #6a3b9a 100%);
-            }
-        }
-
-        /* Dragging state */
-        .calculator-modal.dragging {
-            opacity: 0.95;
-            transition: none;
-        }
-
-        .calculator-modal.dragging .calculator-modal-content {
-            box-shadow: 0 15px 50px rgba(0,0,0,0.3);
-            transition: none;
-        }
-
-        /* Touch feedback */
-        .calc-btn:active {
-            transform: scale(0.95);
-            opacity: 0.8;
+        .encouragement-popup {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: white;
+            padding: 0.75rem 1.25rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            z-index: 1000;
+            border-left: 3px solid #e6a017;
         }
 
         @media (max-width: 768px) {
-            .calc-btn:active {
-                transform: scale(0.92);
-            }
-        }
-
-        @keyframes slideIn {
-            from { transform: translateY(-20px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        /* Mobile Responsive General */
-         @media (max-width: 768px) {
-            .header {
-                position: relative;
-            }
-            
             .nav-container {
                 flex-direction: column;
-                padding: 1rem;
             }
-
+            
             .nav-menu {
-                flex-direction: column;
-                width: 100%;
-                gap: 0.5rem;
-                margin-top: 1rem;
+                justify-content: center;
             }
             
-            .nav-menu li {
-                width: 100%;
-                text-align: center;
-            }
-            
-            .nav-menu a {
-                display: block;
-                padding: 0.5rem;
-            }
-            
-            body {
-                padding-top: 0;
-            }
-            
-            .practice-container {
-                margin-top: 20px;
-            }
-            
-            .practice-header {
-                flex-direction: column;
-                text-align: center;
-            }
-            
-            .practice-controls {
-                flex-direction: column;
-            }
-            
-            .practice-controls select,
-            .practice-controls button {
-                width: 100%;
-            }
-            
-            .practice-stats {
-                flex-direction: column;
-                gap: 10px;
-            }
-            
-            .summary-stats {
+            .stats-grid {
                 grid-template-columns: 1fr;
             }
             
-            .practice-navigation {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .action-buttons {
                 flex-direction: column;
+            }
+            
+            .summary-stats {
+                gap: 1rem;
             }
         }
     </style>
     
-    <!-- Auth Check Script -->
     <script>
         (function() {
             const token = localStorage.getItem('token');
-            if (!token) {
-                window.location.replace('/auth.html');
-                return;
-            }
+            if (!token) window.location.replace('/auth.html');
         })();
     </script>
 </head>
 <body>
     <header class="header">
         <nav class="nav-container">
-            <div class="logo">📚 JAMB Simulator 2026</div>
+            <div class="logo">JAMB Simulator 2026</div>
             <ul class="nav-menu">
                 <li><a href="home.html">Home</a></li>
-                <li><a href="practice.html" class="active">🎯 Practice</a></li>
-                <li><a href="flashcards.html">📇 Flashcards</a></li>
-                <li><a href="progress.html">📊 Progress</a></li>
-                <li><a href="planner.html">📅 Planner</a></li>
-                <li><a href="achievements.html">🏆 Achievements</a></li>
-                <li><a href="leaderboard.html">📊 Leaderboard</a></li>
-                <li><a href="#" id="adminLink" style="display: none;">Admin</a></li>
+                <li><a href="practice.html" class="active">Practice</a></li>
+                <li><a href="flashcards.html">Flashcards</a></li>
+                <li><a href="progress.html">Progress</a></li>
+                <li><a href="leaderboard.html">Leaderboard</a></li>
                 <li><a href="#" id="logoutBtn">Logout</a></li>
                 <li><span id="userInfo"></span></li>
-                <li><div id="streakDisplay" class="streak-display"></div></li>
             </ul>
         </nav>
     </header>
 
-    <div class="practice-container">
-        <div class="practice-header">
-            <div>
-                <h1>🎯 Practice Mode</h1>
-                <p>Learn at your own pace with instant feedback</p>
+    <div class="container">
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number" id="totalPracticed">0</div>
+                <div class="stat-label">Questions Practiced</div>
             </div>
-            <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
-                <button id="practiceCalculatorToggle" class="calculator-btn" onclick="togglePracticeCalculator()">
-                    🧮 Show Calculator
-                </button>
-                <div class="practice-stats">
-                    <div class="practice-stat">
-                        <div class="value" id="totalPracticed">0</div>
-                        <div class="label">Questions</div>
-                    </div>
-                    <div class="practice-stat">
-                        <div class="value" id="correctRate">0%</div>
-                        <div class="label">Accuracy</div>
-                    </div>
-                    <div class="practice-stat">
-                        <div class="value" id="streakCount">0</div>
-                        <div class="label">Streak 🔥</div>
-                    </div>
-                </div>
+            <div class="stat-card">
+                <div class="stat-number" id="correctRate">0%</div>
+                <div class="stat-label">Accuracy</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="streakCount">0</div>
+                <div class="stat-label">Current Streak</div>
             </div>
         </div>
 
- <div id="practiceSetup" class="practice-controls">
-            <select id="subjectSelect" class="subject-select">
-                <option value="">Select Subject</option>
-                <option value="1">Use of English</option>
-                <option value="2">Mathematics</option>
-                <option value="3">Physics</option>
-                <option value="4">Chemistry</option>
-                <option value="5">Biology</option>
-            </select>
-            
-            <select id="topicSelect" class="topic-select" disabled>
-                <option value="">Select Topic</option>
-            </select>
-            
-            <select id="difficultySelect" class="difficulty-select">
-                <option value="all">All Difficulties</option>
-                <option value="easy">Easy</option>
-                <option value="medium">Medium</option>
-                <option value="hard">Hard</option>
-            </select>
-            
-            <select id="questionCount" class="difficulty-select">
-                <option value="5">5 Questions</option>
-                <option value="10" selected>10 Questions</option>
-                <option value="15">15 Questions</option>
-                <option value="20">20 Questions</option>
-            </select>
-            
-            <button class="start-practice-btn" onclick="startPractice()">Start Practice</button>
+        <!-- Setup View -->
+        <div id="practiceSetup">
+            <div class="setup-panel">
+                <div class="setup-title">Practice Mode</div>
+                
+               <div class="form-group">
+    <label>Subject</label>
+    <select id="subjectSelect">
+        <option value="">Loading subjects...</option>
+    </select>
+</div>
+                
+                <div class="form-group">
+                    <label>Topic (Optional)</label>
+                    <select id="topicSelect" disabled>
+                        <option value="all">All Topics</option>
+                    </select>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Difficulty</label>
+                        <select id="difficultySelect">
+                            <option value="all">All Levels</option>
+                            <option value="easy">Easy</option>
+                            <option value="medium">Medium</option>
+                            <option value="hard">Hard</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Number of Questions</label>
+                        <input type="number" id="questionCount" min="5" max="50" value="10">
+                    </div>
+                </div>
+                
+                <button class="btn btn-primary" onclick="startPractice()">Start Practice</button>
+            </div>
         </div>
 
-        <!-- Practice Area (Hidden initially) -->
-        <div id="practiceArea" style="display: none;">
-            <div class="practice-question">
-                <div class="question-header">
-                    <div class="question-tags">
-                        <span class="tag subject" id="currentSubject">Mathematics</span>
-                        <span class="tag topic" id="currentTopic">Algebra</span>
-                        <span class="tag difficulty" id="currentDifficulty">Medium</span>
-                    </div>
-                    <div class="question-progress">
-                        <span id="currentQuestionNum">1</span>/<span id="totalQuestions">10</span>
-                    </div>
+        <!-- Practice Area -->
+        <div id="practiceArea" class="hidden">
+            <div class="practice-header">
+                <div>
+                    <span class="info-badge" id="currentSubject">-</span>
+                    <span class="info-badge" id="currentTopic">-</span>
+                    <span class="info-badge" id="currentDifficulty">-</span>
                 </div>
-                
-                <div class="question-text" id="questionText">
-                    Loading question...
-                </div>
-                
-                <div class="practice-options" id="optionsContainer"></div>
+                <div class="info-badge" id="progressText">Question 0/0</div>
+            </div>
+            
+            <div class="question-card">
+                <div class="question-text" id="questionText">Loading...</div>
+                <div class="options-list" id="optionsContainer"></div>
                 
                 <div class="feedback-box" id="feedbackBox">
                     <div id="feedbackMessage"></div>
-                    <div class="explanation" id="explanation"></div>
+                    <div class="explanation-text" id="explanation"></div>
                 </div>
-                
-                <div class="practice-navigation">
-                    <button class="practice-btn check-btn" id="checkBtn" onclick="checkAnswer()">Check Answer</button>
-                    <button class="practice-btn next-btn" id="nextBtn" onclick="nextQuestion()" disabled>Next Question</button>
-                </div>
+            </div>
+            
+            <div class="action-buttons">
+                <button class="action-btn action-btn-check" id="checkBtn" onclick="checkAnswer()">Check Answer</button>
+                <button class="action-btn action-btn-next" id="nextBtn" onclick="nextQuestion()" disabled>Next</button>
             </div>
         </div>
 
-        <!-- Practice Summary (Hidden initially) -->
-        <div id="practiceSummary" style="display: none;" class="practice-summary">
-            <h2>🎉 Practice Complete!</h2>
-            
-            <div class="summary-stats">
-                <div class="mastered-card">
-                    <div class="value" id="summaryCorrect">0</div>
-                    <div>Correct</div>
+        <!-- Summary View -->
+        <div id="practiceSummary" class="hidden">
+            <div class="summary-panel">
+                <h2 style="margin-bottom: 0.5rem;">Session Complete!</h2>
+                
+                <div class="summary-stats">
+                    <div class="summary-stat">
+                        <div class="number" id="summaryCorrect">0</div>
+                        <div class="label">Correct</div>
+                    </div>
+                    <div class="summary-stat">
+                        <div class="number" id="summaryWrong">0</div>
+                        <div class="label">Wrong</div>
+                    </div>
+                    <div class="summary-stat">
+                        <div class="number" id="summaryAccuracy">0%</div>
+                        <div class="label">Accuracy</div>
+                    </div>
                 </div>
-                <div class="review-card">
-                    <div class="value" id="summaryWrong">0</div>
-                    <div>Wrong</div>
+                
+                <div class="motivation-message" id="motivationalMessage"></div>
+                
+                <div class="summary-buttons">
+                    <button class="btn btn-primary" onclick="practiceAgain()">Practice Again</button>
+                    <button class="btn btn-secondary" onclick="reviewMistakes()">Review Mistakes</button>
+                    <button class="btn btn-secondary" onclick="sharePracticeResults()">Share</button>
                 </div>
-                <div class="struggle-card">
-                    <div class="value" id="summaryAccuracy">0%</div>
-                    <div>Accuracy</div>
-                </div>
-            </div>
-            
-            <div id="motivationalMessage" class="motivational-message"></div>
-            
-            <div style="display: flex; gap: 15px; margin-top: 30px; flex-wrap: wrap;">
-                <button class="practice-btn next-btn" onclick="practiceAgain()">Practice Again</button>
-                <button class="practice-btn check-btn" onclick="reviewMistakes()">Review Mistakes</button>
-                <button class="practice-btn" style="background: #25D366; color: white;" onclick="sharePracticeResults()">
-                    📱 Share on WhatsApp
-                </button>
-            </div>
-        </div>
-        
-        <!-- Calculator Modal for Practice -->
-        <div id="practiceCalculatorModal" class="calculator-modal" style="display: none;">
-            <div class="calculator-modal-content">
-                <div class="calculator-modal-header">
-                    <h3>🧮 Calculator</h3>
-                    <button onclick="closePracticeCalculator()" class="close-btn">✖</button>
-                </div>
-                <div id="practiceCalculator" class="exam-calculator"></div>
             </div>
         </div>
     </div>

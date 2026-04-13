@@ -100,6 +100,132 @@ router.get('/difficulties', auth, async (req, res) => {
         console.error('Error fetching difficulties:', error);
         res.status(500).json({ error: 'Failed to load difficulties' });
     }
+
+// Add this to server/routes/practice.js
+
+// Generate practice questions using AI
+router.post('/generate', authenticateToken, async (req, res) => {
+    try {
+        const { subject, topic, count, difficulty } = req.body;
+        
+        if (!subject || !count) {
+            return res.status(400).json({ error: 'Subject and count are required' });
+        }
+        
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (!apiKey) {
+            return res.status(500).json({ error: 'AI service not configured' });
+        }
+        
+        // Build the prompt for JAMB-style questions
+        let prompt = `Generate ${count} multiple-choice practice questions for JAMB (Joint Admissions and Matriculation Board) ${subject} exam.`;
+        
+        if (topic && topic !== 'all') {
+            prompt += ` Topic: ${topic}.`;
+        }
+        
+        if (difficulty && difficulty !== 'all') {
+            prompt += ` Difficulty level: ${difficulty}.`;
+        }
+        
+        prompt += `
+
+Each question must be in this EXACT JSON format:
+{
+    "question": "The question text",
+    "options": {
+        "A": "First option",
+        "B": "Second option", 
+        "C": "Third option",
+        "D": "Fourth option"
+    },
+    "correct_answer": "A/B/C/D",
+    "explanation": "Brief explanation of why this is correct (2-3 sentences)"
+}
+
+Requirements:
+- Questions should be similar to actual JAMB exam style
+- Distractors (wrong options) should be plausible but clearly incorrect
+- Include a mix of easy, medium, and hard questions
+- Focus on high-yield topics that frequently appear in JAMB
+- Each explanation should teach the concept, not just state the answer
+
+Return ONLY a valid JSON array of ${count} questions. No extra text.
+
+Example:
+[
+    {
+        "question": "What is the capital of Nigeria?",
+        "options": {
+            "A": "Lagos",
+            "B": "Abuja",
+            "C": "Kano",
+            "D": "Ibadan"
+        },
+        "correct_answer": "B",
+        "explanation": "Abuja became the capital of Nigeria in 1991, replacing Lagos. It was chosen for its central location and planned infrastructure."
+    }
+]
+
+Generate ${count} questions now. Return ONLY the JSON array.`;
+
+        console.log(`🤖 Generating ${count} AI questions for ${subject}${topic ? ` - ${topic}` : ''}`);
+        
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: { temperature: 0.7, maxOutputTokens: 8192 }
+            })
+        });
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Gemini API returned ${response.status}`);
+        }
+        
+        const data = await response.json();
+        const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        
+        if (!generatedText) {
+            throw new Error('No response from Gemini API');
+        }
+        
+        // Extract JSON array
+        let questions = [];
+        const jsonMatch = generatedText.match(/\[\s*\{[\s\S]*\}\s*\]/);
+        if (jsonMatch) {
+            questions = JSON.parse(jsonMatch[0]);
+        } else {
+            questions = JSON.parse(generatedText);
+        }
+        
+        if (!Array.isArray(questions) || questions.length === 0) {
+            throw new Error('No questions generated');
+        }
+        
+        // Validate each question has required fields
+        questions = questions.slice(0, count).map(q => ({
+            question: q.question || q.text || 'No question provided',
+            options: {
+                A: q.options?.A || q.option_a || 'Option A',
+                B: q.options?.B || q.option_b || 'Option B',
+                C: q.options?.C || q.option_c || 'Option C',
+                D: q.options?.D || q.option_d || 'Option D'
+            },
+            correct_answer: q.correct_answer || q.correctAnswer || 'A',
+            explanation: q.explanation || 'No explanation available'
+        }));
+        
+        console.log(`✅ Successfully generated ${questions.length} AI questions`);
+        
+        res.json({ success: true, count: questions.length, questions: questions });
+        
+    } catch (error) {
+        console.error('❌ AI generation error:', error.message);
+        res.status(500).json({ error: 'Failed to generate questions', details: error.message });
+    }
 });
 
 module.exports = router;

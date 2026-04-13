@@ -7,7 +7,6 @@ require('dotenv').config();
 // Fix SSL configuration for Render
 const databaseUrl = process.env.DATABASE_URL;
 
-// Add the recommended SSL parameters
 const connectionString = databaseUrl.includes('?') 
     ? databaseUrl + '&uselibpqcompat=true' 
     : databaseUrl + '?uselibpqcompat=true';
@@ -15,8 +14,8 @@ const connectionString = databaseUrl.includes('?')
 const pool = new Pool({
     connectionString: connectionString,
     ssl: {
-        rejectUnauthorized: false,  // Still needed for self-signed certs
-        mode: 'require'              // Explicitly set SSL mode
+        rejectUnauthorized: false,
+        mode: 'require'
     }
 });
 
@@ -27,14 +26,10 @@ async function createTables() {
         console.log('📦 Setting up database tables...');
         await client.query('BEGIN');
         
-        // ============================================
-        // CREATE TABLES
-        // ============================================
-        
-        // Create subjects table
+        // Create subjects table with ID as primary key
         await client.query(`
             CREATE TABLE IF NOT EXISTS subjects (
-                id SERIAL PRIMARY KEY,
+                id INTEGER PRIMARY KEY,
                 name VARCHAR(100) NOT NULL,
                 code VARCHAR(10) NOT NULL UNIQUE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -112,90 +107,101 @@ async function createTables() {
         console.log('✅ indexes created');
         
         // ============================================
-        // INSERT SUBJECTS
+        // INSERT ALL 22 JAMB SUBJECTS
         // ============================================
         
         const subjectCheck = await client.query(`SELECT COUNT(*) FROM subjects`);
         if (parseInt(subjectCheck.rows[0].count) === 0) {
             await client.query(`
-                INSERT INTO subjects (name, code) VALUES
-                ('Use of English', 'ENG'),
-                ('Mathematics', 'MTH'),
-                ('Physics', 'PHY'),
-                ('Chemistry', 'CHM'),
-                ('Biology', 'BIO');
+                INSERT INTO subjects (id, name, code) VALUES
+                (1, 'Use of English', 'ENG'),
+                (2, 'Mathematics', 'MTH'),
+                (3, 'Physics', 'PHY'),
+                (4, 'Chemistry', 'CHM'),
+                (5, 'Biology', 'BIO'),
+                (6, 'Agricultural Science', 'AGR'),
+                (7, 'Computer Studies', 'CSC'),
+                (8, 'Literature in English', 'LIT'),
+                (9, 'Government', 'GOV'),
+                (10, 'History', 'HIS'),
+                (11, 'Christian Religious Studies', 'CRS'),
+                (12, 'Islamic Studies', 'IRS'),
+                (13, 'French', 'FRE'),
+                (14, 'Yoruba', 'YRB'),
+                (15, 'Igbo', 'IGB'),
+                (16, 'Hausa', 'HAU'),
+                (17, 'Music', 'MUS'),
+                (18, 'Fine Arts', 'ART'),
+                (19, 'Economics', 'ECO'),
+                (20, 'Commerce', 'COM'),
+                (21, 'Principles of Accounts', 'ACC'),
+                (22, 'Geography', 'GEO');
             `);
-            console.log('✅ 5 subjects inserted');
+            console.log('✅ 22 subjects inserted');
         } else {
             console.log('✅ subjects already exist');
         }
 
-     // ============================================
-// INSERT QUESTIONS FROM JSON FILE
-// ============================================
-
-// ALWAYS clear existing questions first
-console.log('🗑️ Clearing existing questions...');
-await client.query(`DELETE FROM questions;`);
-await client.query(`ALTER SEQUENCE questions_id_seq RESTART WITH 1;`);
-console.log('✅ Cleared existing questions');
-
-console.log('📝 Loading questions from JSON file...');
-
-try {
-    // Read questions from JSON file
-    const questionsFilePath = path.join(__dirname, '../data/questions.json');
-    const questionsData = await fs.readFile(questionsFilePath, 'utf8');
-    const questions = JSON.parse(questionsData);
-    
-    console.log(`✅ Loaded ${questions.length} questions from JSON file`);
-    
-    // Insert questions in batches to avoid overwhelming the database
-    const BATCH_SIZE = 100;
-    let insertedCount = 0;
-    
-    for (let i = 0; i < questions.length; i += BATCH_SIZE) {
-        const batch = questions.slice(i, i + BATCH_SIZE);
+        // ============================================
+        // INSERT QUESTIONS FROM JSON FILE
+        // ============================================
         
-        // Build parameterized query for this batch
-        const values = [];
-        const placeholders = [];
+        console.log('🗑️ Clearing existing questions...');
+        await client.query(`DELETE FROM questions;`);
+        await client.query(`ALTER SEQUENCE questions_id_seq RESTART WITH 1;`);
+        console.log('✅ Cleared existing questions');
         
-        batch.forEach((q, index) => {
-            const base = index * 10; // 10 fields per question
-            placeholders.push(`($${base+1}, $${base+2}, $${base+3}, $${base+4}, $${base+5}, $${base+6}, $${base+7}, $${base+8}, $${base+9}, $${base+10})`);
-            values.push(
-                q.subject_id,
-                q.question_text,
-                q.option_a,
-                q.option_b,
-                q.option_c,
-                q.option_d,
-                q.correct_answer,
-                q.explanation || null,
-                q.topic || null,
-                q.difficulty || 'medium'
-            );
-        });
+        console.log('📝 Loading questions from JSON file...');
         
-        const query = `
-            INSERT INTO questions 
-            (subject_id, question_text, option_a, option_b, option_c, option_d, correct_answer, explanation, topic, difficulty) 
-            VALUES ${placeholders.join(', ')}
-        `;
-        
-        await client.query(query, values);
-        insertedCount += batch.length;
-        console.log(`✅ Inserted batch ${Math.floor(i/BATCH_SIZE) + 1}/${Math.ceil(questions.length/BATCH_SIZE)} (${insertedCount}/${questions.length} questions)`);
-    }
-    
-    console.log(`🎉 Successfully inserted ${insertedCount} questions!`);
-    
-} catch (error) {
-    console.error('❌ Error loading questions from JSON file:', error.message);
-    console.log('💡 Tip: Make sure the questions.json file exists in server/data/ directory');
-    throw error;
-}
+        try {
+            const questionsFilePath = path.join(__dirname, '../data/questions.json');
+            const questionsData = await fs.readFile(questionsFilePath, 'utf8');
+            const questions = JSON.parse(questionsData);
+            
+            console.log(`✅ Loaded ${questions.length} questions from JSON file`);
+            
+            const BATCH_SIZE = 100;
+            let insertedCount = 0;
+            
+            for (let i = 0; i < questions.length; i += BATCH_SIZE) {
+                const batch = questions.slice(i, i + BATCH_SIZE);
+                const values = [];
+                const placeholders = [];
+                
+                batch.forEach((q, index) => {
+                    const base = index * 10;
+                    placeholders.push(`($${base+1}, $${base+2}, $${base+3}, $${base+4}, $${base+5}, $${base+6}, $${base+7}, $${base+8}, $${base+9}, $${base+10})`);
+                    values.push(
+                        q.subject_id,
+                        q.question_text,
+                        q.option_a,
+                        q.option_b,
+                        q.option_c,
+                        q.option_d,
+                        q.correct_answer,
+                        q.explanation || null,
+                        q.topic || null,
+                        q.difficulty || 'medium'
+                    );
+                });
+                
+                const query = `
+                    INSERT INTO questions 
+                    (subject_id, question_text, option_a, option_b, option_c, option_d, correct_answer, explanation, topic, difficulty) 
+                    VALUES ${placeholders.join(', ')}
+                `;
+                
+                await client.query(query, values);
+                insertedCount += batch.length;
+                console.log(`✅ Inserted batch ${Math.floor(i/BATCH_SIZE) + 1}/${Math.ceil(questions.length/BATCH_SIZE)} (${insertedCount}/${questions.length} questions)`);
+            }
+            
+            console.log(`🎉 Successfully inserted ${insertedCount} questions!`);
+            
+        } catch (error) {
+            console.error('❌ Error loading questions from JSON file:', error.message);
+            console.log('💡 Tip: Make sure the questions.json file exists in server/data/ directory');
+        }
         
         // ============================================
         // CREATE VERIFICATION FUNCTION
@@ -210,7 +216,7 @@ try {
                 FROM subjects s
                 LEFT JOIN questions q ON s.id = q.subject_id
                 GROUP BY s.id, s.name
-                ORDER BY s.name;
+                ORDER BY s.id;
             END;
             $func$ LANGUAGE plpgsql;
         `);
@@ -218,7 +224,6 @@ try {
         await client.query('COMMIT');
         
         console.log('🎉 Database setup complete!');
-        console.log('📊 You can now use practice and exam modes!');
         
         // Display question counts by subject
         const counts = await client.query(`
@@ -226,7 +231,7 @@ try {
             FROM subjects s 
             LEFT JOIN questions q ON s.id = q.subject_id 
             GROUP BY s.id, s.name 
-            ORDER BY s.name
+            ORDER BY s.id
         `);
         
         console.log('\n📊 Question Summary:');
