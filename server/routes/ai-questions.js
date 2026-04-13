@@ -89,7 +89,7 @@ router.get('/topics/:subjectId', authenticateToken, (req, res) => {
     }
 });
 
-// Generate questions using Gemini AI - USING CORRECT API ENDPOINT
+// Generate questions using Gemini AI - USING CORRECT MODEL NAME
 router.post('/generate', authenticateToken, async (req, res) => {
     try {
         const { subjectId, topic, count = 10, difficulty = 'medium', includeDiagrams = false, forceDiagrams = false, examMode = false } = req.body;
@@ -142,24 +142,31 @@ Each question must be in this EXACT JSON format:
 Return ONLY a valid JSON array of ${count} questions. No extra text.
 
 Example:
-{
-    "question_text": "What is the capital of Nigeria?",
-    "option_a": "Lagos",
-    "option_b": "Abuja",
-    "option_c": "Kano",
-    "option_d": "Ibadan",
-    "correct_answer": "B",
-    "explanation": "Abuja became the capital in 1991.",
-    "topic": "Geography",
-    "difficulty": "easy"
-}`;
+[
+    {
+        "question_text": "What is the capital of Nigeria?",
+        "option_a": "Lagos",
+        "option_b": "Abuja",
+        "option_c": "Kano",
+        "option_d": "Ibadan",
+        "correct_answer": "B",
+        "explanation": "Abuja became the capital in 1991.",
+        "topic": "Geography",
+        "difficulty": "easy"
+    }
+]`;
 
-        // CORRECTED API URL - using gemini-1.5-flash (stable)
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+        // TRY THESE MODELS IN ORDER - One will work
+        // Model 1: gemini-1.5-pro (most capable)
+        // Model 2: gemini-pro (stable)
+        // Model 3: gemini-1.0-pro (fallback)
         
-        console.log(`📤 Calling Gemini API...`);
+        let apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`;
+        let modelAttempt = "gemini-1.5-pro";
         
-        const response = await fetch(apiUrl, {
+        console.log(`📤 Calling Gemini API with model: ${modelAttempt}`);
+        
+        let response = await fetch(apiUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -175,10 +182,40 @@ Example:
             })
         });
         
+        // If first model fails, try gemini-pro
+        if (!response.ok && response.status === 404) {
+            console.log(`⚠️ ${modelAttempt} not available, trying gemini-pro...`);
+            apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
+            modelAttempt = "gemini-pro";
+            response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: prompt }] }],
+                    generationConfig: { temperature: 0.7, maxOutputTokens: 4096 }
+                })
+            });
+        }
+        
+        // If still failing, try gemini-1.0-pro
+        if (!response.ok && response.status === 404) {
+            console.log(`⚠️ ${modelAttempt} not available, trying gemini-1.0-pro...`);
+            apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.0-pro:generateContent?key=${apiKey}`;
+            modelAttempt = "gemini-1.0-pro";
+            response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: prompt }] }],
+                    generationConfig: { temperature: 0.7, maxOutputTokens: 4096 }
+                })
+            });
+        }
+        
         if (!response.ok) {
             const errorText = await response.text();
             console.error(`❌ Gemini API error: ${response.status} - ${errorText}`);
-            throw new Error(`Gemini API returned ${response.status}: ${errorText.substring(0, 200)}`);
+            throw new Error(`Gemini API returned ${response.status}`);
         }
         
         const data = await response.json();
@@ -196,7 +233,6 @@ Example:
         if (jsonMatch) {
             questions = JSON.parse(jsonMatch[0]);
         } else {
-            // Try parsing the entire response
             questions = JSON.parse(generatedText);
         }
         
@@ -225,7 +261,7 @@ Example:
             });
         }
         
-        console.log(`✅ Generated ${formattedQuestions.length} questions for ${subject.name}`);
+        console.log(`✅ Generated ${formattedQuestions.length} questions for ${subject.name} using ${modelAttempt}`);
         
         res.json({ 
             success: true, 

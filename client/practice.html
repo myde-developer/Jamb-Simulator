@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JAMB Simulator - Practice Mode</title>
     <link rel="manifest" href="/manifest.json">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <meta name="apple-mobile-web-app-title" content="JAMB Simulator">
@@ -12,6 +13,103 @@
     <meta name="theme-color" content="#1a1a2e">
     
     <style>
+/* ===== UNIVERSAL FIX FOR DESKTOP SITE MODE ===== */
+
+/* Ensure all clickable elements work properly */
+button,
+a,
+.subject-tab,
+.filter-btn,
+.palette-item,
+.option,
+.nav-menu a,
+.btn,
+.action-btn,
+.rating-btn,
+.deck-card,
+.flashcard {
+    cursor: pointer;
+    position: relative;
+    z-index: auto;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Fix for sticky headers that might block clicks */
+.header {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    background: white;
+}
+
+/* Ensure main content doesn't get hidden under header */
+main, .container, .practice-container, .flashcards-container, .results-container {
+    position: relative;
+    z-index: 1;
+}
+
+/* Fix for subject tabs - ensure they're clickable */
+.subject-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    position: relative;
+    z-index: 10;
+}
+
+.subject-tab {
+    cursor: pointer;
+    pointer-events: auto;
+    position: relative;
+    z-index: 20;
+}
+
+/* Fix for palette items */
+.palette-grid {
+    display: grid;
+    gap: 10px;
+}
+
+.palette-item {
+    cursor: pointer;
+    pointer-events: auto;
+    position: relative;
+    z-index: 5;
+}
+
+/* Override any transform that might break click area */
+.palette-item.current,
+.subject-tab.active {
+    transform: none !important;
+}
+
+/* Ensure all buttons are clickable on desktop view */
+@media (min-width: 769px) {
+    .subject-tab,
+    .filter-btn,
+    .palette-item,
+    .option,
+    .nav-menu a,
+    .btn,
+    .action-btn {
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .subject-tab:hover,
+    .filter-btn:hover,
+    .palette-item:hover,
+    .option:hover {
+        transform: translateY(-2px);
+    }
+    
+    /* Fix for any elements with transform that might block clicks */
+    .subject-tab:active,
+    .filter-btn:active,
+    .palette-item:active {
+        transform: scale(0.98);
+    }
+}
         * {
             margin: 0;
             padding: 0;

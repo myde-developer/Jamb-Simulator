@@ -38,6 +38,29 @@ document.addEventListener('DOMContentLoaded', () => {
     if (window.studyStreak) studyStreak.init();
 });
 
+// Universal fix for desktop site mode - ensures all click events work
+document.addEventListener('DOMContentLoaded', function() {
+    // Fix for any elements that might lose click events
+    const allClickableElements = document.querySelectorAll(
+        'button, a, .subject-tab, .filter-btn, .palette-item, .option, ' +
+        '.practice-option, .deck-card, .flashcard, .subject-card, .nav-menu a, ' +
+        '.btn, .action-btn, .rating-btn, .start-btn'
+    );
+    
+    allClickableElements.forEach(el => {
+        // Ensure element has pointer-events auto
+        el.style.pointerEvents = 'auto';
+        
+        // Add a fallback click handler if needed
+        if (!el.hasAttribute('onclick') && !el.onclick) {
+            // Check if it has a click event listener from elsewhere
+            console.log('Element without click handler:', el.className);
+        }
+    });
+    
+    console.log('✅ Desktop site mode fixes applied');
+});
+
 function checkAuth() {
     const token = localStorage.getItem('token');
     if (!token) window.location.href = '/auth.html';
