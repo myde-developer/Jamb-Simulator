@@ -89,7 +89,7 @@ router.get('/topics/:subjectId', authenticateToken, (req, res) => {
     }
 });
 
-// Generate questions using Gemini AI - USING CORRECT MODEL NAME
+// Generate questions using Gemini AI - USING CORRECT MODELS FROM YOUR LIST
 router.post('/generate', authenticateToken, async (req, res) => {
     try {
         const { subjectId, topic, count = 10, difficulty = 'medium', includeDiagrams = false, forceDiagrams = false, examMode = false } = req.body;
@@ -156,17 +156,13 @@ Example:
     }
 ]`;
 
-        // TRY THESE MODELS IN ORDER - One will work
-        // Model 1: gemini-1.5-pro (most capable)
-        // Model 2: gemini-pro (stable)
-        // Model 3: gemini-1.0-pro (fallback)
+        // USE THE CORRECT MODEL FROM YOUR LIST - gemini-2.5-flash is available!
+        const modelName = 'gemini-2.5-flash';  // This is in your list!
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
         
-        let apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`;
-        let modelAttempt = "gemini-1.5-pro";
+        console.log(`📤 Calling Gemini API with model: ${modelName}`);
         
-        console.log(`📤 Calling Gemini API with model: ${modelAttempt}`);
-        
-        let response = await fetch(apiUrl, {
+        const response = await fetch(apiUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -175,42 +171,12 @@ Example:
                 }],
                 generationConfig: { 
                     temperature: 0.7, 
-                    maxOutputTokens: 4096,
+                    maxOutputTokens: 8192,
                     topP: 0.95,
-                    topK: 40
+                    topK: 64
                 }
             })
         });
-        
-        // If first model fails, try gemini-pro
-        if (!response.ok && response.status === 404) {
-            console.log(`⚠️ ${modelAttempt} not available, trying gemini-pro...`);
-            apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
-            modelAttempt = "gemini-pro";
-            response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: prompt }] }],
-                    generationConfig: { temperature: 0.7, maxOutputTokens: 4096 }
-                })
-            });
-        }
-        
-        // If still failing, try gemini-1.0-pro
-        if (!response.ok && response.status === 404) {
-            console.log(`⚠️ ${modelAttempt} not available, trying gemini-1.0-pro...`);
-            apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.0-pro:generateContent?key=${apiKey}`;
-            modelAttempt = "gemini-1.0-pro";
-            response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: prompt }] }],
-                    generationConfig: { temperature: 0.7, maxOutputTokens: 4096 }
-                })
-            });
-        }
         
         if (!response.ok) {
             const errorText = await response.text();
@@ -261,7 +227,7 @@ Example:
             });
         }
         
-        console.log(`✅ Generated ${formattedQuestions.length} questions for ${subject.name} using ${modelAttempt}`);
+        console.log(`✅ Generated ${formattedQuestions.length} questions for ${subject.name}`);
         
         res.json({ 
             success: true, 
@@ -275,6 +241,62 @@ Example:
             error: 'Failed to generate questions', 
             details: error.message 
         });
+    }
+});
+
+// Generate diagram using Gemini - USING gemini-3-pro-image-preview from your list
+router.post('/generate-diagram', authenticateToken, async (req, res) => {
+    try {
+        const { prompt } = req.body;
+        
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (!apiKey) {
+            return res.status(500).json({ error: 'AI service not configured' });
+        }
+        
+        const modelName = 'gemini-3-pro-image-preview';  // This is in your list for images!
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+        
+        console.log(`🎨 Generating diagram with model: ${modelName}`);
+        
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [{
+                        text: `Create a clear, educational diagram: ${prompt}. 
+                        Style: Clean black and white line drawing suitable for exam questions.
+                        Include all labels and measurements as specified.
+                        Resolution: 4K, Aspect ratio: 16:9, Format: PNG.`
+                    }]
+                }],
+                generationConfig: {
+                    temperature: 0.2,
+                    responseModalities: ["TEXT", "IMAGE"]
+                }
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Gemini API returned ${response.status}`);
+        }
+        
+        const data = await response.json();
+        const imagePart = data.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+        
+        if (imagePart && imagePart.inlineData) {
+            res.json({ 
+                success: true, 
+                diagram_url: `data:image/png;base64,${imagePart.inlineData.data}` 
+            });
+        } else {
+            res.json({ success: false, error: 'No image generated' });
+        }
+        
+    } catch (error) {
+        console.error('Diagram generation error:', error.message);
+        res.status(500).json({ error: error.message });
     }
 });
 
