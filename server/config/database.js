@@ -59,7 +59,7 @@ async function createTables() {
                 option_b TEXT NOT NULL,
                 option_c TEXT NOT NULL,
                 option_d TEXT NOT NULL,
-                correct_answer CHAR(1) CHECK (correct_answer IN ('A','B','C','D')),
+                correct_answer VARCHAR(20) CHECK (correct_answer IN ('A','B','C','D')),
                 explanation TEXT,
                 topic VARCHAR(100),
                 difficulty VARCHAR(10) CHECK (difficulty IN ('easy','medium','hard')),
