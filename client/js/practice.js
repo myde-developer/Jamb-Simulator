@@ -224,44 +224,36 @@ async function loadPracticeQuestions() {
         
         if (practiceSetup) practiceSetup.style.display = 'none';
         if (practiceArea) practiceArea.style.display = 'block';
-        if (questionText) questionText.textContent = 'Generating questions...';
+        if (questionText) questionText.textContent = 'Loading questions...';
         
         const token = localStorage.getItem('token');
         
-        console.log('Generating questions for:', {
-            subjectId: parseInt(practiceState.subject),
-            topic: practiceState.topic,
-            count: practiceState.count,
-            difficulty: practiceState.difficulty || 'medium'
-        });
-        
-        const response = await fetch(`${API_BASE}/api/ai-questions/generate`, {
+        // Use the existing practice endpoint (which uses DATABASE only)
+        const response = await fetch(`${API_BASE}/api/practice/questions`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({
-                subjectId: parseInt(practiceState.subject),
+                subject_id: parseInt(practiceState.subject),
                 topic: practiceState.topic,
-                count: practiceState.count,
-                difficulty: practiceState.difficulty || 'medium',
-                examMode: false
+                difficulty: practiceState.difficulty,
+                count: practiceState.count
             })
         });
         
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Failed to generate questions');
+            throw new Error('Failed to fetch questions');
         }
         
-        const data = await response.json();
-        let questions = data.questions;
+        let questions = await response.json();
         
         if (!questions || questions.length === 0) {
-            throw new Error('No questions generated');
+            throw new Error('No questions available for this selection');
         }
         
+        // Randomize options for each question
         questions = questions.map(q => randomizeQuestionOptions(q));
         
         practiceState.questions = questions;
@@ -274,7 +266,7 @@ async function loadPracticeQuestions() {
         
     } catch (error) {
         console.error('Error:', error);
-        alert(`Failed to generate questions: ${error.message}`);
+        alert(`Failed to load questions: ${error.message}`);
         resetPractice();
     }
 }

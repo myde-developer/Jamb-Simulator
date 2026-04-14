@@ -16,8 +16,8 @@ async function mergeQuestions() {
   console.log('🔍 Scanning for batch files in data folder...');
   console.log(`📁 Data directory: ${batchesDir}`);
   
-  // Read all batch files (1-30)
-  for (let i = 1; i <= 30; i++) {
+  // Read all batch files (1-93)
+  for (let i = 1; i <= 93; i++) {
     const batchFile = path.join(batchesDir, `questions-batch-${i}.json`);
     
     try {

@@ -1,4 +1,4 @@
-// client/js/flashcards.js - FINAL VERSION with ALL 22 SUBJECTS
+// client/js/flashcards.js - AI-Powered for Flashcards Only
 const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://localhost:5000'
     : 'https://jamb-simulator-api.onrender.com';
@@ -51,7 +51,6 @@ const allSubjectsList = {
         topics: ['Basic Concepts', 'Earth Structure', 'Rocks & Minerals', 'Landforms', 'Weather & Climate', 'Water Bodies', 'Vegetation & Soils', 'Population Geography', 'Settlement Geography', 'Economic Geography', 'Environmental Issues', 'Map Reading', 'GIS'] }
 };
 
-// Flashcards state
 let flashcardState = {
     deck: null,
     currentIndex: 0,
@@ -147,13 +146,6 @@ async function loadTopics() {
     
     if (!subjectId || !topicSelect) return;
     
-    if (!subjectId) {
-        topicSelect.innerHTML = '<option value="">Select Topic</option>';
-        topicSelect.disabled = true;
-        return;
-    }
-    
-    // Try to get topics from local data first
     const subject = allSubjectsList[parseInt(subjectId)];
     if (subject && subject.topics) {
         let options = '<option value="">Select Topic</option>';
@@ -165,7 +157,6 @@ async function loadTopics() {
         return;
     }
     
-    // Fallback to API
     try {
         const token = localStorage.getItem('token');
         const response = await fetch(`${API_BASE}/api/ai-questions/topics/${subjectId}`, {
@@ -260,7 +251,7 @@ function showSetup(editDeckId = null) {
         if (deck) {
             document.getElementById('setupTitle').textContent = 'Edit Deck';
             document.getElementById('deckName').value = deck.name;
-            document.getElementById('subjectSelect').value = getSubjectId(deck.subject);
+            document.getElementById('subjectSelect').value = deck.subject_id;
             document.getElementById('subjectSelect').dispatchEvent(new Event('change'));
             setTimeout(() => {
                 if (deck.topic) document.getElementById('topicSelect').value = deck.topic;
@@ -324,8 +315,7 @@ async function startFlashcards() {
                 subjectId: parseInt(subjectId),
                 topic: topic !== 'Select Topic' ? topic : null,
                 count: count,
-                difficulty: 'medium',
-                examMode: false
+                difficulty: 'medium'
             })
         });
         
@@ -335,7 +325,7 @@ async function startFlashcards() {
         }
         
         const data = await response.json();
-        const aiFlashcards = data.questions;
+        const aiFlashcards = data.flashcards;
         
         if (!aiFlashcards || aiFlashcards.length === 0) {
             throw new Error('No flashcards generated');
@@ -347,7 +337,7 @@ async function startFlashcards() {
         const formattedCards = aiFlashcards.map((card, idx) => ({
             id: `${editId || 'deck_' + Date.now() + '_' + idx}`,
             question_text: card.question_text,
-            back_text: `${card.option_a}\n${card.option_b}\n${card.option_c}\n${card.option_d}\n\n✓ Correct Answer: ${card.correct_answer}\n\n📝 ${card.explanation}`,
+            back_text: card.answer_text,
             level: 1,
             lastReviewed: null,
             nextReview: new Date().toISOString(),
@@ -362,7 +352,7 @@ async function startFlashcards() {
                 deck.subject_id = parseInt(subjectId);
                 deck.topic = topic !== 'Select Topic' ? topic : null;
                 deck.lastAccessed = new Date().toISOString();
-                deck.cards = formattedCards.map((c, idx) => ({ ...c, id: `${editId}_${idx}` }));
+                deck.cards = formattedCards;
             } else {
                 throw new Error('Deck not found');
             }
@@ -376,7 +366,7 @@ async function startFlashcards() {
                 topic: topic !== 'Select Topic' ? topic : null,
                 createdAt: new Date().toISOString(),
                 lastAccessed: new Date().toISOString(),
-                cards: formattedCards.map((c, idx) => ({ ...c, id: `${deckId}_${idx}` }))
+                cards: formattedCards
             };
             decks.push(deck);
         }
@@ -547,13 +537,6 @@ function getSubjectName(id) {
     return subjects[id] || 'Unknown';
 }
 
-function getSubjectId(name) {
-    for (const [id, subjectName] of Object.entries(getSubjectName)) {
-        if (subjectName === name) return parseInt(id);
-    }
-    return 1;
-}
-
 function escapeHtml(str) {
     if (!str) return '';
     return str.replace(/[&<>]/g, function(m) {
@@ -564,7 +547,6 @@ function escapeHtml(str) {
     });
 }
 
-// Global functions
 window.showSetup = showSetup;
 window.startFlashcards = startFlashcards;
 window.selectDeck = selectDeck;

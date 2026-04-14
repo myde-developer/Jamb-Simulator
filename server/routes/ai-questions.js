@@ -1,8 +1,12 @@
-// server/routes/ai-questions.js - CLOUDFLARE WORKERS AI VERSION
-// 10,000 FREE requests/day! No cold starts! Super fast!
+// server/routes/ai-questions.js - GROQ VERSION (FLASHCARDS ONLY)
 const express = require('express');
 const router = express.Router();
 const { allSubjects } = require('../data/all-subjects');
+
+// Helper function for delays (to avoid rate limits)
+function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
@@ -22,7 +26,7 @@ const authenticateToken = (req, res, next) => {
     }
 };
 
-// Get all subjects
+// Get all subjects (for flashcards)
 router.get('/subjects', authenticateToken, (req, res) => {
     try {
         const subjects = Object.values(allSubjects).map(subject => ({
@@ -85,193 +89,124 @@ router.get('/topics/:subjectId', authenticateToken, (req, res) => {
     }
 });
 
-// Generate mock questions (fallback)
-function generateMockQuestions(subject, count, difficulty = 'medium') {
-    const questions = [];
-    const topics = subject?.topics || ['General'];
-    
-    for (let i = 0; i < count; i++) {
-        const randomTopic = topics[Math.floor(Math.random() * topics.length)];
-        questions.push({
-            question_text: `${subject?.name || 'Subject'} - ${randomTopic}: Practice question ${i + 1}. What is the correct answer?`,
-            option_a: 'Option A (Correct answer)',
-            option_b: 'Option B (Incorrect)',
-            option_c: 'Option C (Incorrect)',
-            option_d: 'Option D (Incorrect)',
-            correct_answer: 'A',
-            explanation: `The correct answer is A. This is a practice question for ${subject?.name || 'Subject'} - ${randomTopic}.`,
-            topic: randomTopic,
-            difficulty: difficulty
-        });
-    }
-    return questions;
-}
-
-// Generate questions using Cloudflare Workers AI
-async function generateWithCloudflare(subject, count, difficulty, apiToken, accountId) {
-    const difficultyDesc = difficulty === 'hard' ? 'Hard - challenging' : 
-                           difficulty === 'easy' ? 'Easy - basic' : 'Medium - standard';
-    
-    const prompt = `Generate ${count} multiple-choice questions for JAMB UTME ${subject.name}.
-Difficulty: ${difficultyDesc}
-
-Each question must be in this exact JSON format:
-{
-    "question_text": "the question",
-    "option_a": "first option",
-    "option_b": "second option",
-    "option_c": "third option",
-    "option_d": "fourth option",
-    "correct_answer": "A/B/C/D",
-    "explanation": "brief explanation"
-}
-
-Return ONLY a JSON array of ${count} questions. No other text.`;
-
-    // Using Llama 3.1 8B (great quality, fast)
-    const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/@cf/meta/llama-3.1-8b-instruct`;
-    
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${apiToken}`,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            messages: [
-                { role: 'user', content: prompt }
-            ],
-            max_tokens: 4096,
-            temperature: 0.7
-        })
-    });
-    
-    if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`Cloudflare error: ${response.status} - ${error}`);
-    }
-    
-    const data = await response.json();
-    const generatedText = data.result?.response || '';
-    
-    // Extract JSON array
-    let questions = [];
-    const jsonMatch = generatedText.match(/\[\s*\{[\s\S]*\}\s*\]/);
-    if (jsonMatch) {
-        questions = JSON.parse(jsonMatch[0]);
-    } else {
-        const start = generatedText.indexOf('[');
-        const end = generatedText.lastIndexOf(']') + 1;
-        if (start !== -1 && end !== -1) {
-            const jsonStr = generatedText.substring(start, end);
-            questions = JSON.parse(jsonStr);
-        }
-    }
-    
-    return questions;
-}
-
-// Main generate endpoint
+// Generate flashcards using GROQ (only for flashcards)
 router.post('/generate', authenticateToken, async (req, res) => {
     try {
-        const { subjectId, count = 10, difficulty = 'medium' } = req.body;
+        const { subjectId, topic, count = 10, difficulty = 'medium' } = req.body;
         
-        console.log(`\n📝 Generating ${count} questions for subject ${subjectId}`);
+        console.log(`\n📝 Generating ${count} flashcards for subject ${subjectId}`);
         
         const subject = allSubjects[parseInt(subjectId)];
         if (!subject) {
             return res.status(400).json({ error: 'Invalid subject' });
         }
         
-        const apiToken = process.env.CLOUDFLARE_API_TOKEN;
-        const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+        const groqApiKey = process.env.GROQ_API_KEY;
         
-        if (!apiToken || !accountId) {
-            console.log('⚠️ Cloudflare credentials not set, using mock questions');
-            const mockQuestions = generateMockQuestions(subject, count, difficulty);
-            const formattedMocks = mockQuestions.map((q, i) => ({
-                id: `mock_${Date.now()}_${i}`,
-                ...q,
-                subject: subject.name,
-                subject_id: subject.id,
-                is_ai_generated: false
-            }));
-            return res.json({ success: true, count: formattedMocks.length, questions: formattedMocks });
+        if (!groqApiKey) {
+            console.error('❌ GROQ_API_KEY not set');
+            return res.status(500).json({ error: 'AI service not configured. Please add GROQ_API_KEY.' });
         }
         
-        console.log('🤖 Generating with Cloudflare Workers AI (10,000 FREE requests/day!)');
-        console.log('   Model: Llama 3.1 8B (No cold starts, global network)');
+        const topicText = topic && topic !== 'Select Topic' ? ` Topic: ${topic}.` : '';
+        const difficultyDesc = difficulty === 'hard' ? 'challenging' : difficulty === 'easy' ? 'basic' : 'standard';
         
-        let questions;
-        try {
-            questions = await generateWithCloudflare(subject, count, difficulty, apiToken, accountId);
-        } catch (apiError) {
-            console.log('⚠️ Cloudflare error, falling back to mock questions:', apiError.message);
-            const mockQuestions = generateMockQuestions(subject, count, difficulty);
-            const formattedMocks = mockQuestions.map((q, i) => ({
-                id: `mock_${Date.now()}_${i}`,
-                ...q,
-                subject: subject.name,
-                subject_id: subject.id,
-                is_ai_generated: false
-            }));
-            return res.json({ success: true, count: formattedMocks.length, questions: formattedMocks });
+        const prompt = `Generate ${count} flashcards for JAMB UTME ${subject.name}.${topicText}
+Difficulty: ${difficultyDesc}
+
+Each flashcard must be in this exact JSON format:
+{
+    "question_text": "The question or prompt",
+    "answer_text": "The complete answer with explanation (2-3 sentences)"
+}
+
+Requirements:
+- Questions should test key concepts from ${subject.name}
+- Answers should be informative and educational
+- Focus on important facts, definitions, and principles
+- Make it suitable for spaced repetition learning
+
+Return ONLY a JSON array of ${count} flashcards. No other text.
+
+Example:
+[
+    {
+        "question_text": "What is the function of the mitochondria?",
+        "answer_text": "The mitochondria produces energy (ATP) for the cell through cellular respiration. It is often called the 'powerhouse of the cell' because it converts glucose and oxygen into usable energy."
+    }
+]`;
+
+        console.log('🤖 Generating flashcards with GROQ...');
+        
+        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${groqApiKey}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: 'llama-3.3-70b-versatile',
+                messages: [{ role: 'user', content: prompt }],
+                temperature: 0.7,
+                max_tokens: 4096
+            })
+        });
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`❌ GROQ API error: ${response.status} - ${errorText}`);
+            throw new Error(`GROQ API returned ${response.status}`);
         }
         
-        if (!Array.isArray(questions) || questions.length === 0) {
-            throw new Error('No valid questions generated');
+        const data = await response.json();
+        const generatedText = data.choices[0].message.content;
+        
+        // Extract JSON array
+        let flashcards = [];
+        const jsonMatch = generatedText.match(/\[\s*\{[\s\S]*\}\s*\]/);
+        if (jsonMatch) {
+            flashcards = JSON.parse(jsonMatch[0]);
+        } else {
+            flashcards = JSON.parse(generatedText);
         }
         
-        // Format questions
-        const formattedQuestions = questions.slice(0, count).map((q, i) => ({
-            id: `ai_${Date.now()}_${i}_${Math.random().toString(36).substr(2, 6)}`,
-            question_text: q.question_text || `Practice question ${i + 1}`,
-            option_a: q.option_a || 'Option A',
-            option_b: q.option_b || 'Option B',
-            option_c: q.option_c || 'Option C',
-            option_d: q.option_d || 'Option D',
-            correct_answer: q.correct_answer || 'A',
-            explanation: q.explanation || 'No explanation available',
-            subject: subject.name,
-            subject_id: subject.id,
-            topic: subject.topics?.[Math.floor(Math.random() * subject.topics.length)] || 'General',
+        if (!Array.isArray(flashcards) || flashcards.length === 0) {
+            throw new Error('No valid flashcards generated');
+        }
+        
+        // Format flashcards
+        const formattedFlashcards = flashcards.slice(0, count).map((card, i) => ({
+            id: `flash_${Date.now()}_${i}_${Math.random().toString(36).substr(2, 6)}`,
+            question_text: card.question_text || `Question ${i + 1}`,
+            answer_text: card.answer_text || 'No answer provided',
+            topic: topic || 'General',
             difficulty: difficulty,
             is_ai_generated: true
         }));
         
-        console.log(`✅ Generated ${formattedQuestions.length} questions using Cloudflare Workers AI!`);
+        console.log(`✅ Generated ${formattedFlashcards.length} flashcards for ${subject.name}`);
         
         res.json({ 
             success: true, 
-            count: formattedQuestions.length, 
-            questions: formattedQuestions 
+            count: formattedFlashcards.length, 
+            flashcards: formattedFlashcards 
         });
         
     } catch (error) {
-        console.error('❌ Error:', error.message);
-        const subject = allSubjects[parseInt(req.body.subjectId)];
-        const mockQuestions = generateMockQuestions(subject, req.body.count || 10, req.body.difficulty || 'medium');
-        const formattedMocks = mockQuestions.map((q, i) => ({
-            id: `mock_${Date.now()}_${i}`,
-            ...q,
-            subject: subject?.name || 'Subject',
-            subject_id: parseInt(req.body.subjectId),
-            is_ai_generated: false
-        }));
-        res.json({ success: true, count: formattedMocks.length, questions: formattedMocks });
+        console.error('❌ Error generating flashcards:', error.message);
+        res.status(500).json({ 
+            error: 'Failed to generate flashcards', 
+            details: error.message 
+        });
     }
 });
 
 // Test endpoint
 router.get('/test', authenticateToken, (req, res) => {
-    const apiToken = process.env.CLOUDFLARE_API_TOKEN;
-    const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
-    
+    const groqApiKey = process.env.GROQ_API_KEY;
     res.json({ 
-        status: (apiToken && accountId) ? 'Cloudflare AI is configured' : 'Cloudflare AI not configured',
-        hasToken: !!apiToken,
-        hasAccountId: !!accountId,
-        message: (apiToken && accountId) ? 'Ready to generate questions! (10,000 free/day)' : 'Using mock questions'
+        status: groqApiKey ? 'GROQ_API_KEY is set' : 'GROQ_API_KEY not set',
+        message: 'GROQ API ready for flashcards'
     });
 });
 

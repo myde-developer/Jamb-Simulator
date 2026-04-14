@@ -237,7 +237,7 @@ async function fetchExamQuestions(subjects) {
         
         const token = localStorage.getItem('token');
         
-        // Step 1: Fetch from database
+        // Use existing exam endpoint (database only)
         const response = await fetch(`${API_BASE}/api/exam/questions`, {
             method: 'POST',
             headers: {
@@ -249,110 +249,45 @@ async function fetchExamQuestions(subjects) {
             })
         });
         
-        let allQuestions = [];
-        
-        if (response.ok) {
-            const dbQuestions = await response.json();
-            allQuestions = dbQuestions;
-            console.log(`📦 Found ${allQuestions.length} questions in database`);
+        if (!response.ok) {
+            throw new Error('Failed to fetch questions');
         }
         
-        // Step 2: Generate missing questions with AI (AWAIT each one)
-        const allAIQuestions = [];
+        let questions = await response.json();
         
-        for (const subject of subjects) {
-            const config = examState.subjectConfigs[subject.name];
-            const requiredCount = config?.totalQuestions || (subject.name === 'Use of English' ? 60 : 40);
-            const existingCount = allQuestions.filter(q => q.subject === subject.name).length;
-            const needed = requiredCount - existingCount;
-            
-            if (needed > 0) {
-                console.log(`🤖 Generating ${needed} AI questions for ${subject.name}`);
-                const forceDiagrams = config?.hasDiagrams || false;
-                
-                // Generate in smaller chunks to avoid rate limits
-                const chunkSize = 10;
-                const chunks = Math.ceil(needed / chunkSize);
-                
-                for (let chunk = 0; chunk < chunks; chunk++) {
-                    const chunkCount = Math.min(chunkSize, needed - (chunk * chunkSize));
-                    console.log(`   Generating chunk ${chunk + 1}/${chunks} (${chunkCount} questions)`);
-                    
-                    const aiResponse = await fetch(`${API_BASE}/api/ai-questions/generate`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`
-                        },
-                        body: JSON.stringify({
-                            subjectId: subject.id,
-                            topic: null,
-                            count: chunkCount,
-                            difficulty: 'medium',
-                            examMode: true
-                        })
-                    });
-                    
-                    if (aiResponse.ok) {
-                        const aiData = await aiResponse.json();
-                        allAIQuestions.push(...aiData.questions);
-                        console.log(`   ✅ Generated ${aiData.questions.length} questions`);
-                        
-                        // Wait between chunks to avoid rate limiting
-                        if (chunk < chunks - 1) {
-                            console.log(`   ⏳ Waiting 2 seconds before next chunk...`);
-                            await new Promise(resolve => setTimeout(resolve, 2000));
-                        }
-                    } else {
-                        console.error(`   ❌ Failed to generate chunk ${chunk + 1}`);
-                    }
-                }
-            }
+        if (!questions || questions.length === 0) {
+            throw new Error('No questions available');
         }
         
-        console.log(`📊 Total AI questions generated: ${allAIQuestions.length}`);
+        // Randomize options for each question
+        const randomizedQuestions = questions.map(q => randomizeQuestionOptions(q));
         
-        // Step 3: Combine and randomize
-        const combinedQuestions = [...allQuestions, ...allAIQuestions];
-        const randomizedQuestions = combinedQuestions.map(q => randomizeQuestionOptions(q));
-        
-        // Step 4: Organize by subject
+        // Organize by subject
         examState.subjectQuestions = {};
-        for (const subject of subjects) {
-            const config = examState.subjectConfigs[subject.name];
-            const targetCount = config?.totalQuestions || (subject.name === 'Use of English' ? 60 : 40);
-            let subjectQuestions = randomizedQuestions.filter(q => q.subject === subject.name);
+        subjects.forEach(subject => {
+            const subjectQuestions = randomizedQuestions.filter(q => q.subject === subject.name);
+            const targetCount = subject.name === 'Use of English' ? 60 : 40;
             
-            if (subjectQuestions.length > targetCount) {
-                subjectQuestions = subjectQuestions.slice(0, targetCount);
+            if (subjectQuestions.length >= targetCount) {
+                examState.subjectQuestions[subject.name] = subjectQuestions.slice(0, targetCount);
+            } else {
+                examState.subjectQuestions[subject.name] = subjectQuestions;
+                console.warn(`${subject.name}: Only ${subjectQuestions.length}/${targetCount} questions available`);
             }
-            
-            examState.subjectQuestions[subject.name] = subjectQuestions;
-            console.log(`📚 ${subject.name}: ${subjectQuestions.length}/${targetCount} questions loaded`);
-        }
+        });
         
         examState.questions = randomizedQuestions;
         examState.examId = generateExamId();
         
-        // Step 5: Render the first question
         const firstSubject = subjects[0].name;
         renderSubjectQuestion(firstSubject);
         renderPalette();
         
-        // Step 6: Update progress and finalize
-        updateProgress();
-        
-        // Step 7: MARK EXAM AS READY and START TIMER ONLY NOW
+        // Start timer ONLY after questions are loaded
         examState.isReady = true;
-        
-        // Small delay to ensure DOM is fully updated
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        // START TIMER - FINALLY!
         startTimer();
         
-        console.log('✅✅✅ EXAM FULLY LOADED - TIMER STARTED ✅✅✅');
-        logExamStatistics();
+        console.log('✅ Exam fully loaded');
         
     } catch (error) {
         console.error('Error loading questions:', error);

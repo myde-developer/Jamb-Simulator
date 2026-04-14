@@ -73,14 +73,6 @@ const setupRoutes = () => {
     } catch (error) {
         console.warn('⚠️ Admin routes not found:', error.message);
     }
-    
-    // AI Questions Routes
-    try {
-        app.use('/api/ai-questions', require('./routes/ai-questions'));
-        console.log('✅ AI Questions routes loaded');
-    } catch (error) {
-        console.warn('⚠️ AI Questions routes not found:', error.message);
-    }
 };
 
 const PORT = process.env.PORT || 5000;
