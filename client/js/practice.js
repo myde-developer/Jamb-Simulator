@@ -50,14 +50,17 @@ function logout(e) {
 async function loadSubjects() {
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE}/api/ai-questions/subjects`, {
+        // Use the new /api/subjects endpoint
+        const response = await fetch(`${API_BASE}/api/subjects`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         
-        if (!response.ok) throw new Error('Failed to load subjects');
+        if (!response.ok) {
+            throw new Error(`Failed to load subjects: ${response.status}`);
+        }
         
         const data = await response.json();
-        const subjects = data.subjects;
+        const subjects = data.subjects || data;
         
         const categories = {
             compulsory: { title: '📖 Compulsory', subjects: [] },
@@ -67,8 +70,20 @@ async function loadSubjects() {
         };
         
         subjects.forEach(subject => {
-            if (categories[subject.category]) {
-                categories[subject.category].subjects.push(subject);
+            // Map category to the correct group
+            let category = subject.category;
+            
+            // Handle any database inconsistencies
+            if (category === 'science' || category === 'Science') category = 'science';
+            if (category === 'arts' || category === 'Arts') category = 'arts';
+            if (category === 'commercial' || category === 'Commercial') category = 'commercial';
+            if (category === 'compulsory' || category === 'Compulsory') category = 'compulsory';
+            
+            if (categories[category]) {
+                categories[category].subjects.push(subject);
+            } else {
+                // Default to commercial if category not recognized
+                categories.commercial.subjects.push(subject);
             }
         });
         
@@ -92,13 +107,24 @@ async function loadSubjects() {
         subjectSelect.innerHTML = html;
         subjectSelect.addEventListener('change', loadTopics);
         
-        console.log('Subjects loaded successfully');
+        console.log('Subjects loaded successfully:', subjects.length);
         
     } catch (error) {
         console.error('Error loading subjects:', error);
         const subjectSelect = document.getElementById('subjectSelect');
         if (subjectSelect) {
             subjectSelect.innerHTML = '<option value="">Error loading subjects. Please refresh.</option>';
+        }
+        
+        // Show user-friendly error message
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'error-message';
+        errorDiv.style.cssText = 'background: #fee; color: #c00; padding: 10px; margin: 10px; border-radius: 5px; text-align: center;';
+        errorDiv.innerHTML = 'Failed to load subjects. Please make sure you are logged in and try again.';
+        
+        const practiceSetup = document.getElementById('practiceSetup');
+        if (practiceSetup && !practiceSetup.querySelector('.error-message')) {
+            practiceSetup.insertBefore(errorDiv, practiceSetup.firstChild);
         }
     }
 }
@@ -117,7 +143,8 @@ async function loadTopics() {
     
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE}/api/ai-questions/topics/${subjectId}`, {
+        // Use the practice endpoint for topics
+        const response = await fetch(`${API_BASE}/api/practice/topics/${subjectId}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         
@@ -128,8 +155,10 @@ async function loadTopics() {
         let options = '<option value="all">All Topics</option>';
         if (data.topics && data.topics.length > 0) {
             data.topics.forEach(topic => {
-                options += `<option value="${topic}">${topic}</option>`;
+                options += `<option value="${topic.replace(/"/g, '&quot;')}">${topic}</option>`;
             });
+        } else {
+            options += '<option value="all" disabled>No topics available</option>';
         }
         
         topicSelect.innerHTML = options;

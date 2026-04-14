@@ -21,7 +21,7 @@ const authenticateToken = (req, res, next) => {
     }
 };
 
-// Generate flashcards using Gemini AI
+// Generate flashcards using GROQ API
 router.post('/generate', authenticateToken, async (req, res) => {
     try {
         const { subject, topic, count = 20 } = req.body;
@@ -30,10 +30,10 @@ router.post('/generate', authenticateToken, async (req, res) => {
             return res.status(400).json({ error: 'Subject is required' });
         }
         
-        const apiKey = process.env.GEMINI_API_KEY;
+        const apiKey = process.env.GROQ_API_KEY;
         if (!apiKey) {
-            console.error('❌ GEMINI_API_KEY not set in environment variables');
-            return res.status(500).json({ error: 'AI service not configured' });
+            console.error('❌ GROQ_API_KEY not set in environment variables');
+            return res.status(500).json({ error: 'AI service not configured. Please add GROQ_API_KEY.' });
         }
         
         // Build the prompt
@@ -60,9 +60,9 @@ IMPORTANT RULES:
 - DO NOT include multiple choice options (no A, B, C, D)
 - Make answers concise but complete
 - Include formulas, definitions, key dates, important names where relevant
-- Difficulty should be appropriate for JAMB level (senior secondary)
+- Difficulty should be appropriate for JAMB level
 
-Return ONLY a valid JSON array of ${count} flashcards. No extra text, no markdown formatting, no explanation before or after the array.
+Return ONLY a valid JSON array of ${count} flashcards. No extra text, no markdown formatting.
 
 Example format:
 [
@@ -80,55 +80,48 @@ Generate ${count} flashcards now. Return ONLY the JSON array.`;
 
         console.log(`📚 Generating ${count} flashcards for ${subject}${topic ? ` - ${topic}` : ''}`);
         
-        // Call Gemini API
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`, {
+        // Call GROQ API
+        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                contents: [{
-                    parts: [{
-                        text: prompt
-                    }]
-                }],
-                generationConfig: {
-                    temperature: 0.7,
-                    maxOutputTokens: 8192,
-                }
+                model: 'llama-3.3-70b-versatile',
+                messages: [{ role: 'user', content: prompt }],
+                temperature: 0.7,
+                max_tokens: 4096
             })
         });
         
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('❌ Gemini API error:', response.status, errorText);
-            throw new Error(`Gemini API returned ${response.status}`);
+            console.error('❌ GROQ API error:', response.status, errorText);
+            throw new Error(`GROQ API returned ${response.status}`);
         }
         
         const data = await response.json();
-        const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        const generatedText = data.choices[0].message.content;
         
         if (!generatedText) {
-            throw new Error('No response from Gemini API');
+            throw new Error('No response from GROQ API');
         }
         
         // Extract JSON array from response
         let flashcards = [];
         try {
-            // Try to find JSON array in the response
             const jsonMatch = generatedText.match(/\[\s*\{[\s\S]*\}\s*\]/);
             if (jsonMatch) {
                 flashcards = JSON.parse(jsonMatch[0]);
             } else {
-                // Fallback: try parsing entire response
                 flashcards = JSON.parse(generatedText);
             }
         } catch (parseError) {
-            console.error('❌ Failed to parse Gemini response:', generatedText);
+            console.error('❌ Failed to parse GROQ response:', generatedText);
             throw new Error('Invalid response format from AI');
         }
         
-        // Validate and limit count
         if (!Array.isArray(flashcards) || flashcards.length === 0) {
             throw new Error('No flashcards generated');
         }
@@ -139,7 +132,7 @@ Generate ${count} flashcards now. Return ONLY the JSON array.`;
             back: card.back || card.answer || card.explanation || 'No answer provided'
         }));
         
-        console.log(`✅ Successfully generated ${flashcards.length} flashcards`);
+        console.log(`✅ Successfully generated ${flashcards.length} flashcards using GROQ`);
         
         res.json({
             success: true,
@@ -156,26 +149,35 @@ Generate ${count} flashcards now. Return ONLY the JSON array.`;
     }
 });
 
-// Test endpoint to verify API key is working
+// Test endpoint to verify GROQ API key is working
 router.get('/test', authenticateToken, async (req, res) => {
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.GROQ_API_KEY;
     
     if (!apiKey) {
         return res.json({ 
             status: 'error', 
-            message: 'GEMINI_API_KEY not set in environment variables' 
+            message: 'GROQ_API_KEY not set in environment variables',
+            suggestion: 'Get a free API key from https://console.groq.com'
         });
     }
     
     try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-        const data = await response.json();
-        
-        res.json({
-            status: 'ok',
-            message: 'Gemini API key is valid',
-            models: data.models?.slice(0, 3) || []
+        const response = await fetch('https://api.groq.com/openai/v1/models', {
+            headers: { 'Authorization': `Bearer ${apiKey}` }
         });
+        
+        if (response.ok) {
+            res.json({
+                status: 'ok',
+                message: 'GROQ API key is valid',
+                models: ['llama-3.3-70b-versatile', 'mixtral-8x7b-32768', 'gemma2-9b-it']
+            });
+        } else {
+            res.json({
+                status: 'error',
+                message: 'Invalid GROQ API key'
+            });
+        }
     } catch (error) {
         res.json({
             status: 'error',

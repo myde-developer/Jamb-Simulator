@@ -59,6 +59,13 @@ const setupRoutes = () => {
     } catch (error) {
         console.warn('⚠️ Leaderboard routes not found:', error.message);
     }
+
+try {
+        app.use('/api/ai-questions', require('./routes/ai-questions'));
+        console.log('✅ Questions routes loaded');
+    } catch (error) {
+        console.warn('⚠️ :', error.message);
+    }
     
     try {
         app.use('/api/progress', require('./routes/progress'));
@@ -66,12 +73,26 @@ const setupRoutes = () => {
     } catch (error) {
         console.warn('⚠️ Progress routes not found:', error.message);
     }
+
+try {
+        app.use('/api/subjects', require('./routes/subjects'));
+        console.log('✅ Subjects routes loaded');
+    } catch (error) {
+        console.warn('⚠️ Subjects routes not found:', error.message);
+    }
     
     try {
         app.use('/api/admin', require('./routes/admin'));
         console.log('✅ Admin routes loaded');
     } catch (error) {
         console.warn('⚠️ Admin routes not found:', error.message);
+    }
+
+try {
+        app.use('/api/flashcards', require('./routes/flashcards'));
+        console.log('✅ Flashcards routes loaded');
+    } catch (error) {
+        console.warn('⚠️ flashcards routes not found:', error.message);
     }
 };
 

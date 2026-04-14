@@ -1,9 +1,9 @@
-// client/js/flashcards.js - AI-Powered for Flashcards Only
+// client/js/flashcards.js - FINAL VERSION
 const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://localhost:5000'
     : 'https://jamb-simulator-api.onrender.com';
 
-// Complete subjects list - ALL 22 JAMB SUBJECTS
+// Complete subjects list - ALL 22 JAMB SUBJECTS (Fallback if API fails)
 const allSubjectsList = {
     1: { id: 1, name: 'Use of English', code: 'ENG', category: 'compulsory',
         topics: ['The Lekki Headmaster', 'Comprehension', 'Cloze Passage', 'Sentence Interpretation', 'Antonyms', 'Synonyms', 'Sentence Completion', 'Oral English'] },
@@ -51,6 +51,7 @@ const allSubjectsList = {
         topics: ['Basic Concepts', 'Earth Structure', 'Rocks & Minerals', 'Landforms', 'Weather & Climate', 'Water Bodies', 'Vegetation & Soils', 'Population Geography', 'Settlement Geography', 'Economic Geography', 'Environmental Issues', 'Map Reading', 'GIS'] }
 };
 
+// Flashcards state
 let flashcardState = {
     deck: null,
     currentIndex: 0,
@@ -59,6 +60,7 @@ let flashcardState = {
     spacedRepetition: { 1: 1, 2: 3, 3: 7, 4: 14, 5: 30 }
 };
 
+// Initialize
 document.addEventListener('DOMContentLoaded', () => {
     checkAuth();
     loadDecks();
@@ -89,6 +91,7 @@ function logout(e) {
     window.location.href = '/auth.html';
 }
 
+// Load subjects from API with fallback
 async function loadSubjects() {
     try {
         const token = localStorage.getItem('token');
@@ -100,6 +103,7 @@ async function loadSubjects() {
             const data = await response.json();
             renderSubjectSelect(data.subjects);
         } else {
+            console.warn('API failed, using fallback subjects');
             renderSubjectSelect(Object.values(allSubjectsList));
         }
     } catch (error) {
@@ -113,7 +117,7 @@ function renderSubjectSelect(subjects) {
     if (!subjectSelect) return;
     
     const categories = {
-        compulsory: { title: 'Compulsory', subjects: [] },
+        compulsory: { title: '📖 Compulsory', subjects: [] },
         science: { title: '🔬 Sciences', subjects: [] },
         arts: { title: '🎭 Arts & Humanities', subjects: [] },
         commercial: { title: '📊 Commercial & Social Sciences', subjects: [] }
@@ -146,6 +150,7 @@ async function loadTopics() {
     
     if (!subjectId || !topicSelect) return;
     
+    // Try to get from local data first
     const subject = allSubjectsList[parseInt(subjectId)];
     if (subject && subject.topics) {
         let options = '<option value="">Select Topic</option>';
@@ -157,6 +162,7 @@ async function loadTopics() {
         return;
     }
     
+    // Fallback to API
     try {
         const token = localStorage.getItem('token');
         const response = await fetch(`${API_BASE}/api/ai-questions/topics/${subjectId}`, {
@@ -172,6 +178,9 @@ async function loadTopics() {
                 });
             }
             topicSelect.innerHTML = options;
+            topicSelect.disabled = false;
+        } else {
+            topicSelect.innerHTML = '<option value="">Select Topic</option>';
             topicSelect.disabled = false;
         }
     } catch (error) {
@@ -286,6 +295,7 @@ function deleteDeck(deckId, event) {
     }
 }
 
+// Generate flashcards using GROQ API
 async function startFlashcards() {
     const deckName = document.getElementById('deckName').value.trim();
     const subjectId = document.getElementById('subjectSelect').value;
@@ -305,17 +315,17 @@ async function startFlashcards() {
         const token = localStorage.getItem('token');
         const subjectName = getSubjectName(subjectId);
         
-        const response = await fetch(`${API_BASE}/api/ai-questions/generate`, {
+        // Call GROQ API endpoint
+        const response = await fetch(`${API_BASE}/api/flashcards/generate`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({
-                subjectId: parseInt(subjectId),
+                subject: subjectName,
                 topic: topic !== 'Select Topic' ? topic : null,
-                count: count,
-                difficulty: 'medium'
+                count: count
             })
         });
         
@@ -336,8 +346,8 @@ async function startFlashcards() {
         
         const formattedCards = aiFlashcards.map((card, idx) => ({
             id: `${editId || 'deck_' + Date.now() + '_' + idx}`,
-            question_text: card.question_text,
-            back_text: card.answer_text,
+            question_text: card.front,
+            back_text: card.back,
             level: 1,
             lastReviewed: null,
             nextReview: new Date().toISOString(),
@@ -547,6 +557,7 @@ function escapeHtml(str) {
     });
 }
 
+// Global functions
 window.showSetup = showSetup;
 window.startFlashcards = startFlashcards;
 window.selectDeck = selectDeck;
