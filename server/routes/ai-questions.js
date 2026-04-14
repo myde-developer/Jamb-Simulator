@@ -1,8 +1,11 @@
-// server/routes/ai-questions.js - FINAL VERSION
-// Generates HIGH-QUALITY multiple-choice questions for JAMB using GROQ API
+// server/routes/ai-questions.js - NO DIAGRAMS
 const express = require('express');
 const router = express.Router();
 const { allSubjects } = require('../data/all-subjects');
+
+function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
@@ -30,7 +33,6 @@ router.get('/subjects', authenticateToken, (req, res) => {
             name: subject.name,
             code: subject.code,
             category: subject.category,
-            hasDiagrams: subject.hasDiagrams || false,
             totalQuestions: subject.totalQuestions
         }));
         res.json({ subjects });
@@ -57,8 +59,6 @@ router.get('/subject/:subjectId', authenticateToken, (req, res) => {
             category: subject.category,
             totalQuestions: subject.totalQuestions,
             duration: subject.duration,
-            hasDiagrams: subject.hasDiagrams || false,
-            minDiagramQuestions: subject.minDiagramQuestions || 0,
             topicDistribution: subject.topicDistribution || null,
             topics: subject.topics
         });
@@ -81,8 +81,7 @@ router.get('/topics/:subjectId', authenticateToken, (req, res) => {
         res.json({ 
             subjectId: subject.id,
             subjectName: subject.name,
-            topics: subject.topics,
-            hasDiagrams: subject.hasDiagrams || false
+            topics: subject.topics
         });
     } catch (error) {
         console.error('Error fetching topics:', error);
@@ -90,39 +89,40 @@ router.get('/topics/:subjectId', authenticateToken, (req, res) => {
     }
 });
 
-// Subject-specific guidelines for better questions
+// Subject-specific guidelines
 function getSubjectGuidelines(subjectName) {
     const guidelines = {
-        'Use of English': 'Include comprehension, synonyms/antonyms, sentence completion, oral English, and the Lekki Headmaster novel. Questions should test vocabulary, grammar, and reading comprehension.',
-        'Mathematics': 'Include calculation questions, formula application, geometry, algebra, statistics, probability, and word problems. Use numbers and variables. Questions should require step-by-step thinking.',
-        'Physics': 'Include formula-based calculations, conceptual questions about laws, practical applications, scientific principles, and real-world scenarios.',
-        'Chemistry': 'Include balancing equations, periodic table trends, chemical reactions, organic chemistry, mole calculations, and acid-base chemistry.',
-        'Biology': 'Include definitions, processes, classifications, human anatomy, plant biology, ecology, genetics, and physiology.',
-        'Agricultural Science': 'Include crop production, animal husbandry, soil science, agricultural economics, farm machinery, and pest control.',
-        'Computer Studies': 'Include hardware, software, networking, programming concepts, data processing, number systems, and internet technologies.',
-        'Literature in English': 'Include questions on drama, prose, poetry, literary devices, figures of speech, and African literature including The Lekki Headmaster.',
-        'Government': 'Include political systems, Nigerian constitution, governance structures, electoral processes, political parties, and international relations.',
-        'History': 'Include Nigerian history, pre-colonial societies, colonial era, independence movements, key historical figures, and major events.',
-        'Economics': 'Include supply/demand, market structures, national income, monetary policy, fiscal policy, international trade, and economic theories.',
-        'Commerce': 'Include trade, business units, marketing, banking, insurance, transportation, warehousing, and consumer protection.',
-        'Principles of Accounts': 'Include double entry, ledger accounts, trial balance, final accounts, bank reconciliation, and financial statements.',
-        'Geography': 'Include physical geography, map reading, climate patterns, population distribution, environmental issues, and regional geography.',
-        'Christian Religious Studies': 'Include Bible stories, teachings of Jesus, parables, miracles, epistles, and Christian living.',
+        'Use of English': 'Include comprehension, synonyms/antonyms, sentence completion, oral English, and the Lekki Headmaster novel.',
+        'Mathematics': 'Include calculation questions, formula application, geometry, algebra, statistics, probability, and word problems.',
+        'Physics': 'Include formula-based calculations, conceptual questions about laws, practical applications, and scientific principles.',
+        'Chemistry': 'Include balancing equations, periodic table trends, chemical reactions, organic chemistry, and mole calculations.',
+        'Biology': 'Include definitions, processes, classifications, human anatomy, plant biology, ecology, and genetics.',
+        'Agricultural Science': 'Include crop production, animal husbandry, soil science, agricultural economics, and farm machinery.',
+        'Computer Studies': 'Include hardware, software, networking, programming concepts, data processing, and number systems.',
+        'Literature in English': 'Include drama, prose, poetry, literary devices, figures of speech, and African literature.',
+        'Government': 'Include political systems, Nigerian constitution, governance structures, electoral processes, and political parties.',
+        'History': 'Include Nigerian history, pre-colonial societies, colonial era, independence movements, and key historical figures.',
+        'Economics': 'Include supply/demand, market structures, national income, monetary policy, fiscal policy, and international trade.',
+        'Commerce': 'Include trade, business units, marketing, banking, insurance, transportation, and warehousing.',
+        'Principles of Accounts': 'Include double entry, ledger accounts, trial balance, final accounts, and bank reconciliation.',
+        'Geography': 'Include physical geography, map reading, climate patterns, population distribution, and environmental issues.',
+        'Christian Religious Studies': 'Include Bible stories, teachings of Jesus, parables, miracles, and epistles.',
         'Islamic Studies': 'Include Quranic teachings, Hadith, pillars of Islam, Islamic history, and Islamic law.',
         'French': 'Include vocabulary, grammar, conjugation, comprehension, and cultural knowledge.',
-        'Yoruba/Igbo/Hausa': 'Include language structure, grammar, literature, culture, and oral traditions.',
+        'Yoruba': 'Include language structure, grammar, literature, culture, and oral traditions.',
+        'Igbo': 'Include language structure, grammar, literature, culture, and oral traditions.',
+        'Hausa': 'Include language structure, grammar, literature, culture, and oral traditions.',
         'Music': 'Include music theory, notation, scales, rhythm, harmony, instruments, and music history.',
         'Fine Arts': 'Include art history, drawing, painting, sculpture, color theory, composition, and African art.'
     };
     return guidelines[subjectName] || 'Cover the syllabus comprehensively with factual, knowledge-based multiple-choice questions.';
 }
 
-// Generate high-quality MCQ questions in batches
-async function generateQuestionsInBatches(subject, count, topic, difficulty, groqApiKey, batchSize = 10) {
+// Generate MCQ questions in batches
+async function generateQuestionsInBatches(subject, count, topic, difficulty, groqApiKey, batchSize = 5) {
     const allQuestions = [];
     const batches = Math.ceil(count / batchSize);
     
-    // Map difficulty levels
     let difficultyDesc = 'STANDARD JAMB difficulty';
     let temperature = 0.75;
     
@@ -143,6 +143,11 @@ async function generateQuestionsInBatches(subject, count, topic, difficulty, gro
         const batchCount = Math.min(batchSize, count - (i * batchSize));
         console.log(`📦 Generating batch ${i + 1}/${batches} (${batchCount} questions) - Difficulty: ${difficulty}`);
         
+        if (i > 0) {
+            console.log(`⏳ Waiting 3 seconds before next batch...`);
+            await delay(3000);
+        }
+        
         const prompt = `You are an expert JAMB examiner. Generate ${batchCount} ORIGINAL, HIGH-QUALITY multiple-choice questions for JAMB UTME ${subject.name}.
 
 ${topic && topic !== 'all' && topic !== 'Select Topic' ? `TOPIC: ${topic}` : `Cover diverse topics from the ${subject.name} syllabus.`}
@@ -152,115 +157,83 @@ DIFFICULTY: ${difficultyDesc}
 SUBJECT-SPECIFIC GUIDELINES:
 ${subjectGuidelines}
 
-CRITICAL FORMAT RULES:
-- Each question MUST have 4 options (A, B, C, D)
-- ONE correct answer, THREE plausible distractors
-- Distractors must be BELIEVABLE but clearly incorrect
-- Questions must be MULTIPLE CHOICE (NOT theory or essay)
+Each question MUST have 4 options (A, B, C, D) with ONE correct answer.
 
-QUESTION TYPES TO INCLUDE (mix them up):
-1. Application: "If X happens, what would be the result?"
-2. Calculation: "Calculate the value of..." (for Math/Sciences)
-3. Analysis: "Which of the following best explains why..."
-4. Comparison: "What is the difference between X and Y?"
-5. Identification: "Which of these is an example of X?"
-6. Definition/Concept: "What is the function of X?"
-7. True/False style: "Which statement about X is CORRECT?"
+Question types to include:
+- Application: "If X happens, what would be the result?"
+- Calculation: "Calculate the value of..." (for Math/Sciences)
+- Analysis: "Which of the following best explains why..."
+- Comparison: "What is the difference between X and Y?"
+- Identification: "Which of these is an example of X?"
 
-AVOID:
-- "What if" hypothetical questions
-- Trivia or obvious facts
-- Questions where the answer is obvious from options
-- Simple definition recall without application
-
-EXAMPLE OF A GOOD HARD QUESTION:
+Return ONLY a valid JSON array of ${batchCount} questions in this format:
 {
-    "question_text": "A ball is thrown vertically upward with an initial velocity of 20 m/s. Assuming g = 10 m/s², what is the maximum height reached?",
-    "option_a": "10 m",
-    "option_b": "15 m",
-    "option_c": "20 m",
-    "option_d": "40 m",
-    "correct_answer": "C",
-    "explanation": "Using v² = u² - 2gh. At max height v=0, so h = u²/2g = (20)²/(2×10) = 400/20 = 20m.",
+    "question_text": "The question text",
+    "option_a": "First option",
+    "option_b": "Second option",
+    "option_c": "Third option",
+    "option_d": "Fourth option",
+    "correct_answer": "A/B/C/D",
+    "explanation": "Detailed explanation (2-3 sentences)",
     "topic": "${topic || 'General'}",
     "difficulty": "${difficulty || 'medium'}"
-}
+}`;
 
-EXAMPLE OF A GOOD MEDIUM QUESTION:
-{
-    "question_text": "What is the primary function of the mitochondria in a cell?",
-    "option_a": "Protein synthesis",
-    "option_b": "Energy production (ATP)",
-    "option_c": "Waste storage",
-    "option_d": "DNA replication",
-    "correct_answer": "B",
-    "explanation": "Mitochondria are known as the powerhouse of the cell because they produce ATP through cellular respiration.",
-    "topic": "${topic || 'General'}",
-    "difficulty": "${difficulty || 'medium'}"
-}
-
-Return ONLY a valid JSON array of ${batchCount} questions. No extra text, no markdown, no explanations before or after the array.
-
-THE JSON ARRAY MUST START WITH [ AND END WITH ]`;
-
-        try {
-            const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${groqApiKey}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    model: 'llama-3.3-70b-versatile',
-                    messages: [{ role: 'user', content: prompt }],
-                    temperature: temperature,
-                    max_tokens: 8192
-                })
-            });
-            
-            if (!response.ok) {
-                console.error(`❌ GROQ batch ${i + 1} failed: ${response.status}`);
-                continue;
-            }
-            
-            const data = await response.json();
-            const generatedText = data.choices[0].message.content;
-            
-            // Extract JSON array
-            let batchQuestions = [];
+        let retries = 3;
+        let success = false;
+        let batchQuestions = [];
+        
+        while (retries > 0 && !success) {
             try {
-                // Try to find JSON array in the response
+                const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${groqApiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: 'llama-3.3-70b-versatile',
+                        messages: [{ role: 'user', content: prompt }],
+                        temperature: temperature,
+                        max_tokens: 8192
+                    })
+                });
+                
+                if (response.status === 429) {
+                    console.log(`⚠️ Rate limited! Waiting 5 seconds... (${retries} retries left)`);
+                    await delay(5000);
+                    retries--;
+                    continue;
+                }
+                
+                if (!response.ok) {
+                    console.error(`❌ GROQ batch ${i + 1} failed: ${response.status}`);
+                    retries--;
+                    continue;
+                }
+                
+                const data = await response.json();
+                const generatedText = data.choices[0].message.content;
+                
                 const jsonMatch = generatedText.match(/\[\s*\{[\s\S]*\}\s*\]/);
                 if (jsonMatch) {
                     batchQuestions = JSON.parse(jsonMatch[0]);
                 } else {
                     batchQuestions = JSON.parse(generatedText);
                 }
-            } catch (parseError) {
-                console.error(`❌ Failed to parse batch ${i + 1}:`, parseError.message);
-                // Try to fix common JSON issues
-                let fixedText = generatedText;
-                // Remove any trailing commas before closing brackets
-                fixedText = fixedText.replace(/,(\s*[}\]])/g, '$1');
-                try {
-                    const jsonMatch = fixedText.match(/\[\s*\{[\s\S]*\}\s*\]/);
-                    if (jsonMatch) {
-                        batchQuestions = JSON.parse(jsonMatch[0]);
-                    }
-                } catch (e) {
-                    console.error('Could not recover JSON');
+                
+                if (Array.isArray(batchQuestions) && batchQuestions.length > 0) {
+                    allQuestions.push(...batchQuestions);
+                    console.log(`✅ Batch ${i + 1} generated ${batchQuestions.length} questions`);
+                    success = true;
+                } else {
+                    retries--;
                 }
+                
+            } catch (error) {
+                console.error(`❌ Error in batch ${i + 1}:`, error.message);
+                retries--;
             }
-            
-            if (Array.isArray(batchQuestions) && batchQuestions.length > 0) {
-                allQuestions.push(...batchQuestions);
-                console.log(`✅ Batch ${i + 1} generated ${batchQuestions.length} questions`);
-            } else {
-                console.log(`⚠️ Batch ${i + 1} produced no valid questions`);
-            }
-            
-        } catch (error) {
-            console.error(`❌ Error in batch ${i + 1}:`, error.message);
         }
     }
     
@@ -270,7 +243,7 @@ THE JSON ARRAY MUST START WITH [ AND END WITH ]`;
 // Generate questions using GROQ API
 router.post('/generate', authenticateToken, async (req, res) => {
     try {
-        const { subjectId, topic, count = 10, difficulty = 'medium', includeDiagrams = false, forceDiagrams = false, examMode = false } = req.body;
+        const { subjectId, topic, count = 10, difficulty = 'medium', examMode = false } = req.body;
         
         console.log(`📝 Generate request: subjectId=${subjectId}, topic=${topic}, count=${count}, difficulty=${difficulty}`);
         
@@ -282,25 +255,18 @@ router.post('/generate', authenticateToken, async (req, res) => {
         const groqApiKey = process.env.GROQ_API_KEY;
         
         if (!groqApiKey) {
-            console.error('❌ GROQ_API_KEY not set in environment variables');
-            console.log('💡 Get a free API key from: https://console.groq.com');
-            return res.status(500).json({ 
-                error: 'AI service not configured. Please add GROQ_API_KEY to environment variables.',
-                details: 'Get a free API key from https://console.groq.com'
-            });
+            console.error('❌ GROQ_API_KEY not set');
+            return res.status(500).json({ error: 'AI service not configured. Please add GROQ_API_KEY.' });
         }
         
         console.log(`🤖 Generating ${count} MCQ questions for ${subject.name} using GROQ`);
-        console.log(`   Topic: ${topic || 'All Topics'}, Difficulty: ${difficulty}`);
         
-        // Generate questions in batches
-        const questions = await generateQuestionsInBatches(subject, count, topic, difficulty, groqApiKey, 10);
+        const questions = await generateQuestionsInBatches(subject, count, topic, difficulty, groqApiKey, 5);
         
         if (!questions || questions.length === 0) {
             throw new Error('No valid questions generated. Please try again.');
         }
         
-        // Format questions to match frontend expected structure
         const formattedQuestions = [];
         for (let i = 0; i < Math.min(questions.length, count); i++) {
             const q = questions[i];
@@ -321,14 +287,7 @@ router.post('/generate', authenticateToken, async (req, res) => {
             });
         }
         
-        console.log(`✅ Successfully generated ${formattedQuestions.length} MCQ questions for ${subject.name}`);
-        
-        // Log a sample question for quality verification
-        if (formattedQuestions.length > 0) {
-            const sample = formattedQuestions[0];
-            console.log(`📖 Sample question: "${sample.question_text.substring(0, 80)}..."`);
-            console.log(`   Correct answer: ${sample.correct_answer} - ${sample[sample.correct_answer === 'A' ? 'option_a' : sample.correct_answer === 'B' ? 'option_b' : sample.correct_answer === 'C' ? 'option_c' : 'option_d']}`);
-        }
+        console.log(`✅ Generated ${formattedQuestions.length} questions for ${subject.name}`);
         
         res.json({ 
             success: true, 
@@ -338,23 +297,21 @@ router.post('/generate', authenticateToken, async (req, res) => {
         
     } catch (error) {
         console.error('❌ AI generation error:', error.message);
-        console.error('Stack trace:', error.stack);
         res.status(500).json({ 
             error: 'Failed to generate questions', 
-            details: error.message,
-            suggestion: 'Please check your GROQ_API_KEY and try again.'
+            details: error.message 
         });
     }
 });
 
-// Test endpoint to verify API key is working
+// Test endpoint
 router.get('/test', authenticateToken, async (req, res) => {
     const groqApiKey = process.env.GROQ_API_KEY;
     
     if (!groqApiKey) {
         return res.json({ 
             status: 'error', 
-            message: 'GROQ_API_KEY not set in environment variables',
+            message: 'GROQ_API_KEY not set',
             suggestion: 'Get a free API key from https://console.groq.com'
         });
     }
@@ -365,23 +322,12 @@ router.get('/test', authenticateToken, async (req, res) => {
         });
         
         if (response.ok) {
-            const data = await response.json();
-            res.json({
-                status: 'ok',
-                message: 'GROQ API key is valid',
-                models: data.data?.slice(0, 3).map(m => m.id) || []
-            });
+            res.json({ status: 'ok', message: 'GROQ API key is valid' });
         } else {
-            res.json({
-                status: 'error',
-                message: 'Invalid GROQ API key'
-            });
+            res.json({ status: 'error', message: 'Invalid GROQ API key' });
         }
     } catch (error) {
-        res.json({
-            status: 'error',
-            message: error.message
-        });
+        res.json({ status: 'error', message: error.message });
     }
 });
 

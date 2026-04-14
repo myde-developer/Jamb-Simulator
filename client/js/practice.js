@@ -302,13 +302,6 @@ function renderQuestion() {
     
     // Display question with diagram if available
     let questionHtml = question.question_text;
-    if (question.diagram_url) {
-        questionHtml += `
-            <div style="margin: 20px 0; text-align: center;">
-                <img src="${question.diagram_url}" alt="Diagram" style="max-width: 100%; border-radius: 8px; border: 1px solid #e1e5eb;">
-            </div>
-        `;
-    }
     if (questionText) questionText.innerHTML = questionHtml;
     
     const options = {

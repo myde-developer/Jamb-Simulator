@@ -8,7 +8,6 @@ const allSubjects = {
         category: 'compulsory',
         totalQuestions: 60,
         duration: 60,
-        hasDiagrams: false,
         topicDistribution: {
             'The Lekki Headmaster': 10,
             'Comprehension': 10,
@@ -33,8 +32,6 @@ const allSubjects = {
         category: 'science',
         totalQuestions: 40,
         duration: 60,
-        hasDiagrams: true,
-        minDiagramQuestions: 3,
         topicDistribution: {
             'Number Bases': 2,
             'Indices & Logarithms': 2,
@@ -65,8 +62,6 @@ const allSubjects = {
         category: 'science',
         totalQuestions: 40,
         duration: 60,
-        hasDiagrams: true,
-        minDiagramQuestions: 3,
         topicDistribution: {
             'Measurements & Units': 2,
             'Scalars & Vectors': 2,
@@ -99,7 +94,6 @@ const allSubjects = {
         category: 'science',
         totalQuestions: 40,
         duration: 60,
-        hasDiagrams: false,
         topicDistribution: {
             'Atomic Structure': 3,
             'Chemical Combination': 3,
@@ -134,7 +128,6 @@ const allSubjects = {
         category: 'science',
         totalQuestions: 40,
         duration: 60,
-        hasDiagrams: false,
         topicDistribution: {
             'Living Organisms': 2,
             'Classification': 2,
@@ -169,7 +162,6 @@ const allSubjects = {
         category: 'science',
         totalQuestions: 40,
         duration: 60,
-        hasDiagrams: false,
         topicDistribution: {
             'Basic Concepts': 3,
             'Agro-ecology': 3,
@@ -200,7 +192,6 @@ const allSubjects = {
         category: 'science',
         totalQuestions: 40,
         duration: 60,
-        hasDiagrams: false,
         topicDistribution: {
             'History of Computing': 2,
             'Computer Hardware': 4,
@@ -227,23 +218,23 @@ const allSubjects = {
     },
     
     // Arts & Humanities
-    8: { id: 8, name: 'Literature in English', code: 'LIT', category: 'arts', totalQuestions: 40, duration: 60, hasDiagrams: false, topics: ['Drama', 'Prose', 'Poetry', 'Literary Principles', 'Literary Appreciation', 'African Literature', 'Non-African Literature', 'The Lekki Headmaster', 'Figures of Speech', 'Literary Criticism'] },
-    9: { id: 9, name: 'Government', code: 'GOV', category: 'arts', totalQuestions: 40, duration: 60, hasDiagrams: false, topics: ['Basic Concepts', 'Forms of Government', 'Arms of Government', 'Structures of Governance', 'Political Ideologies', 'Nigerian Constitution', 'Political Parties', 'Electoral Process', 'Public Administration', 'Local Government', 'Foreign Policy', 'International Organizations', 'Decolonization', 'Public Corporations', 'Nigerian Federalism'] },
-    10: { id: 10, name: 'History', code: 'HIS', category: 'arts', totalQuestions: 40, duration: 60, hasDiagrams: false, topics: ['Pre-colonial Nigeria', 'Trans-Saharan Trade', 'European Contact', 'Slave Trade', 'Sokoto Caliphate', 'Yoruba States', 'Benin Kingdom', 'Igbo Systems', 'Colonial Conquest', 'Nationalist Movements', 'Nigerian Independence', 'Military Rule', 'Nigerian Civil War', 'Foreign Policy', 'ECOWAS'] },
-    11: { id: 11, name: 'Christian Religious Studies', code: 'CRS', category: 'arts', totalQuestions: 40, duration: 60, hasDiagrams: false, topics: ['Sovereignty of God', 'Leadership & Authority', 'The Covenant', 'Prophetic Mission', 'Faith & Works', 'Justice & Fairness', 'Sermon on the Mount', 'Parables of Jesus', 'Miracles of Jesus', 'Death & Resurrection', 'Early Church', "Paul's Journeys", 'Christian Living', 'Social Justice', 'Religious Tolerance'] },
-    12: { id: 12, name: 'Islamic Studies', code: 'IRS', category: 'arts', totalQuestions: 40, duration: 60, hasDiagrams: false, topics: ['Tawhid', 'Prophethood', 'Revealed Books', 'Angels', 'Day of Judgment', 'Quranic Studies', 'Hadith', 'Islamic Law', 'Prayer', 'Fasting', 'Zakat', 'Pilgrimage', 'Islamic History', 'Islamic Ethics'] },
-    13: { id: 13, name: 'French', code: 'FRE', category: 'arts', totalQuestions: 40, duration: 60, hasDiagrams: false, topics: ['Greetings', 'Numbers', 'Family', 'Food', 'Daily Activities', 'Travel', 'Housing', 'Work', 'Health', 'Weather', 'Grammar', 'Culture'] },
-    14: { id: 14, name: 'Yoruba', code: 'YRB', category: 'arts', totalQuestions: 40, duration: 60, hasDiagrams: false, topics: ['Alphabet', 'Grammar', 'Culture', 'History', 'Composition', 'Literature'] },
-    15: { id: 15, name: 'Igbo', code: 'IGB', category: 'arts', totalQuestions: 40, duration: 60, hasDiagrams: false, topics: ['Alphabet', 'Vocabulary', 'Grammar', 'Culture', 'History', 'Literature'] },
-    16: { id: 16, name: 'Hausa', code: 'HAU', category: 'arts', totalQuestions: 40, duration: 60, hasDiagrams: false, topics: ['Alphabet', 'Grammar', 'Culture', 'History', 'Writing', 'Literature'] },
-    17: { id: 17, name: 'Music', code: 'MUS', category: 'arts', totalQuestions: 40, duration: 60, hasDiagrams: false, topics: ['Elements', 'Notation', 'Scales', 'Rhythm', 'Harmony', 'Instruments', 'African Music', 'Western History', 'Analysis', 'Composition'] },
-    18: { id: 18, name: 'Fine Arts', code: 'ART', category: 'arts', totalQuestions: 40, duration: 60, hasDiagrams: false, topics: ['Drawing', 'Painting', 'Sculpture', 'Printmaking', 'Art History', 'African Art', 'Contemporary Art', 'Color Theory', 'Composition', 'Criticism'] },
+    8: { id: 8, name: 'Literature in English', code: 'LIT', category: 'arts', totalQuestions: 40, duration: 60, topics: ['Drama', 'Prose', 'Poetry', 'Literary Principles', 'Literary Appreciation', 'African Literature', 'Non-African Literature', 'The Lekki Headmaster', 'Figures of Speech', 'Literary Criticism'] },
+    9: { id: 9, name: 'Government', code: 'GOV', category: 'arts', totalQuestions: 40, duration: 60, topics: ['Basic Concepts', 'Forms of Government', 'Arms of Government', 'Structures of Governance', 'Political Ideologies', 'Nigerian Constitution', 'Political Parties', 'Electoral Process', 'Public Administration', 'Local Government', 'Foreign Policy', 'International Organizations', 'Decolonization', 'Public Corporations', 'Nigerian Federalism'] },
+    10: { id: 10, name: 'History', code: 'HIS', category: 'arts', totalQuestions: 40, duration: 60, topics: ['Pre-colonial Nigeria', 'Trans-Saharan Trade', 'European Contact', 'Slave Trade', 'Sokoto Caliphate', 'Yoruba States', 'Benin Kingdom', 'Igbo Systems', 'Colonial Conquest', 'Nationalist Movements', 'Nigerian Independence', 'Military Rule', 'Nigerian Civil War', 'Foreign Policy', 'ECOWAS'] },
+    11: { id: 11, name: 'Christian Religious Studies', code: 'CRS', category: 'arts', totalQuestions: 40, duration: 60, topics: ['Sovereignty of God', 'Leadership & Authority', 'The Covenant', 'Prophetic Mission', 'Faith & Works', 'Justice & Fairness', 'Sermon on the Mount', 'Parables of Jesus', 'Miracles of Jesus', 'Death & Resurrection', 'Early Church', "Paul's Journeys", 'Christian Living', 'Social Justice', 'Religious Tolerance'] },
+    12: { id: 12, name: 'Islamic Studies', code: 'IRS', category: 'arts', totalQuestions: 40, duration: 60, topics: ['Tawhid', 'Prophethood', 'Revealed Books', 'Angels', 'Day of Judgment', 'Quranic Studies', 'Hadith', 'Islamic Law', 'Prayer', 'Fasting', 'Zakat', 'Pilgrimage', 'Islamic History', 'Islamic Ethics'] },
+    13: { id: 13, name: 'French', code: 'FRE', category: 'arts', totalQuestions: 40, duration: 60, topics: ['Greetings', 'Numbers', 'Family', 'Food', 'Daily Activities', 'Travel', 'Housing', 'Work', 'Health', 'Weather', 'Grammar', 'Culture'] },
+    14: { id: 14, name: 'Yoruba', code: 'YRB', category: 'arts', totalQuestions: 40, duration: 60, topics: ['Alphabet', 'Grammar', 'Culture', 'History', 'Composition', 'Literature'] },
+    15: { id: 15, name: 'Igbo', code: 'IGB', category: 'arts', totalQuestions: 40, duration: 60, topics: ['Alphabet', 'Vocabulary', 'Grammar', 'Culture', 'History', 'Literature'] },
+    16: { id: 16, name: 'Hausa', code: 'HAU', category: 'arts', totalQuestions: 40, duration: 60, topics: ['Alphabet', 'Grammar', 'Culture', 'History', 'Writing', 'Literature'] },
+    17: { id: 17, name: 'Music', code: 'MUS', category: 'arts', totalQuestions: 40, duration: 60, topics: ['Elements', 'Notation', 'Scales', 'Rhythm', 'Harmony', 'Instruments', 'African Music', 'Western History', 'Analysis', 'Composition'] },
+    18: { id: 18, name: 'Fine Arts', code: 'ART', category: 'arts', totalQuestions: 40, duration: 60, topics: ['Drawing', 'Painting', 'Sculpture', 'Printmaking', 'Art History', 'African Art', 'Contemporary Art', 'Color Theory', 'Composition', 'Criticism'] },
     
     // Commercial & Social Sciences
-    19: { id: 19, name: 'Economics', code: 'ECO', category: 'commercial', totalQuestions: 40, duration: 60, hasDiagrams: false, topics: ['Basic Concepts', 'Economic Systems', 'Demand & Supply', 'Elasticity', 'Consumer Behavior', 'Production', 'Cost Concepts', 'Market Structures', 'National Income', 'Money & Banking', 'Inflation', 'International Trade', 'Economic Development', 'Public Finance', 'Population'] },
-    20: { id: 20, name: 'Commerce', code: 'COM', category: 'commercial', totalQuestions: 40, duration: 60, hasDiagrams: false, topics: ['Meaning', 'Occupation', 'Production', 'Trade', 'Purchase & Sales', 'Aids to Trade', 'Business Units', 'Financing', 'Trade Associations', 'Money & Banking', 'Stock Exchange', 'Management', 'Marketing', 'Legal Aspects', 'Commodity Exchange'] },
-    21: { id: 21, name: 'Principles of Accounts', code: 'ACC', category: 'commercial', totalQuestions: 40, duration: 60, hasDiagrams: false, topics: ['Bookkeeping', 'Double Entry', 'Books of Entry', 'Ledger Accounts', 'Trial Balance', 'Cash Book', 'Bank Reconciliation', 'Final Accounts', 'Stock Valuation', 'Control Accounts', 'Manufacturing', 'Partnership', 'Company Accounts', 'Public Sector', 'Accounting Software'] },
-    22: { id: 22, name: 'Geography', code: 'GEO', category: 'commercial', totalQuestions: 40, duration: 60, hasDiagrams: true, minDiagramQuestions: 3, topics: ['Basic Concepts', 'Earth Structure', 'Rocks', 'Landforms', 'Weather', 'Water Bodies', 'Vegetation', 'Population', 'Settlement', 'Economic Geography', 'Transportation', 'Environment', 'Map Reading', 'GIS', 'Regional Geography'] }
+    19: { id: 19, name: 'Economics', code: 'ECO', category: 'commercial', totalQuestions: 40, duration: 60, topics: ['Basic Concepts', 'Economic Systems', 'Demand & Supply', 'Elasticity', 'Consumer Behavior', 'Production', 'Cost Concepts', 'Market Structures', 'National Income', 'Money & Banking', 'Inflation', 'International Trade', 'Economic Development', 'Public Finance', 'Population'] },
+    20: { id: 20, name: 'Commerce', code: 'COM', category: 'commercial', totalQuestions: 40, duration: 60, topics: ['Meaning', 'Occupation', 'Production', 'Trade', 'Purchase & Sales', 'Aids to Trade', 'Business Units', 'Financing', 'Trade Associations', 'Money & Banking', 'Stock Exchange', 'Management', 'Marketing', 'Legal Aspects', 'Commodity Exchange'] },
+    21: { id: 21, name: 'Principles of Accounts', code: 'ACC', category: 'commercial', totalQuestions: 40, duration: 60, topics: ['Bookkeeping', 'Double Entry', 'Books of Entry', 'Ledger Accounts', 'Trial Balance', 'Cash Book', 'Bank Reconciliation', 'Final Accounts', 'Stock Valuation', 'Control Accounts', 'Manufacturing', 'Partnership', 'Company Accounts', 'Public Sector', 'Accounting Software'] },
+    22: { id: 22, name: 'Geography', code: 'GEO', category: 'commercial', totalQuestions: 40, duration: 60, topics: ['Basic Concepts', 'Earth Structure', 'Rocks', 'Landforms', 'Weather', 'Water Bodies', 'Vegetation', 'Population', 'Settlement', 'Economic Geography', 'Transportation', 'Environment', 'Map Reading', 'GIS', 'Regional Geography'] }
 };
 
 module.exports = { allSubjects };

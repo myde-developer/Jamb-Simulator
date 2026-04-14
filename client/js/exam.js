@@ -257,7 +257,7 @@ async function fetchExamQuestions(subjects) {
             console.log(`📦 Found ${allQuestions.length} questions in database`);
         }
         
-        // Step 2: Generate missing questions with AI
+        // Step 2: Generate missing questions with AI (AWAIT each one)
         const allAIQuestions = [];
         
         for (const subject of subjects) {
@@ -270,30 +270,47 @@ async function fetchExamQuestions(subjects) {
                 console.log(`🤖 Generating ${needed} AI questions for ${subject.name}`);
                 const forceDiagrams = config?.hasDiagrams || false;
                 
-                const aiResponse = await fetch(`${API_BASE}/api/ai-questions/generate`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({
-                        subjectId: subject.id,
-                        topic: null,
-                        count: needed,
-                        difficulty: 'medium',
-                        includeDiagrams: forceDiagrams,
-                        forceDiagrams: forceDiagrams,
-                        examMode: true
-                    })
-                });
+                // Generate in smaller chunks to avoid rate limits
+                const chunkSize = 10;
+                const chunks = Math.ceil(needed / chunkSize);
                 
-                if (aiResponse.ok) {
-                    const aiData = await aiResponse.json();
-                    allAIQuestions.push(...aiData.questions);
-                    console.log(`✅ Generated ${aiData.questions.length} AI questions for ${subject.name}`);
+                for (let chunk = 0; chunk < chunks; chunk++) {
+                    const chunkCount = Math.min(chunkSize, needed - (chunk * chunkSize));
+                    console.log(`   Generating chunk ${chunk + 1}/${chunks} (${chunkCount} questions)`);
+                    
+                    const aiResponse = await fetch(`${API_BASE}/api/ai-questions/generate`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            subjectId: subject.id,
+                            topic: null,
+                            count: chunkCount,
+                            difficulty: 'medium',
+                            examMode: true
+                        })
+                    });
+                    
+                    if (aiResponse.ok) {
+                        const aiData = await aiResponse.json();
+                        allAIQuestions.push(...aiData.questions);
+                        console.log(`   ✅ Generated ${aiData.questions.length} questions`);
+                        
+                        // Wait between chunks to avoid rate limiting
+                        if (chunk < chunks - 1) {
+                            console.log(`   ⏳ Waiting 2 seconds before next chunk...`);
+                            await new Promise(resolve => setTimeout(resolve, 2000));
+                        }
+                    } else {
+                        console.error(`   ❌ Failed to generate chunk ${chunk + 1}`);
+                    }
                 }
             }
         }
+        
+        console.log(`📊 Total AI questions generated: ${allAIQuestions.length}`);
         
         // Step 3: Combine and randomize
         const combinedQuestions = [...allQuestions, ...allAIQuestions];
@@ -311,6 +328,7 @@ async function fetchExamQuestions(subjects) {
             }
             
             examState.subjectQuestions[subject.name] = subjectQuestions;
+            console.log(`📚 ${subject.name}: ${subjectQuestions.length}/${targetCount} questions loaded`);
         }
         
         examState.questions = randomizedQuestions;
@@ -321,11 +339,19 @@ async function fetchExamQuestions(subjects) {
         renderSubjectQuestion(firstSubject);
         renderPalette();
         
-        // Step 6: Mark exam as ready and START TIMER
+        // Step 6: Update progress and finalize
+        updateProgress();
+        
+        // Step 7: MARK EXAM AS READY and START TIMER ONLY NOW
         examState.isReady = true;
+        
+        // Small delay to ensure DOM is fully updated
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // START TIMER - FINALLY!
         startTimer();
         
-        console.log('✅ Exam fully loaded, timer started');
+        console.log('✅✅✅ EXAM FULLY LOADED - TIMER STARTED ✅✅✅');
         logExamStatistics();
         
     } catch (error) {
@@ -352,7 +378,7 @@ function logExamStatistics() {
         const diagramCount = questions.filter(q => q.diagram_url).length;
         
         console.log(`📖 ${subject.name}: ${questions.length}/${required} questions`);
-        console.log(`   📝 Database: ${dbCount} | 🤖 AI: ${aiCount} | 📐 Diagrams: ${diagramCount}`);
+        console.log(`   📝 Database: ${dbCount} | 🤖 AI: ${aiCount} |  Diagrams: ${diagramCount}`);
     }
     console.log('=================================\n');
 }
@@ -370,14 +396,8 @@ function renderQuestion(question, subjectName, questionNumber, totalQuestions) {
         D: question.option_d
     };
     
-    let questionHtml = question.question_text;
-    if (question.diagram_url) {
-        questionHtml += `
-            <div style="margin: 20px 0; text-align: center;">
-                <img src="${question.diagram_url}" alt="Diagram" style="max-width: 100%; border-radius: 8px; border: 1px solid #e1e5eb;">
-            </div>
-        `;
-    }
+    // REMOVED diagram code - just show question text
+    const questionHtml = question.question_text;
     
     container.innerHTML = `
         <div class="question-number">Question ${questionNumber} of ${totalQuestions}</div>
@@ -631,11 +651,17 @@ function updateProgress() {
 function startTimer() {
     // Only start if exam is ready
     if (!examState.isReady) {
-        console.log('⏳ Timer waiting for exam to be ready...');
+        console.log('⏳ Timer waiting for exam to be ready... (isReady = false)');
         return;
     }
     
-    if (examState.timerInterval) clearInterval(examState.timerInterval);
+    // Don't start if timer already running
+    if (examState.timerInterval) {
+        console.log('⚠️ Timer already running');
+        return;
+    }
+    
+    console.log('⏰ STARTING TIMER NOW!');
     
     examState.timerInterval = setInterval(() => {
         if (examState.timeRemaining <= 0) {
@@ -646,8 +672,6 @@ function startTimer() {
         examState.timeRemaining--;
         updateTimerDisplay();
     }, 1000);
-    
-    console.log('⏰ Timer started!');
 }
 
 function updateTimerDisplay() {
