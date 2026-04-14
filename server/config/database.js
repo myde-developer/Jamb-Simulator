@@ -19,6 +19,18 @@ const pool = new Pool({
     }
 });
 
+// ✅ ADD THIS FUNCTION
+async function checkDatabase() {
+    try {
+        const result = await pool.query('SELECT 1');
+        console.log('✅ Database connected successfully');
+        return true;
+    } catch (error) {
+        console.error('❌ Database connection error:', error.message);
+        return false;
+    }
+}
+
 async function createTables() {
     const client = await pool.connect();
     
@@ -102,7 +114,7 @@ async function createTables() {
         console.log('✅ Indexes ready');
 
         // ========================
-        // INSERT SUBJECTS (FIXED)
+        // INSERT SUBJECTS (ALL 22)
         // ========================
         await client.query(`
             INSERT INTO subjects (id, name, code) VALUES
@@ -209,5 +221,6 @@ async function createTables() {
 module.exports = {
     pool,
     createTables,
+    checkDatabase,  // ✅ ADD THIS EXPORT
     query: (text, params) => pool.query(text, params)
 };
