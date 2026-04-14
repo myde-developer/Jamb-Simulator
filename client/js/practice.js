@@ -51,7 +51,7 @@ async function loadSubjects() {
     try {
         const token = localStorage.getItem('token');
         // Use the new /api/subjects endpoint
-        const response = await fetch(`${API_BASE}/api/subjects`, {
+        const response = await fetch(`${API_BASE}/api/ai-questions/subjects`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         
@@ -144,7 +144,7 @@ async function loadTopics() {
     try {
         const token = localStorage.getItem('token');
         // Use the practice endpoint for topics
-        const response = await fetch(`${API_BASE}/api/practice/topics/${subjectId}`, {
+        const response = await fetch(`${API_BASE}/api/ai-questions/topics/${subjectId}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         

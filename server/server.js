@@ -73,13 +73,6 @@ try {
     } catch (error) {
         console.warn('⚠️ Progress routes not found:', error.message);
     }
-
-try {
-        app.use('/api/subjects', require('./routes/subjects'));
-        console.log('✅ Subjects routes loaded');
-    } catch (error) {
-        console.warn('⚠️ Subjects routes not found:', error.message);
-    }
     
     try {
         app.use('/api/admin', require('./routes/admin'));
