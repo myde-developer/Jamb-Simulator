@@ -19,10 +19,12 @@ const pool = new Pool({
     }
 });
 
-// ✅ ADD THIS FUNCTION
+// ========================
+// CHECK DATABASE
+// ========================
 async function checkDatabase() {
     try {
-        const result = await pool.query('SELECT 1');
+        await pool.query('SELECT 1');
         console.log('✅ Database connected successfully');
         return true;
     } catch (error) {
@@ -31,6 +33,9 @@ async function checkDatabase() {
     }
 }
 
+// ========================
+// MAIN SETUP FUNCTION
+// ========================
 async function createTables() {
     const client = await pool.connect();
     
@@ -59,7 +64,7 @@ async function createTables() {
                 option_b TEXT NOT NULL,
                 option_c TEXT NOT NULL,
                 option_d TEXT NOT NULL,
-                correct_answer VARCHAR(20) CHECK (correct_answer IN ('A','B','C','D')),
+                correct_answer VARCHAR(1) CHECK (correct_answer IN ('A','B','C','D')),
                 explanation TEXT,
                 topic VARCHAR(100),
                 difficulty VARCHAR(10) CHECK (difficulty IN ('easy','medium','hard')),
@@ -114,7 +119,7 @@ async function createTables() {
         console.log('✅ Indexes ready');
 
         // ========================
-        // INSERT SUBJECTS (ALL 22)
+        // INSERT SUBJECTS
         // ========================
         await client.query(`
             INSERT INTO subjects (id, name, code) VALUES
@@ -177,6 +182,19 @@ async function createTables() {
 
                 placeholders.push(`($${base+1},$${base+2},$${base+3},$${base+4},$${base+5},$${base+6},$${base+7},$${base+8},$${base+9},$${base+10})`);
 
+                // ✅ FIXED ANSWER SANITIZATION
+                let answer = (q.correct_answer || '').trim().toUpperCase();
+
+                if (answer.length > 1) {
+                    const match = answer.match(/[ABCD]$/);
+                    answer = match ? match[0] : '';
+                }
+
+                if (!['A','B','C','D'].includes(answer)) {
+                    console.warn(`❌ Invalid answer: ${q.correct_answer}`);
+                    answer = 'A';
+                }
+
                 values.push(
                     q.subject_id,
                     q.question_text,
@@ -184,7 +202,7 @@ async function createTables() {
                     q.option_b,
                     q.option_c,
                     q.option_d,
-                    q.correct_answer,
+                    answer, // ✅ FIX APPLIED HERE
                     q.explanation || null,
                     q.topic || null,
                     q.difficulty || 'medium'
@@ -221,6 +239,6 @@ async function createTables() {
 module.exports = {
     pool,
     createTables,
-    checkDatabase,  // ✅ ADD THIS EXPORT
+    checkDatabase,
     query: (text, params) => pool.query(text, params)
 };
