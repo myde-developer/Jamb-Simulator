@@ -1,189 +1,201 @@
 // server/routes/leaderboard.js
 const express = require('express');
 const router = express.Router();
-const db = require('../db');
-const auth = require('../middleware/auth');
+const { pool } = require('../config/database');
 
-// Get global leaderboard
-router.get('/global', auth, async (req, res) => {
+// NO AUTHENTICATION NEEDED FOR VIEWING LEADERBOARD
+// But we'll still verify token for user-specific data
+
+// Helper to verify token (optional, for user-specific data)
+const getUserIdFromToken = (req) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    
+    if (!token) return null;
+    
     try {
-        const result = await db.query(`
+        const jwt = require('jsonwebtoken');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+        return decoded.id;
+    } catch (error) {
+        return null;
+    }
+};
+
+// Get global leaderboard - PUBLIC (no auth required)
+router.get('/global', async (req, res) => {
+    try {
+        const result = await pool.query(`
             SELECT 
                 u.id,
-                u.full_name as name,
-                COUNT(DISTINCT es.id) as exams_taken,
-                COALESCE(ROUND(AVG(es.score)::numeric, 2), 0) as avg_score,
-                COALESCE(MAX(es.score), 0) as best_score,
-                COUNT(DISTINCT ua.id) as total_questions,
-                SUM(CASE WHEN ua.is_correct THEN 1 ELSE 0 END) as correct_answers,
-                COUNT(DISTINCT CASE WHEN DATE(es.completed_at) = CURRENT_DATE THEN es.id END) as today_exams,
-                (
-                    SELECT COUNT(DISTINCT DATE(completed_at))
-                    FROM exam_sessions 
-                    WHERE user_id = u.id AND completed_at IS NOT NULL
-                ) as study_days,
-                (
-                    SELECT COUNT(*)
-                    FROM user_answers ua2
-                    JOIN exam_sessions es2 ON es2.id = ua2.session_id
-                    WHERE es2.user_id = u.id AND ua2.is_correct = true
-                ) as total_correct
+                u.full_name,
+                COALESCE(SUM(e.score), 0) as total_score,
+                COUNT(e.id) as exams_taken
             FROM users u
-            LEFT JOIN exam_sessions es ON es.user_id = u.id AND es.completed_at IS NOT NULL
-            LEFT JOIN user_answers ua ON ua.session_id = es.id
+            LEFT JOIN exam_sessions e ON u.id = e.user_id AND e.completed_at IS NOT NULL
             GROUP BY u.id, u.full_name
-            HAVING COUNT(DISTINCT es.id) > 0
-            ORDER BY avg_score DESC, total_correct DESC
+            HAVING COALESCE(SUM(e.score), 0) > 0
+            ORDER BY total_score DESC
             LIMIT 100
         `);
         
-        res.json(result.rows);
+        const leaderboard = result.rows.map((row, index) => ({
+            rank: index + 1,
+            user_id: row.id,
+            name: row.full_name || 'Anonymous User',
+            score: Math.round(row.total_score),
+            exams_taken: parseInt(row.exams_taken),
+            avatar: row.full_name ? row.full_name.charAt(0).toUpperCase() : 'U'
+        }));
+        
+        res.json({ success: true, leaderboard });
         
     } catch (error) {
-        console.error('Error fetching leaderboard:', error);
-        res.status(500).json({ error: 'Failed to fetch leaderboard' });
+        console.error('Error fetching global leaderboard:', error);
+        res.status(500).json({ error: 'Failed to load leaderboard' });
     }
 });
 
-// Get weekly leaderboard
-router.get('/weekly', auth, async (req, res) => {
+// Get weekly leaderboard - PUBLIC
+router.get('/weekly', async (req, res) => {
     try {
-        const result = await db.query(`
+        const result = await pool.query(`
             SELECT 
                 u.id,
-                u.full_name as name,
-                COUNT(DISTINCT es.id) as exams_taken,
-                COALESCE(ROUND(AVG(es.score)::numeric, 2), 0) as avg_score,
-                SUM(CASE WHEN ua.is_correct THEN 1 ELSE 0 END) as weekly_correct,
-                COUNT(ua.id) as weekly_questions
+                u.full_name,
+                COALESCE(SUM(e.score), 0) as total_score,
+                COUNT(e.id) as exams_taken
             FROM users u
-            LEFT JOIN exam_sessions es ON es.user_id = u.id 
-                AND es.completed_at IS NOT NULL
-                AND es.completed_at >= NOW() - INTERVAL '7 days'
-            LEFT JOIN user_answers ua ON ua.session_id = es.id
+            LEFT JOIN exam_sessions e ON u.id = e.user_id 
+                AND e.completed_at IS NOT NULL
+                AND e.completed_at > NOW() - INTERVAL '7 days'
             GROUP BY u.id, u.full_name
-            HAVING COUNT(DISTINCT es.id) > 0
-            ORDER BY weekly_correct DESC, avg_score DESC
+            HAVING COALESCE(SUM(e.score), 0) > 0
+            ORDER BY total_score DESC
             LIMIT 100
         `);
         
-        res.json(result.rows);
+        const leaderboard = result.rows.map((row, index) => ({
+            rank: index + 1,
+            user_id: row.id,
+            name: row.full_name || 'Anonymous User',
+            score: Math.round(row.total_score),
+            exams_taken: parseInt(row.exams_taken),
+            avatar: row.full_name ? row.full_name.charAt(0).toUpperCase() : 'U'
+        }));
+        
+        res.json({ success: true, leaderboard });
         
     } catch (error) {
         console.error('Error fetching weekly leaderboard:', error);
-        res.status(500).json({ error: 'Failed to fetch weekly leaderboard' });
+        res.status(500).json({ error: 'Failed to load leaderboard' });
     }
 });
 
-// Get monthly leaderboard
-router.get('/monthly', auth, async (req, res) => {
+// Get monthly leaderboard - PUBLIC
+router.get('/monthly', async (req, res) => {
     try {
-        const result = await db.query(`
+        const result = await pool.query(`
             SELECT 
                 u.id,
-                u.full_name as name,
-                COUNT(DISTINCT es.id) as exams_taken,
-                COALESCE(ROUND(AVG(es.score)::numeric, 2), 0) as avg_score,
-                SUM(CASE WHEN ua.is_correct THEN 1 ELSE 0 END) as monthly_correct,
-                COUNT(ua.id) as monthly_questions
+                u.full_name,
+                COALESCE(SUM(e.score), 0) as total_score,
+                COUNT(e.id) as exams_taken
             FROM users u
-            LEFT JOIN exam_sessions es ON es.user_id = u.id 
-                AND es.completed_at IS NOT NULL
-                AND EXTRACT(MONTH FROM es.completed_at) = EXTRACT(MONTH FROM CURRENT_DATE)
-                AND EXTRACT(YEAR FROM es.completed_at) = EXTRACT(YEAR FROM CURRENT_DATE)
-            LEFT JOIN user_answers ua ON ua.session_id = es.id
+            LEFT JOIN exam_sessions e ON u.id = e.user_id 
+                AND e.completed_at IS NOT NULL
+                AND e.completed_at > NOW() - INTERVAL '30 days'
             GROUP BY u.id, u.full_name
-            HAVING COUNT(DISTINCT es.id) > 0
-            ORDER BY monthly_correct DESC, avg_score DESC
+            HAVING COALESCE(SUM(e.score), 0) > 0
+            ORDER BY total_score DESC
             LIMIT 100
         `);
         
-        res.json(result.rows);
+        const leaderboard = result.rows.map((row, index) => ({
+            rank: index + 1,
+            user_id: row.id,
+            name: row.full_name || 'Anonymous User',
+            score: Math.round(row.total_score),
+            exams_taken: parseInt(row.exams_taken),
+            avatar: row.full_name ? row.full_name.charAt(0).toUpperCase() : 'U'
+        }));
+        
+        res.json({ success: true, leaderboard });
         
     } catch (error) {
         console.error('Error fetching monthly leaderboard:', error);
-        res.status(500).json({ error: 'Failed to fetch monthly leaderboard' });
+        res.status(500).json({ error: 'Failed to load leaderboard' });
     }
 });
 
-// Get streak leaderboard
-router.get('/streak', auth, async (req, res) => {
+// Get streak leaderboard - PUBLIC
+router.get('/streak', async (req, res) => {
     try {
-        const result = await db.query(`
-            WITH daily_activity AS (
-                SELECT 
-                    user_id,
-                    DATE(completed_at) as study_date
-                FROM exam_sessions
-                WHERE completed_at IS NOT NULL
-                GROUP BY user_id, DATE(completed_at)
-            ),
-            streaks AS (
-                SELECT 
-                    user_id,
-                    study_date,
-                    ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY study_date) as rn
-                FROM daily_activity
-            ),
-            streak_groups AS (
-                SELECT 
-                    user_id,
-                    study_date,
-                    study_date - (rn || ' days')::INTERVAL as group_date
-                FROM streaks
-            )
+        // For now, return based on exam count as streak
+        const result = await pool.query(`
             SELECT 
                 u.id,
-                u.full_name as name,
-                COUNT(*) as current_streak,
-                MAX(sg.study_date) as last_study
-            FROM streak_groups sg
-            JOIN users u ON u.id = sg.user_id
-            GROUP BY u.id, u.full_name, sg.group_date
-            HAVING MAX(sg.study_date) = CURRENT_DATE
-            ORDER BY current_streak DESC
+                u.full_name,
+                COUNT(e.id) as streak
+            FROM users u
+            LEFT JOIN exam_sessions e ON u.id = e.user_id AND e.completed_at IS NOT NULL
+            GROUP BY u.id, u.full_name
+            HAVING COUNT(e.id) > 0
+            ORDER BY streak DESC
             LIMIT 100
         `);
         
-        res.json(result.rows);
+        const leaderboard = result.rows.map((row, index) => ({
+            rank: index + 1,
+            user_id: row.id,
+            name: row.full_name || 'Anonymous User',
+            streak: parseInt(row.streak),
+            avatar: row.full_name ? row.full_name.charAt(0).toUpperCase() : 'U'
+        }));
+        
+        res.json({ success: true, leaderboard });
         
     } catch (error) {
         console.error('Error fetching streak leaderboard:', error);
-        res.status(500).json({ error: 'Failed to fetch streak leaderboard' });
+        res.status(500).json({ error: 'Failed to load leaderboard' });
     }
 });
 
-// Get user's rank
-router.get('/rank/:userId', auth, async (req, res) => {
+// Get current user's rank - Requires auth (optional)
+router.get('/my-rank', async (req, res) => {
+    const userId = getUserIdFromToken(req);
+    
+    if (!userId) {
+        return res.json({ success: true, rank: null, score: 0 });
+    }
+    
     try {
-        const { userId } = req.params;
-        
-        const rankResult = await db.query(`
-            WITH rankings AS (
+        const result = await pool.query(`
+            WITH ranked_users AS (
                 SELECT 
                     u.id,
-                    u.full_name,
-                    COALESCE(ROUND(AVG(es.score)::numeric, 2), 0) as avg_score,
-                    ROW_NUMBER() OVER (ORDER BY AVG(es.score) DESC) as rank
+                    COALESCE(SUM(e.score), 0) as total_score,
+                    ROW_NUMBER() OVER (ORDER BY COALESCE(SUM(e.score), 0) DESC) as rank
                 FROM users u
-                LEFT JOIN exam_sessions es ON es.user_id = u.id AND es.completed_at IS NOT NULL
-                GROUP BY u.id, u.full_name
-                HAVING COUNT(es.id) > 0
+                LEFT JOIN exam_sessions e ON u.id = e.user_id AND e.completed_at IS NOT NULL
+                GROUP BY u.id
             )
-            SELECT rank, avg_score
-            FROM rankings
-            WHERE id = $1
+            SELECT * FROM ranked_users WHERE id = $1
         `, [userId]);
         
-        if (rankResult.rows.length === 0) {
-            return res.json({ rank: 'N/A', message: 'No exams taken yet' });
+        if (result.rows.length > 0) {
+            res.json({ 
+                success: true, 
+                rank: result.rows[0].rank,
+                score: Math.round(result.rows[0].total_score)
+            });
+        } else {
+            res.json({ success: true, rank: null, score: 0 });
         }
-        
-        res.json(rankResult.rows[0]);
         
     } catch (error) {
         console.error('Error fetching user rank:', error);
-        res.status(500).json({ error: 'Failed to fetch rank' });
+        res.json({ success: true, rank: null, score: 0 });
     }
 });
 

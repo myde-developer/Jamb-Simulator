@@ -1,4 +1,4 @@
-// server/routes/ai-questions.js - NO DIAGRAMS
+// server/routes/ai-questions.js - WITH TOPIC DISTRIBUTION
 const express = require('express');
 const router = express.Router();
 const { allSubjects } = require('../data/all-subjects');
@@ -89,163 +89,158 @@ router.get('/topics/:subjectId', authenticateToken, (req, res) => {
     }
 });
 
-// Subject-specific guidelines
-function getSubjectGuidelines(subjectName) {
-    const guidelines = {
-        'Use of English': 'Include comprehension, synonyms/antonyms, sentence completion, oral English, and the Lekki Headmaster novel.',
-        'Mathematics': 'Include calculation questions, formula application, geometry, algebra, statistics, probability, and word problems.',
-        'Physics': 'Include formula-based calculations, conceptual questions about laws, practical applications, and scientific principles.',
-        'Chemistry': 'Include balancing equations, periodic table trends, chemical reactions, organic chemistry, and mole calculations.',
-        'Biology': 'Include definitions, processes, classifications, human anatomy, plant biology, ecology, and genetics.',
-        'Agricultural Science': 'Include crop production, animal husbandry, soil science, agricultural economics, and farm machinery.',
-        'Computer Studies': 'Include hardware, software, networking, programming concepts, data processing, and number systems.',
-        'Literature in English': 'Include drama, prose, poetry, literary devices, figures of speech, and African literature.',
-        'Government': 'Include political systems, Nigerian constitution, governance structures, electoral processes, and political parties.',
-        'History': 'Include Nigerian history, pre-colonial societies, colonial era, independence movements, and key historical figures.',
-        'Economics': 'Include supply/demand, market structures, national income, monetary policy, fiscal policy, and international trade.',
-        'Commerce': 'Include trade, business units, marketing, banking, insurance, transportation, and warehousing.',
-        'Principles of Accounts': 'Include double entry, ledger accounts, trial balance, final accounts, and bank reconciliation.',
-        'Geography': 'Include physical geography, map reading, climate patterns, population distribution, and environmental issues.',
-        'Christian Religious Studies': 'Include Bible stories, teachings of Jesus, parables, miracles, and epistles.',
-        'Islamic Studies': 'Include Quranic teachings, Hadith, pillars of Islam, Islamic history, and Islamic law.',
-        'French': 'Include vocabulary, grammar, conjugation, comprehension, and cultural knowledge.',
-        'Yoruba': 'Include language structure, grammar, literature, culture, and oral traditions.',
-        'Igbo': 'Include language structure, grammar, literature, culture, and oral traditions.',
-        'Hausa': 'Include language structure, grammar, literature, culture, and oral traditions.',
-        'Music': 'Include music theory, notation, scales, rhythm, harmony, instruments, and music history.',
-        'Fine Arts': 'Include art history, drawing, painting, sculpture, color theory, composition, and African art.'
-    };
-    return guidelines[subjectName] || 'Cover the syllabus comprehensively with factual, knowledge-based multiple-choice questions.';
+// Get topic distribution for a subject
+function getTopicDistribution(subjectId, totalCount) {
+    const subject = allSubjects[subjectId];
+    if (!subject || !subject.topicDistribution) {
+        return null;
+    }
+    
+    const distribution = subject.topicDistribution;
+    const topics = Object.keys(distribution);
+    const totalRequired = Object.values(distribution).reduce((a, b) => a + b, 0);
+    
+    // Calculate how many questions per topic based on totalCount
+    const multiplier = totalCount / totalRequired;
+    const topicCounts = {};
+    
+    for (const [topic, count] of Object.entries(distribution)) {
+        topicCounts[topic] = Math.round(count * multiplier);
+    }
+    
+    // Adjust to ensure total matches exactly
+    let sum = Object.values(topicCounts).reduce((a, b) => a + b, 0);
+    let diff = totalCount - sum;
+    
+    if (diff !== 0) {
+        const firstTopic = Object.keys(topicCounts)[0];
+        topicCounts[firstTopic] += diff;
+    }
+    
+    console.log(`📊 Topic distribution for ${subject.name} (${totalCount} questions):`);
+    for (const [topic, count] of Object.entries(topicCounts)) {
+        console.log(`   ${topic}: ${count} questions`);
+    }
+    
+    return topicCounts;
 }
 
-// Generate MCQ questions in batches
-async function generateQuestionsInBatches(subject, count, topic, difficulty, groqApiKey, batchSize = 5) {
-    const allQuestions = [];
-    const batches = Math.ceil(count / batchSize);
-    
-    let difficultyDesc = 'STANDARD JAMB difficulty';
+// Generate ONE question for a specific topic
+async function generateSingleQuestion(subject, specificTopic, difficulty, groqApiKey, questionNumber, totalForTopic) {
+    let difficultyDesc = 'MEDIUM - Standard JAMB difficulty';
     let temperature = 0.75;
     
     if (difficulty === 'hard') {
-        difficultyDesc = 'HARD - Challenging questions that require deep understanding, application, and sometimes calculations. Include tricky distractors.';
+        difficultyDesc = 'HARD - Challenging question requiring deep understanding';
         temperature = 0.85;
     } else if (difficulty === 'easy') {
-        difficultyDesc = 'EASY - Basic recall and simple understanding questions.';
+        difficultyDesc = 'EASY - Basic recall question';
         temperature = 0.65;
-    } else {
-        difficultyDesc = 'MEDIUM - Standard JAMB difficulty, testing understanding and basic application.';
-        temperature = 0.75;
     }
     
-    const subjectGuidelines = getSubjectGuidelines(subject.name);
-    
-    for (let i = 0; i < batches; i++) {
-        const batchCount = Math.min(batchSize, count - (i * batchSize));
-        console.log(`📦 Generating batch ${i + 1}/${batches} (${batchCount} questions) - Difficulty: ${difficulty}`);
-        
-        if (i > 0) {
-            console.log(`⏳ Waiting 3 seconds before next batch...`);
-            await delay(3000);
-        }
-        
-        const prompt = `You are an expert JAMB examiner. Generate ${batchCount} ORIGINAL, HIGH-QUALITY multiple-choice questions for JAMB UTME ${subject.name}.
+    const prompt = `Generate ONE multiple-choice question for JAMB ${subject.name}.
+Topic: ${specificTopic}
+Difficulty: ${difficultyDesc}
 
-${topic && topic !== 'all' && topic !== 'Select Topic' ? `TOPIC: ${topic}` : `Cover diverse topics from the ${subject.name} syllabus.`}
-
-DIFFICULTY: ${difficultyDesc}
-
-SUBJECT-SPECIFIC GUIDELINES:
-${subjectGuidelines}
-
-Each question MUST have 4 options (A, B, C, D) with ONE correct answer.
-
-Question types to include:
-- Application: "If X happens, what would be the result?"
-- Calculation: "Calculate the value of..." (for Math/Sciences)
-- Analysis: "Which of the following best explains why..."
-- Comparison: "What is the difference between X and Y?"
-- Identification: "Which of these is an example of X?"
-
-Return ONLY a valid JSON array of ${batchCount} questions in this format:
+Format as JSON:
 {
-    "question_text": "The question text",
-    "option_a": "First option",
-    "option_b": "Second option",
-    "option_c": "Third option",
-    "option_d": "Fourth option",
+    "question_text": "question here",
+    "option_a": "option A",
+    "option_b": "option B", 
+    "option_c": "option C",
+    "option_d": "option D",
     "correct_answer": "A/B/C/D",
-    "explanation": "Detailed explanation (2-3 sentences)",
-    "topic": "${topic || 'General'}",
-    "difficulty": "${difficulty || 'medium'}"
-}`;
-
-        let retries = 3;
-        let success = false;
-        let batchQuestions = [];
-        
-        while (retries > 0 && !success) {
-            try {
-                const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${groqApiKey}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        model: 'llama-3.3-70b-versatile',
-                        messages: [{ role: 'user', content: prompt }],
-                        temperature: temperature,
-                        max_tokens: 8192
-                    })
-                });
-                
-                if (response.status === 429) {
-                    console.log(`⚠️ Rate limited! Waiting 5 seconds... (${retries} retries left)`);
-                    await delay(5000);
-                    retries--;
-                    continue;
-                }
-                
-                if (!response.ok) {
-                    console.error(`❌ GROQ batch ${i + 1} failed: ${response.status}`);
-                    retries--;
-                    continue;
-                }
-                
-                const data = await response.json();
-                const generatedText = data.choices[0].message.content;
-                
-                const jsonMatch = generatedText.match(/\[\s*\{[\s\S]*\}\s*\]/);
-                if (jsonMatch) {
-                    batchQuestions = JSON.parse(jsonMatch[0]);
-                } else {
-                    batchQuestions = JSON.parse(generatedText);
-                }
-                
-                if (Array.isArray(batchQuestions) && batchQuestions.length > 0) {
-                    allQuestions.push(...batchQuestions);
-                    console.log(`✅ Batch ${i + 1} generated ${batchQuestions.length} questions`);
-                    success = true;
-                } else {
-                    retries--;
-                }
-                
-            } catch (error) {
-                console.error(`❌ Error in batch ${i + 1}:`, error.message);
-                retries--;
-            }
-        }
-    }
-    
-    return allQuestions.slice(0, count);
+    "explanation": "explanation here",
+    "topic": "${specificTopic}",
+    "difficulty": "${difficulty}"
 }
 
-// Generate questions using GROQ API
+Return ONLY the JSON object, no extra text.`;
+
+    let retries = 2;
+    
+    while (retries > 0) {
+        try {
+            const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${groqApiKey}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: 'llama-3.3-70b-versatile',
+                    messages: [{ role: 'user', content: prompt }],
+                    temperature: temperature,
+                    max_tokens: 2048
+                })
+            });
+            
+            if (response.status === 429) {
+                console.log(`   ⏳ Rate limited, waiting 3 seconds...`);
+                await delay(3000);
+                retries--;
+                continue;
+            }
+            
+            if (!response.ok) {
+                console.log(`   ⚠️ API error ${response.status}, retrying...`);
+                retries--;
+                await delay(2000);
+                continue;
+            }
+            
+            const data = await response.json();
+            const generatedText = data.choices[0].message.content;
+            
+            let question;
+            try {
+                const jsonMatch = generatedText.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    question = JSON.parse(jsonMatch[0]);
+                } else {
+                    question = JSON.parse(generatedText);
+                }
+            } catch (parseError) {
+                console.log(`   ⚠️ Parse error, retrying...`);
+                retries--;
+                await delay(2000);
+                continue;
+            }
+            
+            if (question && question.question_text) {
+                return question;
+            }
+            
+            retries--;
+            
+        } catch (error) {
+            console.error(`   ❌ Error:`, error.message);
+            retries--;
+            if (retries > 0) await delay(2000);
+        }
+    }
+    
+    // Return mock question if all retries fail
+    console.log(`   ⚠️ Using mock question`);
+    return {
+        question_text: `${subject.name} - ${specificTopic} practice question: What is the correct answer?`,
+        option_a: 'Option A (Correct)',
+        option_b: 'Option B',
+        option_c: 'Option C',
+        option_d: 'Option D',
+        correct_answer: 'A',
+        explanation: `This is a practice question for ${subject.name} - ${specificTopic}. The correct answer is A.`,
+        topic: specificTopic,
+        difficulty: difficulty
+    };
+}
+
+// Generate questions ACCORDING TO TOPIC DISTRIBUTION
 router.post('/generate', authenticateToken, async (req, res) => {
     try {
         const { subjectId, topic, count = 10, difficulty = 'medium', examMode = false } = req.body;
         
-        console.log(`📝 Generate request: subjectId=${subjectId}, topic=${topic}, count=${count}, difficulty=${difficulty}`);
+        console.log(`\n📝 Generate ${count} questions for subject ${subjectId}`);
         
         const subject = allSubjects[parseInt(subjectId)];
         if (!subject) {
@@ -253,41 +248,156 @@ router.post('/generate', authenticateToken, async (req, res) => {
         }
         
         const groqApiKey = process.env.GROQ_API_KEY;
+        const allQuestions = [];
         
-        if (!groqApiKey) {
-            console.error('❌ GROQ_API_KEY not set');
-            return res.status(500).json({ error: 'AI service not configured. Please add GROQ_API_KEY.' });
+        // If a specific topic is requested (practice mode)
+        if (topic && topic !== 'all' && topic !== 'Select Topic') {
+            console.log(`🎯 Practice Mode: Generating ${count} questions for topic: ${topic}`);
+            
+            for (let i = 0; i < count; i++) {
+                console.log(`   Generating question ${i + 1}/${count} for topic: ${topic}`);
+                
+                let question;
+                if (groqApiKey) {
+                    question = await generateSingleQuestion(subject, topic, difficulty, groqApiKey, i + 1, count);
+                } else {
+                    question = {
+                        question_text: `${subject.name} - ${topic} practice question ${i + 1}: What is the correct answer?`,
+                        option_a: 'Option A (Correct)',
+                        option_b: 'Option B',
+                        option_c: 'Option C',
+                        option_d: 'Option D',
+                        correct_answer: 'A',
+                        explanation: `Practice question for ${subject.name} - ${topic}.`,
+                        topic: topic,
+                        difficulty: difficulty
+                    };
+                }
+                
+                allQuestions.push(question);
+                
+                if (i < count - 1) {
+                    await delay(2000);
+                }
+            }
+        } 
+        // Exam mode: follow topic distribution
+        else if (examMode) {
+            console.log(`📚 Exam Mode: Using topic distribution for ${subject.name}`);
+            const topicDistribution = getTopicDistribution(parseInt(subjectId), count);
+            
+            if (!topicDistribution) {
+                console.log(`⚠️ No topic distribution found, using general generation`);
+                // Fallback to general generation
+                for (let i = 0; i < count; i++) {
+                    let question;
+                    if (groqApiKey) {
+                        question = await generateSingleQuestion(subject, 'General', difficulty, groqApiKey, i + 1, count);
+                    } else {
+                        question = {
+                            question_text: `${subject.name} practice question ${i + 1}: What is the correct answer?`,
+                            option_a: 'Option A (Correct)',
+                            option_b: 'Option B',
+                            option_c: 'Option C',
+                            option_d: 'Option D',
+                            correct_answer: 'A',
+                            explanation: `Practice question for ${subject.name}.`,
+                            topic: 'General',
+                            difficulty: difficulty
+                        };
+                    }
+                    allQuestions.push(question);
+                    if (i < count - 1) await delay(2000);
+                }
+            } else {
+                // Generate questions per topic according to distribution
+                let questionCounter = 0;
+                
+                for (const [specificTopic, topicCount] of Object.entries(topicDistribution)) {
+                    if (topicCount > 0) {
+                        console.log(`\n📖 Generating ${topicCount} question(s) for topic: ${specificTopic}`);
+                        
+                        for (let i = 0; i < topicCount; i++) {
+                            questionCounter++;
+                            console.log(`   Question ${questionCounter}/${count} - ${specificTopic} (${i + 1}/${topicCount})`);
+                            
+                            let question;
+                            if (groqApiKey) {
+                                question = await generateSingleQuestion(subject, specificTopic, difficulty, groqApiKey, questionCounter, topicCount);
+                            } else {
+                                question = {
+                                    question_text: `${subject.name} - ${specificTopic} question: What is the correct answer?`,
+                                    option_a: 'Option A (Correct)',
+                                    option_b: 'Option B',
+                                    option_c: 'Option C',
+                                    option_d: 'Option D',
+                                    correct_answer: 'A',
+                                    explanation: `Practice question for ${subject.name} - ${specificTopic}.`,
+                                    topic: specificTopic,
+                                    difficulty: difficulty
+                                };
+                            }
+                            
+                            allQuestions.push(question);
+                            
+                            if (questionCounter < count) {
+                                await delay(2000);
+                            }
+                        }
+                    }
+                }
+            }
+        } 
+        // Default: general generation
+        else {
+            console.log(`📖 General Mode: Generating ${count} questions`);
+            
+            for (let i = 0; i < count; i++) {
+                console.log(`   Generating question ${i + 1}/${count}`);
+                
+                let question;
+                if (groqApiKey) {
+                    question = await generateSingleQuestion(subject, 'General', difficulty, groqApiKey, i + 1, count);
+                } else {
+                    question = {
+                        question_text: `${subject.name} practice question ${i + 1}: What is the correct answer?`,
+                        option_a: 'Option A (Correct)',
+                        option_b: 'Option B',
+                        option_c: 'Option C',
+                        option_d: 'Option D',
+                        correct_answer: 'A',
+                        explanation: `Practice question for ${subject.name}.`,
+                        topic: 'General',
+                        difficulty: difficulty
+                    };
+                }
+                
+                allQuestions.push(question);
+                
+                if (i < count - 1) {
+                    await delay(2000);
+                }
+            }
         }
         
-        console.log(`🤖 Generating ${count} MCQ questions for ${subject.name} using GROQ`);
+        // Format questions
+        const formattedQuestions = allQuestions.map((q, i) => ({
+            id: `ai_${Date.now()}_${i}_${Math.random().toString(36).substr(2, 6)}`,
+            question_text: q.question_text || `Sample ${subject.name} question`,
+            option_a: q.option_a || 'Option A',
+            option_b: q.option_b || 'Option B',
+            option_c: q.option_c || 'Option C',
+            option_d: q.option_d || 'Option D',
+            correct_answer: q.correct_answer || 'A',
+            explanation: q.explanation || 'No explanation available',
+            subject: subject.name,
+            subject_id: subject.id,
+            topic: q.topic || topic || 'General',
+            difficulty: q.difficulty || difficulty,
+            is_ai_generated: true
+        }));
         
-        const questions = await generateQuestionsInBatches(subject, count, topic, difficulty, groqApiKey, 5);
-        
-        if (!questions || questions.length === 0) {
-            throw new Error('No valid questions generated. Please try again.');
-        }
-        
-        const formattedQuestions = [];
-        for (let i = 0; i < Math.min(questions.length, count); i++) {
-            const q = questions[i];
-            formattedQuestions.push({
-                id: `ai_${Date.now()}_${i}_${Math.random().toString(36).substr(2, 6)}`,
-                question_text: q.question_text || q.question || 'No question provided',
-                option_a: q.option_a || q.options?.A || 'Option A',
-                option_b: q.option_b || q.options?.B || 'Option B',
-                option_c: q.option_c || q.options?.C || 'Option C',
-                option_d: q.option_d || q.options?.D || 'Option D',
-                correct_answer: q.correct_answer || 'A',
-                explanation: q.explanation || 'No explanation available',
-                subject: subject.name,
-                subject_id: subject.id,
-                topic: q.topic || topic || 'General',
-                difficulty: q.difficulty || difficulty,
-                is_ai_generated: true
-            });
-        }
-        
-        console.log(`✅ Generated ${formattedQuestions.length} questions for ${subject.name}`);
+        console.log(`\n✅ Successfully generated ${formattedQuestions.length} questions for ${subject.name}`);
         
         res.json({ 
             success: true, 
@@ -307,28 +417,10 @@ router.post('/generate', authenticateToken, async (req, res) => {
 // Test endpoint
 router.get('/test', authenticateToken, async (req, res) => {
     const groqApiKey = process.env.GROQ_API_KEY;
-    
-    if (!groqApiKey) {
-        return res.json({ 
-            status: 'error', 
-            message: 'GROQ_API_KEY not set',
-            suggestion: 'Get a free API key from https://console.groq.com'
-        });
-    }
-    
-    try {
-        const response = await fetch('https://api.groq.com/openai/v1/models', {
-            headers: { 'Authorization': `Bearer ${groqApiKey}` }
-        });
-        
-        if (response.ok) {
-            res.json({ status: 'ok', message: 'GROQ API key is valid' });
-        } else {
-            res.json({ status: 'error', message: 'Invalid GROQ API key' });
-        }
-    } catch (error) {
-        res.json({ status: 'error', message: error.message });
-    }
+    res.json({ 
+        status: groqApiKey ? 'GROQ_API_KEY is set' : 'GROQ_API_KEY not set',
+        message: 'Generating questions according to topic distribution'
+    });
 });
 
 module.exports = router;

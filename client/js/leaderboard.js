@@ -1,240 +1,252 @@
-// API Base URL
+// client/js/leaderboard.js
 const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://localhost:5000'
     : 'https://jamb-simulator-api.onrender.com';
 
-let leaderboardState = {
-    currentUser: null,
-    allUsers: [],
-    filteredUsers: [],
-    currentView: 'global',
-    searchTerm: ''
-};
+let currentLeaderboardType = 'global';
+let leaderboardData = [];
 
 document.addEventListener('DOMContentLoaded', () => {
     checkAuth();
-    loadLeaderboardData('global');
-    setupEventListeners();
-    if (window.studyStreak) studyStreak.init();
+    displayUserInfo();
+    loadLeaderboard('global');
+    loadUserRank();
+    
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) logoutBtn.addEventListener('click', logout);
 });
 
 function checkAuth() {
     const token = localStorage.getItem('token');
-    if (!token) {
-        window.location.href = '/auth.html';
-        return;
+    if (!token) window.location.href = '/auth.html';
+}
+
+function displayUserInfo() {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const userInfo = document.getElementById('userInfo');
+    if (userInfo && user.full_name) userInfo.textContent = `Hi, ${user.full_name}`;
+}
+
+function logout(e) {
+    if (e) e.preventDefault();
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('is_admin');
+    window.location.href = '/auth.html';
+}
+
+async function loadLeaderboard(type) {
+    currentLeaderboardType = type;
+    
+    // Update active tab
+    document.querySelectorAll('.leaderboard-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    if (event && event.target) {
+        event.target.classList.add('active');
     }
-    leaderboardState.currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-}
-
-function setupEventListeners() {
-    document.getElementById('searchUser')?.addEventListener('keyup', searchLeaderboard);
-}
-
-async function loadLeaderboardData(view = 'global') {
+    
+    // Show loading state
+    const leaderboardRows = document.getElementById('leaderboardRows');
+    if (leaderboardRows) {
+        leaderboardRows.innerHTML = '<div style="text-align: center; padding: 40px;">Loading leaderboard...</div>';
+    }
+    
     try {
-        showLoading();
-        
         const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE}/api/leaderboard/${view}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
+        let url = `${API_BASE}/api/leaderboard/${type}`;
+        
+        const response = await fetch(url, {
+            headers: token ? { 'Authorization': `Bearer ${token}` } : {}
         });
         
-        if (!response.ok) throw new Error('Failed to load leaderboard');
+        if (!response.ok) {
+            throw new Error('Failed to load leaderboard');
+        }
         
-        const users = await response.json();
+        const data = await response.json();
         
-        leaderboardState.allUsers = users.map((user, index) => ({
-            id: user.id,
-            name: user.name,
-            avatar: user.name.charAt(0).toUpperCase(),
-            score: user.avg_score || 0,
-            exams: user.exams_taken || 0,
-            streak: user.current_streak || 0,
-            badges: Math.floor(user.total_correct / 100) || 0, // 1 badge per 100 correct answers
-            weeklyScore: user.weekly_correct || 0,
-            monthlyScore: user.monthly_correct || 0,
-            rank: index + 1
-        }));
-        
-        leaderboardState.filteredUsers = [...leaderboardState.allUsers];
-        renderLeaderboard();
-        
-        // Load current user's rank
-        loadUserRank();
+        if (data.success && data.leaderboard) {
+            leaderboardData = data.leaderboard;
+            renderLeaderboard(leaderboardData, type);
+        } else {
+            throw new Error('Invalid data format');
+        }
         
     } catch (error) {
         console.error('Error loading leaderboard:', error);
-        showError('Failed to load leaderboard. Please try again.');
+        showError();
     }
 }
 
-function showLoading() {
-    document.getElementById('leaderboardRows').innerHTML = `
-        <div style="text-align: center; padding: 50px;">
-            <div class="loading-spinner"></div>
-            <p style="margin-top: 20px;">Loading leaderboard...</p>
-        </div>
-    `;
-}
-
-function showError(message) {
-    document.getElementById('leaderboardRows').innerHTML = `
-        <div style="text-align: center; padding: 50px; color: #e74c3c;">
-            <p style="font-size: 3rem; margin-bottom: 20px;">📊</p>
-            <h3>${message}</h3>
-            <button onclick="loadLeaderboardData('${leaderboardState.currentView}')" 
-                    style="margin-top: 20px; padding: 10px 30px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                🔄 Try Again
-            </button>
-        </div>
-    `;
+function renderLeaderboard(data, type) {
+    const leaderboardRows = document.getElementById('leaderboardRows');
+    const podium = document.getElementById('podium');
+    
+    if (!leaderboardRows) return;
+    
+    if (!data || data.length === 0) {
+        leaderboardRows.innerHTML = '<div style="text-align: center; padding: 40px;">No data available. Complete an exam to appear on the leaderboard!</div>';
+        return;
+    }
+    
+    // Render podium (top 3)
+    if (podium && type !== 'streak') {
+        const top3 = data.slice(0, 3);
+        podium.innerHTML = `
+            <div style="display: flex; justify-content: center; align-items: flex-end; gap: 20px; margin: 30px 0; flex-wrap: wrap;">
+                ${top3[1] ? `
+                <div style="text-align: center; width: 120px;">
+                    <div style="background: #bdc3c7; width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
+                        <span style="font-size: 2rem;">🥈</span>
+                    </div>
+                    <div style="margin-top: 10px; font-weight: 600;">${escapeHtml(top3[1].name)}</div>
+                    <div style="color: #e67e22; font-size: 0.875rem;">${top3[1].score || 0} pts</div>
+                </div>
+                ` : '<div style="width: 120px;"></div>'}
+                
+                ${top3[0] ? `
+                <div style="text-align: center; width: 140px;">
+                    <div style="background: #f1c40f; width: 100px; height: 100px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
+                        <span style="font-size: 3rem;">🥇</span>
+                    </div>
+                    <div style="margin-top: 10px; font-weight: 600;">${escapeHtml(top3[0].name)}</div>
+                    <div style="color: #f1c40f; font-size: 0.875rem;">${top3[0].score || 0} pts</div>
+                </div>
+                ` : ''}
+                
+                ${top3[2] ? `
+                <div style="text-align: center; width: 120px;">
+                    <div style="background: #e67e22; width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
+                        <span style="font-size: 2rem;">🥉</span>
+                    </div>
+                    <div style="margin-top: 10px; font-weight: 600;">${escapeHtml(top3[2].name)}</div>
+                    <div style="color: #e67e22; font-size: 0.875rem;">${top3[2].score || 0} pts</div>
+                </div>
+                ` : '<div style="width: 120px;"></div>'}
+            </div>
+        `;
+    } else if (podium) {
+        podium.innerHTML = '';
+    }
+    
+    // Render table rows
+    let html = '<div class="table-header" style="display: grid; grid-template-columns: 80px 1fr 100px 80px 80px; padding: 12px; background: #f8f9fa; border-radius: 8px; margin-bottom: 10px; font-weight: 600;">';
+    if (type === 'streak') {
+        html += '<div>Rank</div><div>User</div><div>Streak</div><div></div><div></div>';
+    } else {
+        html += '<div>Rank</div><div>User</div><div>Score</div><div>Exams</div><div></div>';
+    }
+    html += '</div>';
+    
+    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+    
+    data.forEach(user => {
+        const isCurrentUser = user.user_id === currentUser.id;
+        const rowClass = isCurrentUser ? 'background: #fff3e0; border-left: 4px solid #e74c3c;' : '';
+        
+        if (type === 'streak') {
+            html += `
+                <div style="display: grid; grid-template-columns: 80px 1fr 100px 80px 80px; padding: 12px; border-bottom: 1px solid #e1e5eb; ${rowClass}">
+                    <div style="font-weight: 600;">#${user.rank}</div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="width: 32px; height: 32px; background: #1a1a2e; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600;">${escapeHtml(user.avatar)}</div>
+                        <div>${escapeHtml(user.name)}</div>
+                    </div>
+                    <div>🔥 ${user.streak} days</div>
+                    <div>-</div>
+                    <div>🏆</div>
+                </div>
+            `;
+        } else {
+            html += `
+                <div style="display: grid; grid-template-columns: 80px 1fr 100px 80px 80px; padding: 12px; border-bottom: 1px solid #e1e5eb; ${rowClass}">
+                    <div style="font-weight: 600;">#${user.rank}</div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="width: 32px; height: 32px; background: #1a1a2e; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600;">${escapeHtml(user.avatar)}</div>
+                        <div>${escapeHtml(user.name)}</div>
+                    </div>
+                    <div style="font-weight: 600; color: #2d6a4f;">${user.score || 0}</div>
+                    <div>${user.exams_taken || 0}</div>
+                    <div>🏆</div>
+                </div>
+            `;
+        }
+    });
+    
+    leaderboardRows.innerHTML = html;
 }
 
 async function loadUserRank() {
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE}/api/leaderboard/rank/${leaderboardState.currentUser.id}`, {
+        if (!token) return;
+        
+        const response = await fetch(`${API_BASE}/api/leaderboard/my-rank`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         
         if (!response.ok) throw new Error('Failed to load rank');
         
         const data = await response.json();
+        const yourRankDiv = document.getElementById('yourRank');
         
-        document.getElementById('yourRank').innerHTML = `
-            <span>Your Rank: <strong>#${data.rank || 'N/A'}</strong></span>
-            <span>Average Score: <strong>${data.avg_score || 0}</strong></span>
-        `;
-        document.getElementById('yourRank').style.display = 'flex';
+        if (yourRankDiv && data.rank) {
+            yourRankDiv.innerHTML = `
+                <div style="background: #1a1a2e; color: white; padding: 15px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <span>Your Rank</span>
+                    <span style="font-weight: 700; font-size: 1.25rem;">#${data.rank}</span>
+                    <span>Score: ${data.score} points</span>
+                </div>
+            `;
+        } else if (yourRankDiv) {
+            yourRankDiv.innerHTML = `
+                <div style="background: #f0f0f5; padding: 15px; border-radius: 12px; text-align: center;">
+                    Complete an exam to see your rank!
+                </div>
+            `;
+        }
         
     } catch (error) {
-        console.error('Error loading rank:', error);
-        document.getElementById('yourRank').style.display = 'none';
+        console.error('Error loading user rank:', error);
     }
-}
-
-function renderLeaderboard() {
-    renderPodium();
-    renderRows();
-}
-
-function renderPodium() {
-    const podium = document.getElementById('podium');
-    
-    if (leaderboardState.filteredUsers.length < 3) {
-        podium.innerHTML = '';
-        return;
-    }
-    
-    const top3 = leaderboardState.filteredUsers.slice(0, 3);
-    
-    podium.innerHTML = `
-        <div class="podium-item second">
-            <div class="rank-badge">2</div>
-            <div class="podium-name">${top3[1].name}</div>
-            <div class="podium-score">${top3[1].score}</div>
-            <div class="podium-stats">${top3[1].exams} exams</div>
-        </div>
-        <div class="podium-item first">
-            <div class="rank-badge">🏆 1</div>
-            <div class="podium-name">${top3[0].name}</div>
-            <div class="podium-score">${top3[0].score}</div>
-            <div class="podium-stats">${top3[0].exams} exams</div>
-        </div>
-        <div class="podium-item third">
-            <div class="rank-badge">3</div>
-            <div class="podium-name">${top3[2].name}</div>
-            <div class="podium-score">${top3[2].score}</div>
-            <div class="podium-stats">${top3[2].exams} exams</div>
-        </div>
-    `;
-}
-
-function renderRows() {
-    const rowsContainer = document.getElementById('leaderboardRows');
-    
-    if (leaderboardState.filteredUsers.length === 0) {
-        rowsContainer.innerHTML = `
-            <div style="text-align: center; padding: 50px;">
-                <p style="font-size: 3rem; margin-bottom: 20px;">📊</p>
-                <h3>No leaderboard data yet</h3>
-                <p style="color: #666; margin-top: 10px;">Complete exams to appear on the leaderboard!</p>
-            </div>
-        `;
-        return;
-    }
-    
-    let filtered = [...leaderboardState.filteredUsers];
-    
-    if (leaderboardState.searchTerm) {
-        filtered = filtered.filter(user => 
-            user.name.toLowerCase().includes(leaderboardState.searchTerm.toLowerCase())
-        );
-    }
-    
-    rowsContainer.innerHTML = filtered.map((user, index) => {
-        const isCurrentUser = user.name === leaderboardState.currentUser?.full_name;
-        const rank = index + 1;
-        const score = getScoreForView(user);
-        
-        return `
-            <div class="table-row ${isCurrentUser ? 'current-user' : ''}">
-                <div class="rank ${getRankClass(rank)}">#${rank}</div>
-                <div class="user-info">
-                    <div class="user-avatar">${user.avatar}</div>
-                    <span class="user-name">${user.name}</span>
-                </div>
-                <div class="score-value">${score}</div>
-                <div>${user.exams}</div>
-                <div class="badge-icon">${getBadgeDisplay(user.badges)}</div>
-            </div>
-        `;
-    }).join('');
-}
-
-function getScoreForView(user) {
-    switch(leaderboardState.currentView) {
-        case 'weekly':
-            return user.weeklyScore;
-        case 'monthly':
-            return user.monthlyScore;
-        case 'streak':
-            return user.streak + ' days';
-        default:
-            return user.score;
-    }
-}
-
-function getRankClass(rank) {
-    if (rank === 1) return 'rank-1';
-    if (rank === 2) return 'rank-2';
-    if (rank === 3) return 'rank-3';
-    return '';
-}
-
-function getBadgeDisplay(count) {
-    if (!count) return '0';
-    const emojiCount = Math.min(count, 3);
-    return '🏆'.repeat(emojiCount) + ' ' + count;
-}
-
-async function switchLeaderboard(view) {
-    leaderboardState.currentView = view;
-    
-    document.querySelectorAll('.leaderboard-tab').forEach(tab => {
-        tab.classList.remove('active');
-    });
-    event.target.classList.add('active');
-    
-    await loadLeaderboardData(view);
 }
 
 function searchLeaderboard() {
-    leaderboardState.searchTerm = document.getElementById('searchUser').value.toLowerCase();
-    renderRows();
+    const searchTerm = document.getElementById('searchUser')?.value.toLowerCase() || '';
+    const filteredData = leaderboardData.filter(user => 
+        user.name.toLowerCase().includes(searchTerm)
+    );
+    renderLeaderboard(filteredData, currentLeaderboardType);
 }
 
-// Make functions global
+function switchLeaderboard(type) {
+    currentLeaderboardType = type;
+    loadLeaderboard(type);
+}
+
+function showError() {
+    const leaderboardRows = document.getElementById('leaderboardRows');
+    if (leaderboardRows) {
+        leaderboardRows.innerHTML = `
+            <div style="text-align: center; padding: 40px;">
+                <p style="color: #e74c3c; margin-bottom: 20px;">Failed to load leaderboard. Please try again.</p>
+                <button onclick="loadLeaderboard('${currentLeaderboardType}')" style="padding: 10px 20px; background: #1a1a2e; color: white; border: none; border-radius: 8px; cursor: pointer;">Try Again</button>
+            </div>
+        `;
+    }
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    return text.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+    });
+}
+
 window.switchLeaderboard = switchLeaderboard;
 window.searchLeaderboard = searchLeaderboard;
+window.loadLeaderboard = loadLeaderboard;

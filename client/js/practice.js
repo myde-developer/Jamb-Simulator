@@ -17,7 +17,6 @@ let practiceState = {
     streak: 0
 };
 
-// Wait for DOM to be fully loaded
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Practice page loaded');
     checkAuth();
@@ -85,7 +84,7 @@ async function loadSubjects() {
             if (category.subjects.length === 0) continue;
             html += `<optgroup label="${category.title}">`;
             category.subjects.forEach(subject => {
-                html += `<option value="${subject.id}">${subject.name}${subject.hasDiagrams ? ' 📐' : ''}</option>`;
+                html += `<option value="${subject.id}">${subject.name}</option>`;
             });
             html += `</optgroup>`;
         }
@@ -219,7 +218,6 @@ function randomizeQuestionOptions(question) {
 
 async function loadPracticeQuestions() {
     try {
-        // Hide setup, show practice area
         const practiceSetup = document.getElementById('practiceSetup');
         const practiceArea = document.getElementById('practiceArea');
         const questionText = document.getElementById('questionText');
@@ -248,7 +246,7 @@ async function loadPracticeQuestions() {
                 topic: practiceState.topic,
                 count: practiceState.count,
                 difficulty: practiceState.difficulty || 'medium',
-                includeDiagrams: true
+                examMode: false
             })
         });
         
@@ -271,9 +269,6 @@ async function loadPracticeQuestions() {
         practiceState.answers = {};
         practiceState.checked = false;
         practiceState.results = { correct: 0, wrong: 0 };
-        
-        const totalQuestionsEl = document.getElementById('totalQuestions');
-        if (totalQuestionsEl) totalQuestionsEl.textContent = practiceState.questions.length;
         
         renderQuestion();
         
@@ -300,9 +295,7 @@ function renderQuestion() {
     if (currentDifficulty) currentDifficulty.textContent = question.difficulty || 'medium';
     if (progressText) progressText.textContent = `Question ${practiceState.currentIndex + 1}/${practiceState.questions.length}`;
     
-    // Display question with diagram if available
-    let questionHtml = question.question_text;
-    if (questionText) questionText.innerHTML = questionHtml;
+    if (questionText) questionText.innerHTML = question.question_text;
     
     const options = {
         A: question.option_a,
@@ -506,8 +499,6 @@ function savePracticeStats() {
     stats.correct += practiceState.results.correct;
     stats.streak = practiceState.streak;
     localStorage.setItem('practiceStats', JSON.stringify(stats));
-    
-    // Update the stats display
     loadPracticeStats();
 }
 
@@ -544,7 +535,6 @@ function sharePracticeResults() {
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
 }
 
-// Global functions
 window.startPractice = startPractice;
 window.selectOption = selectOption;
 window.checkAnswer = checkAnswer;
