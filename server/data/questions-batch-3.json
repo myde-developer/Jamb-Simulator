@@ -1,4 +1,64 @@
 [
+{
+    "subject_id": 1,
+    "question_text": "Read the passage carefully and answer the question: The man walked briskly through the bustling market, ignoring the persistent calls of traders displaying their wares. He had a mission and would not be distracted. His destination was the old bookstore at the corner, where a rare collection of African poems awaited him. What does the man's \"mission\" reveal about his character?",
+    "option_a": "He dislikes markets",
+    "option_b": "He is a focused, purpose-driven individual with a love for literature",
+    "option_c": "He is lost and looking for directions",
+    "option_d": "He avoids social interactions",
+    "correct_answer": "B",
+    "explanation": "His determined walk and specific destination (bookstore, rare poems) show focus and literary interest.",
+    "topic": "Comprehension",
+    "difficulty": "hard"
+  },
+  {
+    "subject_id": 1,
+    "question_text": "Read the passage: The storm raged all night, uprooting ancient trees and destroying houses with its fury. By morning, the once vibrant village lay in ruins, but the people had survived by taking shelter in the community center built on higher ground. The survival of the villagers despite the destruction most strongly implies that:",
+    "option_a": "The storm was not actually dangerous",
+    "option_b": "Prior planning (higher ground, community shelter) saves lives in disasters",
+    "option_c": "Ancient trees caused the destruction",
+    "option_d": "Villages should not be built near trees",
+    "correct_answer": "B",
+    "explanation": "The contrast between ruined village and surviving people highlights the value of preventive measures like safe shelters.",
+    "topic": "Comprehension",
+    "difficulty": "hard"
+  },
+  {
+    "subject_id": 1,
+    "question_text": "From the passage: Ade studied tirelessly for weeks, sacrificing sleep and social life. He burned the midnight oil reviewing his notes and solving past questions. When the results came, his name topped the list. His teachers beamed with pride, and his parents promised a reward. The phrase \"burned the midnight oil\" as used in the passage means:",
+    "option_a": "Set fire to oil at midnight",
+    "option_b": "Worked or studied late into the night",
+    "option_c": "Wasted time on unimportant tasks",
+    "option_d": "Used oil lamps for lighting",
+    "correct_answer": "B",
+    "explanation": "\"Burned the midnight oil\" is an idiom meaning studying or working late at night.",
+    "topic": "Comprehension",
+    "difficulty": "hard"
+  },
+  {
+    "subject_id": 1,
+    "question_text": "The passage states: Nigeria gained independence from British colonial rule on October 1, 1960 after years of struggle by nationalists. The first republic was established in 1963, ushering in a new era of self-governance with Nnamdi Azikiwe as the first President. The establishment of the first republic in 1963 rather than immediately in 1960 suggests that:",
+    "option_a": "The nationalists were inefficient",
+    "option_b": "Transition to full republican governance took three years after political independence",
+    "option_c": "Nigeria preferred colonial rule",
+    "option_d": "Azikiwe delayed the republic intentionally",
+    "correct_answer": "B",
+    "explanation": "The three-year gap shows that independence and republican status were separate steps in Nigeria's political evolution.",
+    "topic": "Comprehension",
+    "difficulty": "hard"
+  },
+  {
+    "subject_id": 1,
+    "question_text": "Read carefully: The scientist conducted the experiment multiple times under different conditions, each time achieving the same result. This consistency in outcome confirmed her hypothesis was correct and the results were reliable. The scientist's repeated experiments under different conditions primarily demonstrate the importance of:",
+    "option_a": "Luck in scientific discovery",
+    "option_b": "Replication and controlled variation to establish reliability",
+    "option_c": "Doing experiments only once",
+    "option_d": "Avoiding different conditions",
+    "correct_answer": "B",
+    "explanation": "Repeating experiments under varied conditions is a cornerstone of the scientific method, ensuring results are not flukes.",
+    "topic": "Comprehension",
+    "difficulty": "hard"
+  },
   {
     "subject_id": 1,
     "question_text": "From the text: 'Despite the heavy rain that turned the pitch into a quagmire, the football match continued. The players slipped on the wet grass, but their determination never wavered. They wanted to win the trophy for their loyal fans who braved the weather.' The phrase 'quagmire' as used in the passage most nearly means:",

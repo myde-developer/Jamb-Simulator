@@ -21,7 +21,8 @@ router.post('/exam/questions', auth, async (req, res) => {
                     { topic: 'Comprehension', count: 10 },
                     { topic: 'Cloze Passage', count: 10 },
                     { topic: 'Sentence Interpretation', count: 10 },
-                    { topic: 'Antonyms & Synonyms', count: 10 },
+                    { topic: 'Antonyms', count: 5 },
+{topic: 'Synonyms',  count: 5},
                     { topic: 'Sentence Completion', count: 5 },
                     { topic: 'Oral English', count: 5 }
                 ];

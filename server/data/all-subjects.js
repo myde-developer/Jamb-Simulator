@@ -13,13 +13,14 @@ const allSubjects = {
             'Comprehension': 10,
             'Cloze Passage': 10,
             'Sentence Interpretation': 10,
-            'Antonyms & Synonyms': 10,
+            'Antonyms': 5,
+'Synonyms': 5,
             'Sentence Completion': 5,
             'Oral English': 5
         },
         topics: [
             'The Lekki Headmaster', 'Comprehension', 'Cloze Passage', 
-            'Sentence Interpretation', 'Antonyms & Synonyms', 
+            'Sentence Interpretation', 'Antonyms', 'Synonyms', 
             'Sentence Completion', 'Oral English'
         ]
     },
