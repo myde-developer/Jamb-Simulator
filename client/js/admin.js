@@ -424,14 +424,9 @@ function loadQuestionBank() {
             <button class="export-btn" onclick="exportData('questions')">📥 Export CSV</button>
         </div>
         
-        <div class="admin-tabs" style="margin-bottom: 20px;">
-            <button class="tab-btn active" onclick="filterBySubject('all', event)">All (2,000)</button>
-            <button class="tab-btn" onclick="filterBySubject('1', event)">English (400)</button>
-            <button class="tab-btn" onclick="filterBySubject('2', event)">Math (400)</button>
-            <button class="tab-btn" onclick="filterBySubject('3', event)">Physics (400)</button>
-            <button class="tab-btn" onclick="filterBySubject('4', event)">Chemistry (400)</button>
-            <button class="tab-btn" onclick="filterBySubject('5', event)">Biology (400)</button>
-        </div>
+       <div class="admin-tabs" style="margin-bottom: 20px;" id="subjectFilters">
+    <button class="tab-btn active" onclick="filterBySubject('all', event)">All</button>
+</div>
         
         <div class="search-bar">
             <input type="text" id="questionSearch" placeholder="Search questions...">
@@ -461,6 +456,27 @@ function filterBySubject(subjectId, event) {
     currentSubjectFilter = subjectId;
     currentQuestionPage = 1;
     displayQuestions();
+}
+
+async function loadSubjectFilters() {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE}/api/ai-questions/subjects`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const subjects = await response.json();
+        
+        const container = document.getElementById('subjectFilters');
+        subjects.forEach(subject => {
+            const btn = document.createElement('button');
+            btn.className = 'tab-btn';
+            btn.textContent = subject.name;
+            btn.onclick = () => filterBySubject(subject.id, event);
+            container.appendChild(btn);
+        });
+    } catch (error) {
+        console.error('Error loading subjects:', error);
+    }
 }
 
 async function loadQuestions() {
