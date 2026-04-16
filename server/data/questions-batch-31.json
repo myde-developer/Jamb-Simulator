@@ -385,7 +385,7 @@
   },
   {
     "subject_id": 6,
-    "push_text": "The addition of lime to an acidic soil helps to:",
+    "question_text": "The addition of lime to an acidic soil helps to:",
     "option_a": "Increase the acidity",
     "option_b": "Increase the pH value",
     "option_c": "Decrease the nutrient availability",
