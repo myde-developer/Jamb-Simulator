@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JAMB Simulator - Leaderboard</title>
     <link rel="manifest" href="/manifest.json">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <meta name="apple-mobile-web-app-title" content="JAMB Simulator">
@@ -13,103 +13,6 @@
     <meta name="theme-color" content="#1a1a2e">
     
     <style>
-/* ===== UNIVERSAL FIX FOR DESKTOP SITE MODE ===== */
-
-/* Ensure all clickable elements work properly */
-button,
-a,
-.subject-tab,
-.filter-btn,
-.palette-item,
-.option,
-.nav-menu a,
-.btn,
-.action-btn,
-.rating-btn,
-.deck-card,
-.flashcard {
-    cursor: pointer;
-    position: relative;
-    z-index: auto;
-    -webkit-tap-highlight-color: transparent;
-}
-
-/* Fix for sticky headers that might block clicks */
-.header {
-    position: sticky;
-    top: 0;
-    z-index: 1000;
-    background: white;
-}
-
-/* Ensure main content doesn't get hidden under header */
-main, .container, .practice-container, .flashcards-container, .results-container {
-    position: relative;
-    z-index: 1;
-}
-
-/* Fix for subject tabs - ensure they're clickable */
-.subject-tabs {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    position: relative;
-    z-index: 10;
-}
-
-.subject-tab {
-    cursor: pointer;
-    pointer-events: auto;
-    position: relative;
-    z-index: 20;
-}
-
-/* Fix for palette items */
-.palette-grid {
-    display: grid;
-    gap: 10px;
-}
-
-.palette-item {
-    cursor: pointer;
-    pointer-events: auto;
-    position: relative;
-    z-index: 5;
-}
-
-/* Override any transform that might break click area */
-.palette-item.current,
-.subject-tab.active {
-    transform: none !important;
-}
-
-/* Ensure all buttons are clickable on desktop view */
-@media (min-width: 769px) {
-    .subject-tab,
-    .filter-btn,
-    .palette-item,
-    .option,
-    .nav-menu a,
-    .btn,
-    .action-btn {
-        cursor: pointer;
-        transition: all 0.2s ease;
-    }
-    
-    .subject-tab:hover,
-    .filter-btn:hover,
-    .palette-item:hover,
-    .option:hover {
-        transform: translateY(-2px);
-    }
-    
-    /* Fix for any elements with transform that might block clicks */
-    .subject-tab:active,
-    .filter-btn:active,
-    .palette-item:active {
-        transform: scale(0.98);
-    }
-}
         * {
             margin: 0;
             padding: 0;
@@ -241,6 +144,65 @@ main, .container, .practice-container, .flashcards-container, .results-container
             font-size: 0.875rem;
         }
 
+        /* ADDED: Podium styles */
+        .podium-container {
+            margin: 30px 0;
+        }
+        
+        .podium {
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .podium-item {
+            text-align: center;
+            width: 120px;
+        }
+        
+        .podium-item.first {
+            width: 140px;
+        }
+        
+        .podium-avatar {
+            background: #1a1a2e;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+            font-size: 2rem;
+        }
+        
+        .podium-item.first .podium-avatar {
+            width: 100px;
+            height: 100px;
+            background: #f1c40f;
+        }
+        
+        .podium-item:not(.first) .podium-avatar {
+            width: 80px;
+            height: 80px;
+        }
+        
+        .podium-item.second .podium-avatar { background: #bdc3c7; }
+        .podium-item.third .podium-avatar { background: #e67e22; }
+        
+        .podium-name {
+            margin-top: 10px;
+            font-weight: 600;
+        }
+        
+        .podium-score {
+            font-size: 0.875rem;
+        }
+        
+        .podium-item.first .podium-score { color: #f1c40f; }
+        .podium-item.second .podium-score { color: #bdc3c7; }
+        .podium-item.third .podium-score { color: #e67e22; }
+
         .leaderboard-table {
             background: white;
             border-radius: 16px;
@@ -250,8 +212,8 @@ main, .container, .practice-container, .flashcards-container, .results-container
 
         .table-header {
             display: grid;
-            grid-template-columns: 60px 1fr 100px 80px 80px;
-            padding: 0.75rem 1rem;
+            grid-template-columns: 80px 1fr 100px 80px 80px;
+            padding: 12px;
             background: #f8f9fa;
             border-bottom: 1px solid #e1e5eb;
             font-size: 0.75rem;
@@ -261,8 +223,8 @@ main, .container, .practice-container, .flashcards-container, .results-container
 
         .table-row {
             display: grid;
-            grid-template-columns: 60px 1fr 100px 80px 80px;
-            padding: 0.75rem 1rem;
+            grid-template-columns: 80px 1fr 100px 80px 80px;
+            padding: 12px;
             border-bottom: 1px solid #e1e5eb;
             font-size: 0.875rem;
             transition: background 0.2s;
@@ -273,20 +235,21 @@ main, .container, .practice-container, .flashcards-container, .results-container
         }
 
         .table-row.current-user {
-            background: #f0f0f5;
+            background: #fff3e0;
+            border-left: 4px solid #e74c3c;
         }
 
         .rank {
             font-weight: 600;
         }
 
-        .rank-1 { color: #e6a017; }
-        .rank-2 { color: #718096; }
-        .rank-3 { color: #c92a2a; }
+        .rank-1 { color: #f1c40f; }
+        .rank-2 { color: #bdc3c7; }
+        .rank-3 { color: #e67e22; }
 
         .user-avatar {
-            width: 28px;
-            height: 28px;
+            width: 32px;
+            height: 32px;
             background: #1a1a2e;
             color: white;
             border-radius: 50%;
@@ -301,6 +264,7 @@ main, .container, .practice-container, .flashcards-container, .results-container
         .user-name {
             display: flex;
             align-items: center;
+            gap: 10px;
         }
 
         .score-value {
@@ -330,6 +294,25 @@ main, .container, .practice-container, .flashcards-container, .results-container
             font-weight: 700;
         }
 
+        .loading-state, .error-state {
+            text-align: center;
+            padding: 40px;
+        }
+        
+        .error-state {
+            color: #e74c3c;
+        }
+        
+        .error-state button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #1a1a2e;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
         @media (max-width: 768px) {
             .nav-container {
                 flex-direction: column;
@@ -352,6 +335,18 @@ main, .container, .practice-container, .flashcards-container, .results-container
             .your-rank {
                 flex-direction: column;
                 text-align: center;
+            }
+            
+            .podium {
+                gap: 10px;
+            }
+            
+            .podium-item {
+                width: 100px;
+            }
+            
+            .podium-item.first {
+                width: 120px;
             }
         }
     </style>
@@ -386,14 +381,17 @@ main, .container, .practice-container, .flashcards-container, .results-container
         </div>
 
         <div class="leaderboard-tabs">
-            <button class="leaderboard-tab active" onclick="switchLeaderboard('global')">Global</button>
-            <button class="leaderboard-tab" onclick="switchLeaderboard('weekly')">This Week</button>
-            <button class="leaderboard-tab" onclick="switchLeaderboard('monthly')">This Month</button>
+            <button class="leaderboard-tab active" data-type="global" onclick="switchLeaderboard('global', event)">Global</button>
+            <button class="leaderboard-tab" data-type="weekly" onclick="switchLeaderboard('weekly', event)">This Week</button>
+            <button class="leaderboard-tab" data-type="monthly" onclick="switchLeaderboard('monthly', event)">This Month</button>
         </div>
 
         <div class="filter-section">
             <input type="text" class="search-box" id="searchUser" placeholder="Search your name..." onkeyup="searchLeaderboard()">
         </div>
+
+        <!-- ADDED: Podium container -->
+        <div id="podiumContainer" class="podium-container"></div>
 
         <div class="leaderboard-table">
             <div class="table-header">
@@ -401,7 +399,7 @@ main, .container, .practice-container, .flashcards-container, .results-container
                 <div>User</div>
                 <div>Score</div>
                 <div>Exams</div>
-                <div>Badges</div>
+                <div>🏆</div>
             </div>
             <div id="leaderboardRows"></div>
         </div>

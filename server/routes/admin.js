@@ -95,25 +95,42 @@ router.put('/users/:id/make-admin', adminAuth, async (req, res) => {
 router.get('/users/:id/exams', adminAuth, async (req, res) => {
     try {
         const { id } = req.params;
-        const result = await db.query(
-            `SELECT es.*, 
-                    (SELECT array_agg(s.name) 
-                     FROM subjects s 
-                     WHERE s.id = ANY(es.subjects_selected)) as subjects
-             FROM exam_sessions es
-             WHERE es.user_id = $1
-             ORDER BY es.started_at DESC`,
-            [id]
-        );
+        
+        // First, check what columns exist in exam_sessions
+        const columnsCheck = await db.query(`
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'exam_sessions' 
+            AND column_name IN ('subjects_selected', 'subjects', 'subject_ids')
+        `);
+        
+        let subjectsQuery = '';
+        if (columnsCheck.rows.length > 0) {
+            const columnName = columnsCheck.rows[0].column_name;
+            subjectsQuery = `, (SELECT array_agg(s.name) 
+                             FROM subjects s 
+                             WHERE s.id = ANY(es.${columnName})) as subjects`;
+        } else {
+            // Fallback: try to get subjects from exam_answers or user_answers
+            subjectsQuery = `, ARRAY['JAMB Exam'] as subjects`;
+        }
+        
+        const result = await db.query(`
+            SELECT es.id, es.user_id, es.score, es.total_questions, es.percentage,
+                   es.started_at, es.completed_at, es.status
+                   ${subjectsQuery}
+            FROM exam_sessions es
+            WHERE es.user_id = $1
+            ORDER BY es.started_at DESC
+        `, [id]);
         
         res.json(result.rows);
         
     } catch (error) {
         console.error('Error fetching user exams:', error);
-        res.status(500).json({ error: 'Failed to fetch user exams' });
+        res.status(500).json({ error: 'Failed to fetch user exams: ' + error.message });
     }
 });
-
 // ============================================
 // EXAM MANAGEMENT
 // ============================================

@@ -167,8 +167,7 @@ function filterQuestions(filter) {
         else if (filter === 'incorrect') q.style.display = !isCorrect ? 'block' : 'none';
     });
 }
-
-// ============ PDF GENERATION - COMPLETELY REWRITTEN ============
+// ============ PDF GENERATION - FIXED VERSION ============
 
 async function exportAsPDF() {
     if (!examResults) {
@@ -176,35 +175,43 @@ async function exportAsPDF() {
         return;
     }
     
-    showToast('Generating PDF...');
+    showToast('📄 Generating PDF...');
     
     try {
+        // Check if html2pdf is loaded
+        if (typeof html2pdf === 'undefined') {
+            showToast('Loading PDF library...');
+            await loadHtml2PdfLibrary();
+        }
+        
         // Create a complete HTML document for the PDF
         const pdfHtml = generatePDFHTML(examResults);
         
-        // Create a temporary iframe or div
+        // Create a temporary container for PDF generation
         const tempContainer = document.createElement('div');
         tempContainer.style.position = 'fixed';
         tempContainer.style.left = '-9999px';
         tempContainer.style.top = '0';
         tempContainer.style.width = '800px';
         tempContainer.style.backgroundColor = 'white';
+        tempContainer.style.padding = '20px';
         tempContainer.innerHTML = pdfHtml;
         document.body.appendChild(tempContainer);
         
         // Wait for content to render
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 300));
         
         // PDF options
         const opt = {
             margin: [0.5, 0.5, 0.5, 0.5],
-            filename: `JAMB_Results_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.pdf`,
+            filename: `JAMB_Results_${getDateString()}.pdf`,
             image: { type: 'jpeg', quality: 0.98 },
             html2canvas: { 
                 scale: 2, 
                 logging: false,
                 backgroundColor: '#ffffff',
-                letterRendering: true
+                letterRendering: true,
+                useCORS: true
             },
             jsPDF: { 
                 unit: 'in', 
@@ -213,40 +220,95 @@ async function exportAsPDF() {
             }
         };
         
-        // Generate PDF
+        // Generate and download PDF
         await html2pdf().set(opt).from(tempContainer).save();
         
         // Clean up
         document.body.removeChild(tempContainer);
-        showToast('PDF downloaded successfully! ✓');
+        showToast('✅ PDF downloaded successfully!');
         
     } catch (error) {
         console.error('PDF generation error:', error);
-        showToast('Failed to generate PDF. Please try again.');
+        showToast('❌ Failed to generate PDF: ' + error.message);
+        
+        // Try fallback method
+        tryFallbackPDF();
     }
 }
 
+async function loadHtml2PdfLibrary() {
+    return new Promise((resolve, reject) => {
+        // Check if already loaded
+        if (typeof html2pdf !== 'undefined') {
+            resolve();
+            return;
+        }
+        
+        // Load html2pdf bundle
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+        script.onload = () => {
+            // Wait a bit for initialization
+            setTimeout(resolve, 200);
+        };
+        script.onerror = () => reject(new Error('Failed to load PDF library'));
+        document.head.appendChild(script);
+    });
+}
+
+function tryFallbackPDF() {
+    // Fallback: Open print dialog
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+        const pdfHtml = generatePDFHTML(examResults);
+        printWindow.document.write(pdfHtml);
+        printWindow.document.close();
+        printWindow.print();
+        showToast('📄 Print dialog opened. Save as PDF from print dialog.');
+    } else {
+        showToast('❌ Please allow popups or try again.');
+    }
+}
+
+function getDateString() {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`;
+}
+
 function generatePDFHTML(results) {
-    const totalCorrect = Object.values(results.scores.subjectScores).reduce((sum, s) => sum + s.correct, 0);
-    const totalQuestions = Object.values(results.subjectQuestions).reduce((sum, q) => sum + q.length, 0);
+    const totalCorrect = Object.values(results.scores.subjectScores).reduce((sum, s) => sum + (s.correct || 0), 0);
+    const totalQuestions = Object.values(results.subjectQuestions).reduce((sum, q) => sum + (q.length || 0), 0);
     
     // Build subject rows
     let subjectRows = '';
-    results.subjects.forEach(subject => {
-        const subjectName = subject.name;
-        const data = results.scores.subjectScores[subjectName] || { correct: 0, total: 0 };
-        const percentage = data.total > 0 ? (data.correct / data.total) * 100 : 0;
-        const jambScore = subjectName === 'Use of English' ? (data.correct * 1.67).toFixed(2) : (data.correct * 2.5).toFixed(2);
-        
-        subjectRows += `
-            <tr style="border-bottom: 1px solid #e1e5eb;">
-                <td style="padding: 12px 8px;">${subjectName}</td>
-                <td style="padding: 12px 8px; text-align: center;">${data.correct}/${data.total}</td>
-                <td style="padding: 12px 8px; text-align: center;">${percentage.toFixed(1)}%</td>
-                <td style="padding: 12px 8px; text-align: center;">${jambScore}</td>
+    if (results.subjects && results.subjects.length > 0) {
+        results.subjects.forEach(subject => {
+            const subjectName = subject.name || subject;
+            const data = results.scores.subjectScores[subjectName] || { correct: 0, total: 0 };
+            const percentage = data.total > 0 ? (data.correct / data.total) * 100 : 0;
+            const jambScore = subjectName === 'Use of English' 
+                ? (data.correct * 1.67).toFixed(2) 
+                : (data.correct * 2.5).toFixed(2);
+            
+            subjectRows += `
+                <tr style="border-bottom: 1px solid #e1e5eb;">
+                    <td style="padding: 12px 8px;">${escapeHtml(subjectName)}</td>
+                    <td style="padding: 12px 8px; text-align: center;">${data.correct}/${data.total}</td>
+                    <td style="padding: 12px 8px; text-align: center;">${percentage.toFixed(1)}%</td>
+                    <td style="padding: 12px 8px; text-align: center;">${jambScore}</td>
+                </tr>
+            `;
+        });
+    } else {
+        subjectRows = `
+            <tr>
+                <td colspan="4" style="padding: 20px; text-align: center;">No subject data available</td>
             </tr>
         `;
-    });
+    }
+    
+    const totalPercentage = results.scores.percentage || ((totalCorrect / totalQuestions) * 100).toFixed(1);
+    const totalScore = results.scores.total || 0;
     
     return `<!DOCTYPE html>
     <html>
@@ -264,6 +326,7 @@ function generatePDFHTML(results) {
                 padding: 40px;
                 color: #1a1a2e;
                 line-height: 1.5;
+                background: white;
             }
             .container {
                 max-width: 800px;
@@ -310,7 +373,7 @@ function generatePDFHTML(results) {
             }
             .score-percentage {
                 margin-top: 15px;
-                font-size: 16px;
+                font-size: 18px;
                 font-weight: 500;
                 color: #2d6a4f;
             }
@@ -336,6 +399,11 @@ function generatePDFHTML(results) {
                 color: #718096;
                 margin-top: 5px;
             }
+            h2 {
+                font-size: 16px;
+                margin-bottom: 15px;
+                color: #1a1a2e;
+            }
             .subject-table {
                 width: 100%;
                 border-collapse: collapse;
@@ -348,6 +416,7 @@ function generatePDFHTML(results) {
                 text-align: left;
                 border-bottom: 2px solid #e1e5eb;
                 font-size: 13px;
+                font-weight: 600;
             }
             .subject-table td {
                 padding: 10px 8px;
@@ -358,6 +427,9 @@ function generatePDFHTML(results) {
                 background: #f8f9fa;
                 font-weight: bold;
             }
+            .total-row td {
+                font-weight: bold;
+            }
             .footer {
                 text-align: center;
                 margin-top: 30px;
@@ -366,21 +438,32 @@ function generatePDFHTML(results) {
                 font-size: 10px;
                 color: #718096;
             }
+            @media print {
+                body {
+                    padding: 0;
+                }
+                .stats-grid {
+                    break-inside: avoid;
+                }
+                .subject-table {
+                    break-inside: avoid;
+                }
+            }
         </style>
     </head>
     <body>
         <div class="container">
             <div class="header">
                 <h1>JAMB UTME 2026 Mock Exam</h1>
-                <p>${new Date(results.date).toLocaleString()}</p>
+                <p>${escapeHtml(new Date(results.date).toLocaleString())}</p>
             </div>
             
             <div class="score-section">
                 <div class="score-circle">
-                    <div class="score-number">${results.scores.total}</div>
+                    <div class="score-number">${totalScore}</div>
                     <div class="score-total">/400</div>
                 </div>
-                <div class="score-percentage">${results.scores.percentage}% Overall</div>
+                <div class="score-percentage">${totalPercentage}% Overall</div>
             </div>
             
             <div class="stats-grid">
@@ -389,16 +472,16 @@ function generatePDFHTML(results) {
                     <div class="stat-label">Total Questions</div>
                 </div>
                 <div class="stat-box">
-                    <div class="stat-number">${totalCorrect}</div>
+                    <div class="stat-number" style="color: #2d6a4f;">${totalCorrect}</div>
                     <div class="stat-label">Correct Answers</div>
                 </div>
                 <div class="stat-box">
-                    <div class="stat-number">${totalQuestions - totalCorrect}</div>
+                    <div class="stat-number" style="color: #c92a2a;">${totalQuestions - totalCorrect}</div>
                     <div class="stat-label">Incorrect Answers</div>
                 </div>
             </div>
             
-            <h2 style="font-size: 16px; margin-bottom: 15px;">Performance by Subject</h2>
+            <h2>Performance by Subject</h2>
             <table class="subject-table">
                 <thead>
                     <tr>
@@ -413,8 +496,8 @@ function generatePDFHTML(results) {
                     <tr class="total-row">
                         <td style="font-weight: bold;">TOTAL</td>
                         <td style="text-align: center; font-weight: bold;">${totalCorrect}/${totalQuestions}</td>
-                        <td style="text-align: center; font-weight: bold;">${results.scores.percentage}%</td>
-                        <td style="text-align: center; font-weight: bold;">${results.scores.total}/400</td>
+                        <td style="text-align: center; font-weight: bold;">${totalPercentage}%</td>
+                        <td style="text-align: center; font-weight: bold;">${totalScore}/400</td>
                     </tr>
                 </tbody>
             </table>
@@ -426,6 +509,16 @@ function generatePDFHTML(results) {
         </div>
     </body>
     </html>`;
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    return String(text).replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+    });
 }
 
 function showToast(message) {

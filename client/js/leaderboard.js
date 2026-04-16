@@ -35,21 +35,31 @@ function logout(e) {
     window.location.href = '/auth.html';
 }
 
-async function loadLeaderboard(type) {
+async function loadLeaderboard(type, clickEvent) {
     currentLeaderboardType = type;
     
-    // Update active tab
+    // Update active tab - FIXED: handle missing event
     document.querySelectorAll('.leaderboard-tab').forEach(tab => {
         tab.classList.remove('active');
     });
-    if (event && event.target) {
-        event.target.classList.add('active');
+    
+    // Find and activate the tab with matching data-type
+    const activeTab = document.querySelector(`.leaderboard-tab[data-type="${type}"]`);
+    if (activeTab) {
+        activeTab.classList.add('active');
+    } else if (clickEvent && clickEvent.target) {
+        clickEvent.target.classList.add('active');
     }
     
     // Show loading state
     const leaderboardRows = document.getElementById('leaderboardRows');
+    const podiumContainer = document.getElementById('podiumContainer');
+    
     if (leaderboardRows) {
-        leaderboardRows.innerHTML = '<div style="text-align: center; padding: 40px;">Loading leaderboard...</div>';
+        leaderboardRows.innerHTML = '<div class="loading-state">📊 Loading leaderboard...</div>';
+    }
+    if (podiumContainer) {
+        podiumContainer.innerHTML = '';
     }
     
     try {
@@ -61,14 +71,14 @@ async function loadLeaderboard(type) {
         });
         
         if (!response.ok) {
-            throw new Error('Failed to load leaderboard');
+            throw new Error(`Failed to load leaderboard: ${response.status}`);
         }
         
         const data = await response.json();
         
         if (data.success && data.leaderboard) {
             leaderboardData = data.leaderboard;
-            renderLeaderboard(leaderboardData, type);
+            renderLeaderboard(leaderboardData);
         } else {
             throw new Error('Invalid data format');
         }
@@ -79,99 +89,84 @@ async function loadLeaderboard(type) {
     }
 }
 
-function renderLeaderboard(data, type) {
+function renderLeaderboard(data) {
     const leaderboardRows = document.getElementById('leaderboardRows');
-    const podium = document.getElementById('podium');
+    const podiumContainer = document.getElementById('podiumContainer');
     
     if (!leaderboardRows) return;
     
     if (!data || data.length === 0) {
-        leaderboardRows.innerHTML = '<div style="text-align: center; padding: 40px;">No data available. Complete an exam to appear on the leaderboard!</div>';
+        leaderboardRows.innerHTML = '<div class="loading-state">📭 No data available. Complete an exam to appear on the leaderboard!</div>';
+        if (podiumContainer) podiumContainer.innerHTML = '';
         return;
     }
     
     // Render podium (top 3)
-    if (podium && type !== 'streak') {
+    if (podiumContainer) {
         const top3 = data.slice(0, 3);
-        podium.innerHTML = `
-            <div style="display: flex; justify-content: center; align-items: flex-end; gap: 20px; margin: 30px 0; flex-wrap: wrap;">
-                ${top3[1] ? `
-                <div style="text-align: center; width: 120px;">
-                    <div style="background: #bdc3c7; width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
-                        <span style="font-size: 2rem;">🥈</span>
-                    </div>
-                    <div style="margin-top: 10px; font-weight: 600;">${escapeHtml(top3[1].name)}</div>
-                    <div style="color: #e67e22; font-size: 0.875rem;">${top3[1].score || 0} pts</div>
+        let podiumHtml = '<div class="podium">';
+        
+        // Second place (left)
+        if (top3[1]) {
+            podiumHtml += `
+                <div class="podium-item second">
+                    <div class="podium-avatar">🥈</div>
+                    <div class="podium-name">${escapeHtml(top3[1].name)}</div>
+                    <div class="podium-score">${top3[1].score || 0} pts</div>
                 </div>
-                ` : '<div style="width: 120px;"></div>'}
-                
-                ${top3[0] ? `
-                <div style="text-align: center; width: 140px;">
-                    <div style="background: #f1c40f; width: 100px; height: 100px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
-                        <span style="font-size: 3rem;">🥇</span>
-                    </div>
-                    <div style="margin-top: 10px; font-weight: 600;">${escapeHtml(top3[0].name)}</div>
-                    <div style="color: #f1c40f; font-size: 0.875rem;">${top3[0].score || 0} pts</div>
+            `;
+        } else {
+            podiumHtml += `<div class="podium-item"></div>`;
+        }
+        
+        // First place (center)
+        if (top3[0]) {
+            podiumHtml += `
+                <div class="podium-item first">
+                    <div class="podium-avatar">🥇</div>
+                    <div class="podium-name">${escapeHtml(top3[0].name)}</div>
+                    <div class="podium-score">${top3[0].score || 0} pts</div>
                 </div>
-                ` : ''}
-                
-                ${top3[2] ? `
-                <div style="text-align: center; width: 120px;">
-                    <div style="background: #e67e22; width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
-                        <span style="font-size: 2rem;">🥉</span>
-                    </div>
-                    <div style="margin-top: 10px; font-weight: 600;">${escapeHtml(top3[2].name)}</div>
-                    <div style="color: #e67e22; font-size: 0.875rem;">${top3[2].score || 0} pts</div>
+            `;
+        }
+        
+        // Third place (right)
+        if (top3[2]) {
+            podiumHtml += `
+                <div class="podium-item third">
+                    <div class="podium-avatar">🥉</div>
+                    <div class="podium-name">${escapeHtml(top3[2].name)}</div>
+                    <div class="podium-score">${top3[2].score || 0} pts</div>
                 </div>
-                ` : '<div style="width: 120px;"></div>'}
-            </div>
-        `;
-    } else if (podium) {
-        podium.innerHTML = '';
+            `;
+        } else {
+            podiumHtml += `<div class="podium-item"></div>`;
+        }
+        
+        podiumHtml += '</div>';
+        podiumContainer.innerHTML = podiumHtml;
     }
     
     // Render table rows
-    let html = '<div class="table-header" style="display: grid; grid-template-columns: 80px 1fr 100px 80px 80px; padding: 12px; background: #f8f9fa; border-radius: 8px; margin-bottom: 10px; font-weight: 600;">';
-    if (type === 'streak') {
-        html += '<div>Rank</div><div>User</div><div>Streak</div><div></div><div></div>';
-    } else {
-        html += '<div>Rank</div><div>User</div><div>Score</div><div>Exams</div><div></div>';
-    }
-    html += '</div>';
-    
+    let html = '';
     const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
     
     data.forEach(user => {
         const isCurrentUser = user.user_id === currentUser.id;
-        const rowClass = isCurrentUser ? 'background: #fff3e0; border-left: 4px solid #e74c3c;' : '';
+        const rankClass = user.rank === 1 ? 'rank-1' : (user.rank === 2 ? 'rank-2' : (user.rank === 3 ? 'rank-3' : ''));
         
-        if (type === 'streak') {
-            html += `
-                <div style="display: grid; grid-template-columns: 80px 1fr 100px 80px 80px; padding: 12px; border-bottom: 1px solid #e1e5eb; ${rowClass}">
-                    <div style="font-weight: 600;">#${user.rank}</div>
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <div style="width: 32px; height: 32px; background: #1a1a2e; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600;">${escapeHtml(user.avatar)}</div>
-                        <div>${escapeHtml(user.name)}</div>
-                    </div>
-                    <div>🔥 ${user.streak} days</div>
-                    <div>-</div>
-                    <div>🏆</div>
+        html += `
+            <div class="table-row ${isCurrentUser ? 'current-user' : ''}">
+                <div class="rank ${rankClass}">#${user.rank}</div>
+                <div class="user-name">
+                    <div class="user-avatar">${escapeHtml(user.avatar)}</div>
+                    <div>${escapeHtml(user.name)}</div>
                 </div>
-            `;
-        } else {
-            html += `
-                <div style="display: grid; grid-template-columns: 80px 1fr 100px 80px 80px; padding: 12px; border-bottom: 1px solid #e1e5eb; ${rowClass}">
-                    <div style="font-weight: 600;">#${user.rank}</div>
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <div style="width: 32px; height: 32px; background: #1a1a2e; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600;">${escapeHtml(user.avatar)}</div>
-                        <div>${escapeHtml(user.name)}</div>
-                    </div>
-                    <div style="font-weight: 600; color: #2d6a4f;">${user.score || 0}</div>
-                    <div>${user.exams_taken || 0}</div>
-                    <div>🏆</div>
-                </div>
-            `;
-        }
+                <div class="score-value">${user.score || 0}</div>
+                <div>${user.exams_taken || 0}</div>
+                <div>🏆</div>
+            </div>
+        `;
     });
     
     leaderboardRows.innerHTML = html;
@@ -193,17 +188,13 @@ async function loadUserRank() {
         
         if (yourRankDiv && data.rank) {
             yourRankDiv.innerHTML = `
-                <div style="background: #1a1a2e; color: white; padding: 15px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-                    <span>Your Rank</span>
-                    <span style="font-weight: 700; font-size: 1.25rem;">#${data.rank}</span>
-                    <span>Score: ${data.score} points</span>
-                </div>
+                <span class="your-rank-label">🏆 Your Global Rank</span>
+                <span class="your-rank-value">#${data.rank}</span>
+                <span>Score: ${data.score} points</span>
             `;
         } else if (yourRankDiv) {
             yourRankDiv.innerHTML = `
-                <div style="background: #f0f0f5; padding: 15px; border-radius: 12px; text-align: center;">
-                    Complete an exam to see your rank!
-                </div>
+                <span>📝 Complete an exam to see your rank!</span>
             `;
         }
         
@@ -217,29 +208,33 @@ function searchLeaderboard() {
     const filteredData = leaderboardData.filter(user => 
         user.name.toLowerCase().includes(searchTerm)
     );
-    renderLeaderboard(filteredData, currentLeaderboardType);
+    renderLeaderboard(filteredData);
 }
 
-function switchLeaderboard(type) {
-    currentLeaderboardType = type;
-    loadLeaderboard(type);
+function switchLeaderboard(type, event) {
+    loadLeaderboard(type, event);
 }
 
 function showError() {
     const leaderboardRows = document.getElementById('leaderboardRows');
+    const podiumContainer = document.getElementById('podiumContainer');
+    
+    if (podiumContainer) podiumContainer.innerHTML = '';
+    
     if (leaderboardRows) {
         leaderboardRows.innerHTML = `
-            <div style="text-align: center; padding: 40px;">
-                <p style="color: #e74c3c; margin-bottom: 20px;">Failed to load leaderboard. Please try again.</p>
-                <button onclick="loadLeaderboard('${currentLeaderboardType}')" style="padding: 10px 20px; background: #1a1a2e; color: white; border: none; border-radius: 8px; cursor: pointer;">Try Again</button>
+            <div class="error-state">
+                <p>❌ Failed to load leaderboard. Please try again.</p>
+                <button onclick="loadLeaderboard('${currentLeaderboardType}')">Try Again</button>
             </div>
         `;
     }
 }
 
 function escapeHtml(text) {
-    if (!text) return '';
-    return text.replace(/[&<>]/g, function(m) {
+    if (!text) return '?';
+    const str = String(text);
+    return str.replace(/[&<>]/g, function(m) {
         if (m === '&') return '&amp;';
         if (m === '<') return '&lt;';
         if (m === '>') return '&gt;';
@@ -247,6 +242,7 @@ function escapeHtml(text) {
     });
 }
 
+// Make functions globally available
 window.switchLeaderboard = switchLeaderboard;
 window.searchLeaderboard = searchLeaderboard;
 window.loadLeaderboard = loadLeaderboard;
