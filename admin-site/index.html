@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Admin Panel</title><script>
+const token = localStorage.getItem('token');
+const user = JSON.parse(localStorage.getItem('user') || '{}');
+if(token && user.is_admin) location.href = '/admin.html';
+else location.href = '/auth.html';
+</script></head>
+<body>Redirecting...</body>
+</html>

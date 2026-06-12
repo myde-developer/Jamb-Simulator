@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login</title>
+    <link rel="stylesheet" href="global.css">
+    <style>
+        body { background: #f1f3f5; }
+        .auth-card { max-width: 400px; margin: 100px auto; background: white; border-radius: 20px; padding: 2rem; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        @media (prefers-color-scheme: dark) { body { background: #0f172a; } .auth-card { background: #1e293b; color: white; } }
+    </style>
+</head>
+<body>
+    <div class="auth-card">
+        <div class="logo">🔐 Admin Access</div>
+        <h2>Login</h2>
+        <div id="errorMessage" class="error-message" style="color:red;"></div>
+        <form id="adminLoginForm">
+            <div class="form-group"><label>Email</label><input type="email" id="email" required></div>
+            <div class="form-group"><label>Password</label><input type="password" id="password" required></div>
+            <button type="submit" class="btn btn-primary" style="width:100%;">Login</button>
+        </form>
+    </div>
+    <script src="js/auth.js"></script>
+</body>
+</html>

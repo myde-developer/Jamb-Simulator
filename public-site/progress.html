@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JAMB Simulator - My Progress</title>
+    <link rel="manifest" href="/manifest.json">
+    <link rel="stylesheet" href="global.css">
+</head>
+<body>
+    <header class="header">
+        <nav class="nav-container">
+            <div class="logo">JAMB Simulator 2026</div>
+            <ul class="nav-menu">
+                <li><a href="home.html">Home</a></li>
+                <li><a href="practice.html">Practice</a></li>
+                <li><a href="flashcards.html">Flashcards</a></li>
+                <li><a href="progress.html" class="active">Progress</a></li>
+                <li><a href="leaderboard.html">Leaderboard</a></li>
+                <li><a href="#" id="logoutBtn">Logout</a></li>
+            </ul>
+        </nav>
+    </header>
+    <div class="container">
+        <div class="page-header"><h1>My Performance Dashboard</h1><p>Track your progress across all subjects</p></div>
+        <div class="stats-grid" id="statsGrid"></div>
+        <div class="subject-progress"><h2>Performance by Subject</h2><div id="subjectStats"></div></div>
+        <div class="recent-exams"><h2>Recent Exam History</h2><div id="recentExams"></div></div>
+    </div>
+    <script src="js/streak.js"></script>
+    <script src="js/progress.js"></script>
+    <script src="js/pwa.js"></script>
+</body>
+</html>

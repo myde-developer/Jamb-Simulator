@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>JAMB Simulator - Home</title>
+    <link rel="manifest" href="/manifest.json">
+    <link rel="stylesheet" href="global.css">
+    <meta name="theme-color" content="#1a1a2e">
+    <style>
+        .hero { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        .hero h1, .hero p { color: white; }
+        .subject-card { transition: transform 0.2s, box-shadow 0.2s; }
+        .subject-card:hover { transform: translateY(-4px); box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); }
+        .start-btn { background: linear-gradient(135deg, #667eea, #764ba2); font-weight: 600; letter-spacing: 0.5px; }
+        .feature-card { transition: transform 0.2s; }
+        .feature-card:hover { transform: translateY(-4px); }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <nav class="nav-container">
+            <div class="logo">📚 JAMB Simulator 2026</div>
+            <ul class="nav-menu">
+                <li><a href="home.html" class="active">Home</a></li>
+                <li><a href="practice.html">Practice</a></li>
+                <li><a href="flashcards.html">Flashcards</a></li>
+                <li><a href="progress.html">Progress</a></li>
+                <li><a href="leaderboard.html">Leaderboard</a></li>
+                <li><a href="#" id="logoutBtn">Logout</a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <div class="hero">
+            <h1>Prepare for JAMB UTME 2026</h1>
+            <p>Practice with JAMB‑style questions across 22 subjects – start instantly, no account needed!</p>
+        </div>
+        <h2 style="margin-bottom: 0.5rem;">Select Your Subjects</h2>
+        <p style="color: var(--gray-600); margin-bottom: 1rem;">English is compulsory. Choose 3 more subjects.</p>
+        <div class="subjects-grid" id="subjectsContainer"></div>
+        <div class="selection-info">
+            <p>Selected: <span id="selectedCount">1</span>/4 subjects</p>
+            <p style="font-size: 0.75rem; margin-top: 0.5rem;">English: 60 questions | Others: 40 questions each</p>
+            <button id="startExamBtn" class="start-btn" disabled>Start Exam (No account required)</button>
+        </div>
+        <div class="features">
+            <div class="feature-card"><div class="feature-icon">📝</div><h3>Realistic Questions</h3><p>400+ per subject</p></div>
+            <div class="feature-card"><div class="feature-icon">📊</div><h3>JAMB Scoring</h3><p>Total 400 marks</p></div>
+            <div class="feature-card"><div class="feature-icon">📈</div><h3>Track Progress</h3><p>After registration</p></div>
+        </div>
+    </main>
+    <footer class="footer"><p>&copy; 2026 JAMB Exam Simulator | All 22 Subjects</p></footer>
+    <script src="js/streak.js"></script>
+    <script src="js/main.js"></script>
+    <script src="js/pwa.js"></script>
+</body>
+</html>

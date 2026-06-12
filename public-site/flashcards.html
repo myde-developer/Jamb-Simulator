@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JAMB Simulator - Flashcards</title>
+    <link rel="manifest" href="/manifest.json">
+    <link rel="stylesheet" href="global.css">
+    <style>
+        .deck-card { transition: transform 0.2s, box-shadow 0.2s; }
+        .deck-card:hover { transform: translateY(-4px); box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); }
+        .flashcard { transition: transform 0.2s; cursor: pointer; }
+        .flashcard:hover { transform: scale(1.01); }
+        .rating-btn { transition: all 0.2s; }
+        .rating-btn:active { transform: scale(0.97); }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <nav class="nav-container">
+            <div class="logo">JAMB Simulator 2026</div>
+            <ul class="nav-menu">
+                <li><a href="home.html">Home</a></li>
+                <li><a href="practice.html">Practice</a></li>
+                <li><a href="flashcards.html" class="active">Flashcards</a></li>
+                <li><a href="progress.html">Progress</a></li>
+                <li><a href="leaderboard.html">Leaderboard</a></li>
+                <li><a href="#" id="logoutBtn">Logout</a></li>
+            </ul>
+        </nav>
+    </header>
+    <div class="container">
+        <div class="stats-bar" style="display:flex; gap:1rem; margin-bottom:2rem;">
+            <div class="stat-card"><div class="stat-number" id="totalCards">0</div><div class="stat-label">Total Cards</div></div>
+            <div class="stat-card"><div class="stat-number" id="masteredCards">0</div><div class="stat-label">Mastered</div></div>
+            <div class="stat-card"><div class="stat-number" id="dueCards">0</div><div class="stat-label">Due for Review</div></div>
+        </div>
+        <div id="decksView">
+            <div style="display:flex; justify-content:space-between; margin-bottom:1rem;"><h2>My Decks</h2><button class="btn btn-primary" onclick="showSetup()">+ New Deck</button></div>
+            <div class="deck-grid" id="deckList"></div>
+        </div>
+        <div id="setupView" class="hidden">
+            <h2 id="setupTitle">Create New Deck</h2>
+            <div class="setup-panel">
+                <div class="form-group"><label>Deck Name</label><input type="text" id="deckName" placeholder="e.g., Physics Formulas"></div>
+                <div class="form-row"><div class="form-group"><label>Subject</label><select id="subjectSelect"></select></div><div class="form-group"><label>Topic</label><select id="topicSelect" disabled><option value="">Select Topic</option></select></div></div>
+                <div class="form-group"><label>Number of Cards</label><input type="number" id="cardCount" min="5" max="50" value="20"></div>
+                <div style="display:flex; gap:0.75rem; justify-content:flex-end;"><button class="btn btn-secondary" onclick="backToDecks()">Cancel</button><button class="btn btn-primary" onclick="startFlashcards()">Create & Start</button></div>
+            </div>
+        </div>
+        <div id="sessionView" class="hidden">
+            <div class="flashcard" onclick="flipCard()"><div class="flashcard-header"><span class="flashcard-subject" id="progressSubject">-</span><span class="flashcard-counter" id="progressCount">0/0</span></div><div class="flashcard-body"><div><div class="flashcard-question" id="questionText"></div><div class="flashcard-answer" id="answerText"></div></div></div><div class="flip-hint">Click to reveal answer</div></div>
+            <div class="rating-buttons" style="display:flex; gap:0.75rem; margin-top:1rem;"><button class="rating-btn rating-easy" onclick="rateCard('easy')">Easy</button><button class="rating-btn rating-medium" onclick="rateCard('medium')">Medium</button><button class="rating-btn rating-hard" onclick="rateCard('hard')">Hard</button></div>
+        </div>
+        <div id="summaryView" class="hidden"><div class="summary-panel"><div class="summary-title">Session Complete!</div><div class="summary-stats"><div class="summary-stat"><div class="number" id="masteredCount">0</div><div class="label">Mastered</div></div><div class="summary-stat"><div class="number" id="reviewCount">0</div><div class="label">Review Later</div></div><div class="summary-stat"><div class="number" id="struggleCount">0</div><div class="label">Needs Practice</div></div></div><div class="summary-actions"><button class="btn btn-primary" onclick="continueLearning()">Continue</button><button class="btn btn-secondary" onclick="backToDecks()">Back to Decks</button></div></div></div>
+    </div>
+    <script src="js/streak.js"></script>
+    <script src="js/flashcards.js"></script>
+    <script src="js/pwa.js"></script>
+</body>
+</html>

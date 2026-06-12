@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JAMB Simulator - Results</title>
+    <link rel="manifest" href="/manifest.json">
+    <link rel="stylesheet" href="global.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        .score-circle { width: 140px; height: 140px; background: var(--primary); border-radius: 50%; margin: 1rem auto; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; }
+        .score-number { font-size: 2.5rem; font-weight: 700; }
+        .summary-cards { display: grid; grid-template-columns: repeat(4,1fr); gap:1rem; margin-bottom:1.5rem; }
+        .subject-row { display: flex; align-items: center; padding: 0.75rem 0; border-bottom: 1px solid var(--gray-200); }
+        .subject-name { width: 140px; font-weight: 500; }
+        .subject-score-bar { flex:1; height:6px; background:var(--gray-200); border-radius:3px; margin:0 1rem; overflow:hidden; }
+        .subject-score-fill { height:100%; background:var(--primary); border-radius:3px; }
+        .action-buttons { display:flex; gap:0.75rem; flex-wrap:wrap; margin:1.5rem 0; }
+        .action-btn { flex:1; padding:0.75rem; border:none; border-radius:12px; font-weight:600; cursor:pointer; }
+        .review-btn { background:var(--primary); color:white; }
+        .home-btn { background:var(--gray-200); color:var(--gray-700); }
+        .pdf-btn { background:var(--success); color:white; }
+        .share-btn { background:#f1c40f; color:#1a1a2e; }
+        @media (max-width:768px){ .summary-cards{ grid-template-columns:repeat(2,1fr); } .subject-row{ flex-direction:column; align-items:flex-start; gap:0.5rem; } .subject-score-bar{ width:100%; margin:0.5rem 0; } }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <nav class="nav-container">
+            <div class="logo">JAMB Simulator 2026</div>
+            <ul class="nav-menu">
+                <li><a href="home.html">Home</a></li>
+                <li><a href="practice.html">Practice</a></li>
+                <li><a href="progress.html">Progress</a></li>
+                <li><a href="leaderboard.html">Leaderboard</a></li>
+                <li><a href="#" id="logoutBtn">Logout</a></li>
+            </ul>
+        </nav>
+    </header>
+    <div class="container">
+        <div class="results-header" id="resultsHeader"></div>
+        <div class="summary-cards" id="summaryCards"></div>
+        <div class="subject-breakdown" id="subjectBreakdown"></div>
+        <div class="action-buttons">
+            <button class="action-btn review-btn" onclick="toggleReview()">Review Answers</button>
+            <button class="action-btn home-btn" onclick="goHome()">Back to Home</button>
+            <button class="action-btn pdf-btn" onclick="exportAsPDF()">📄 Download PDF</button>
+            <button class="action-btn share-btn" id="shareScoreBtn">📸 Share Score Card</button>
+        </div>
+        <div class="review-container" id="reviewSection" style="display:none;">
+            <h2>Review Your Answers</h2>
+            <div class="review-filters">
+                <button class="filter-btn active" onclick="filterQuestions('all')">All</button>
+                <button class="filter-btn" onclick="filterQuestions('correct')">Correct</button>
+                <button class="filter-btn" onclick="filterQuestions('incorrect')">Incorrect</button>
+            </div>
+            <div id="reviewQuestions"></div>
+        </div>
+    </div>
+    <div id="toast" class="toast"></div>
+    <script src="js/streak.js"></script>
+    <script src="js/results.js"></script>
+    <script src="js/pwa.js"></script>
+</body>
+</html>

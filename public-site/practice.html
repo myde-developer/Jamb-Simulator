@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>JAMB Simulator - Practice Mode</title>
+    <link rel="manifest" href="/manifest.json">
+    <link rel="stylesheet" href="global.css">
+    <style>
+        .setup-panel, .practice-area { background: white; border-radius: 20px; padding: 2rem; margin-bottom: 2rem; }
+        .practice-option { display: flex; align-items: center; gap: 1rem; padding: 12px; border: 1px solid var(--gray-200); border-radius: 12px; margin-bottom: 10px; cursor: pointer; transition: 0.2s; }
+        .practice-option:hover { background: var(--gray-50); }
+        .practice-option.selected { background: rgba(102,126,234,0.1); border-color: var(--primary); }
+        .practice-option.correct { background: rgba(46,125,50,0.1); border-color: var(--success); }
+        .practice-option.wrong { background: rgba(244,67,54,0.1); border-color: var(--danger); }
+        .feedback-box { background: var(--gray-50); border-radius: 12px; padding: 1rem; margin-top: 1rem; display: none; }
+        .feedback-correct { color: var(--success); font-weight: 500; }
+        .feedback-wrong { color: var(--danger); font-weight: 500; }
+        .action-buttons { display: flex; gap: 1rem; margin-top: 1.5rem; }
+        .action-btn { flex: 1; padding: 12px; border-radius: 12px; font-weight: 600; cursor: pointer; }
+        .check-btn { background: var(--primary); color: white; }
+        .next-btn { background: var(--gray-200); color: var(--gray-700); }
+        .summary-panel { text-align: center; }
+        @media (max-width:768px){ .action-buttons{ flex-direction:column; } }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <nav class="nav-container">
+            <div class="logo">📚 JAMB Simulator 2026</div>
+            <ul class="nav-menu">
+                <li><a href="home.html">Home</a></li>
+                <li><a href="practice.html" class="active">Practice</a></li>
+                <li><a href="flashcards.html">Flashcards</a></li>
+                <li><a href="progress.html">Progress</a></li>
+                <li><a href="leaderboard.html">Leaderboard</a></li>
+                <li><a href="#" id="logoutBtn">Logout</a></li>
+            </ul>
+        </nav>
+    </header>
+    <div class="container">
+        <div class="stats-grid" style="display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; margin-bottom:2rem;">
+            <div class="stat-card"><div class="stat-number" id="totalPracticed">0</div><div class="stat-label">Questions Practiced</div></div>
+            <div class="stat-card"><div class="stat-number" id="correctRate">0%</div><div class="stat-label">Accuracy</div></div>
+            <div class="stat-card"><div class="stat-number" id="streakCount">0</div><div class="stat-label">Streak</div></div>
+        </div>
+        <div id="practiceSetup" class="setup-panel">
+            <h2>Practice Mode</h2>
+            <div class="form-group"><label>Subject</label><select id="subjectSelect"></select></div>
+            <div class="form-group"><label>Topic</label><select id="topicSelect" disabled><option value="all">All Topics</option></select></div>
+            <div class="form-row" style="display:flex; gap:1rem;"><div class="form-group"><label>Difficulty</label><select id="difficultySelect"><option value="all">All</option><option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option></select></div><div class="form-group"><label>Questions</label><input type="number" id="questionCount" value="10" min="5" max="50"></div></div>
+            <button class="btn btn-primary" onclick="startPractice()">Start Practice</button>
+        </div>
+        <div id="practiceArea" style="display:none;">
+            <div class="practice-header"><span id="currentSubject"></span> <span id="progressText"></span></div>
+            <div class="question-card">
+                <div class="question-text" id="questionText"></div>
+                <div class="options-list" id="optionsContainer"></div>
+                <div class="feedback-box" id="feedbackBox"><div id="feedbackMessage"></div><div class="explanation-text" id="explanation"></div></div>
+            </div>
+            <div class="action-buttons"><button class="action-btn check-btn" id="checkBtn" onclick="checkAnswer()">Check</button><button class="action-btn next-btn" id="nextBtn" onclick="nextQuestion()" disabled>Next</button></div>
+        </div>
+        <div id="practiceSummary" style="display:none;" class="summary-panel"><h2>Session Complete!</h2><div class="summary-stats"><div>Correct: <span id="summaryCorrect">0</span></div><div>Wrong: <span id="summaryWrong">0</span></div><div>Accuracy: <span id="summaryAccuracy">0%</span></div></div><div class="motivation-message" id="motivationalMessage"></div><div class="summary-buttons"><button class="btn btn-primary" onclick="practiceAgain()">Practice Again</button><button class="btn btn-secondary" onclick="reviewMistakes()">Review Mistakes</button><button class="btn btn-secondary" onclick="sharePracticeResults()">Share</button></div></div>
+    </div>
+    <script src="js/streak.js"></script>
+    <script src="js/practice.js"></script>
+    <script src="js/pwa.js"></script>
+</body>
+</html>
