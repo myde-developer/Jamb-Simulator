@@ -22,7 +22,7 @@ const authenticateToken = (req, res, next) => {
 };
 
 // Generate flashcards using GROQ API
-router.post('/generate', authenticateToken, async (req, res) => {
+router.post('/generate', async (req, res) => {
     try {
         const { subject, topic, count = 20 } = req.body;
         

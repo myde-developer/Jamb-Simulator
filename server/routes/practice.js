@@ -22,8 +22,19 @@ const authenticateToken = (req, res, next) => {
     }
 };
 
+// GET Subjects
+router.get('/subjects', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT id, name, code FROM subjects ORDER BY name');
+        res.json({ subjects: result.rows });
+    } catch (error) {
+        console.error('Error fetching subjects:', error);
+        res.status(500).json({ error: 'Failed to fetch subjects' });
+    }
+});
+
 // Get topics for a subject (from database)
-router.get('/topics/:subjectId', authenticateToken, async (req, res) => {
+router.get('/topics/:subjectId', async (req, res) => {
     try {
         const subjectId = parseInt(req.params.subjectId);
         
@@ -43,7 +54,7 @@ router.get('/topics/:subjectId', authenticateToken, async (req, res) => {
 });
 
 // Get practice questions from database
-router.post('/questions', authenticateToken, async (req, res) => {
+router.post('/questions', async (req, res) => {
     try {
         const { subject_id, topic, difficulty, count = 10 } = req.body;
         
@@ -97,7 +108,7 @@ router.post('/questions', authenticateToken, async (req, res) => {
 });
 
 // Generate practice questions using AI
-router.post('/generate', authenticateToken, async (req, res) => {
+router.post('/generate', async (req, res) => {
     try {
         const { subject, topic, count, difficulty } = req.body;
         
@@ -105,7 +116,7 @@ router.post('/generate', authenticateToken, async (req, res) => {
             return res.status(400).json({ error: 'Subject and count are required' });
         }
         
-        const apiKey = process.env.GEMINI_API_KEY;
+        const apiKey = process.env.GROQ_API_KEY;
         if (!apiKey) {
             return res.status(500).json({ error: 'AI service not configured' });
         }
