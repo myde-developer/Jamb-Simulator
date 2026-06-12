@@ -1,11 +1,10 @@
-// server/routes/api.js - Complete Exam Questions Route (ALL 22 SUBJECTS)
-// Using topic distributions from all-subjects.js
+// server/routes/api.js - 
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const auth = require('../middleware/auth');
 
-router.post('/exam/questions', auth, async (req, res) => {
+router.post('/exam/questions', async (req, res) => {
     try {
         const { subjects } = req.body;
         let allQuestions = [];

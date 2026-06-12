@@ -1,324 +1,795 @@
-const API_BASE = 'https://jamb-simulator-api.onrender.com';
+// client/js/exam.js
+const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:5000'
+    : 'https://jamb-simulator-api.onrender.com';
 
+// Exam state
 let examState = {
-    questions: [], subjectQuestions: {}, currentSubject: null,
-    subjectIndices: {}, answers: {}, timeRemaining: 7200,
-    timerInterval: null, subjects: [], examId: null, startTime: null,
-    subjectOrder: [], subjectConfigs: {}, isReady: false
+    questions: [],
+    subjectQuestions: {},
+    currentSubject: null,
+    subjectIndices: {},
+    answers: {},
+    timeRemaining: 7200,
+    timerInterval: null,
+    subjects: [],
+    examId: null,
+    startTime: null,
+    subjectOrder: [],
+    subjectConfigs: {},
+    isReady: false  // Timer won't start until this is true
 };
 
-let examCalculator = { currentInput: '', previousInput: '', operator: null, memory: 0, shouldReset: false, lastResult: null };
-let dragState = { isDragging: false, currentX: 0, currentY: 0, initialX: 0, initialY: 0, xOffset: 0, yOffset: 0 };
+// Calculator state
+let examCalculator = {
+    currentInput: '',
+    previousInput: '',
+    operator: null,
+    memory: 0,
+    shouldReset: false,
+    lastResult: null
+};
+
+let dragState = {
+    isDragging: false,
+    currentX: 0,
+    currentY: 0,
+    initialX: 0,
+    initialY: 0,
+    xOffset: 0,
+    yOffset: 0,
+    activated: false
+};
+
+// Initialize
+(function() {
+    const token = localStorage.getItem('token');
+    if (!token) window.location.replace('/auth.html');
+})();
 
 document.addEventListener('DOMContentLoaded', () => {
     loadExamData();
     setupEventListeners();
+    displayUserInfo();
+    document.getElementById('logoutBtn')?.addEventListener('click', logout);
 });
+
+function displayUserInfo() {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const userInfo = document.getElementById('userInfo');
+    if (userInfo && user.full_name) userInfo.textContent = `Welcome, ${user.full_name}`;
+}
+
+function logout(e) {
+    e.preventDefault();
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('is_admin');
+    window.location.href = '/auth.html';
+}
 
 async function loadExamData() {
     const selectedSubjects = JSON.parse(localStorage.getItem('jambSelectedSubjects'));
+    
     if (!selectedSubjects || selectedSubjects.length === 0) {
         alert('No subjects selected. Please go back and select subjects.');
         window.location.href = '/home.html';
         return;
     }
+    
     examState.subjects = selectedSubjects;
     examState.subjectOrder = selectedSubjects.map(s => s.name);
     examState.startTime = new Date().toISOString();
-    selectedSubjects.forEach(subject => examState.subjectIndices[subject.name] = 0);
+    
+    selectedSubjects.forEach(subject => {
+        examState.subjectIndices[subject.name] = 0;
+    });
+    
     examState.currentSubject = selectedSubjects[0].name;
+    
+    await loadSubjectConfigs(selectedSubjects);
+    
+    displaySubjectsBadge(selectedSubjects);
     renderSubjectTabs(selectedSubjects);
     renderSubjectFilter(selectedSubjects);
-    await fetchExamQuestions(selectedSubjects);
+    fetchExamQuestions(selectedSubjects);
+}
+
+async function loadSubjectConfigs(subjects) {
+    const token = localStorage.getItem('token');
+    
+    for (const subject of subjects) {
+        try {
+            const response = await fetch(`${API_BASE}/api/ai-questions/subject/${subject.id}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            if (response.ok) {
+                const config = await response.json();
+                examState.subjectConfigs[subject.name] = config;
+                console.log(`Loaded config for ${subject.name}: ${config.totalQuestions} questions`);
+            }
+        } catch (error) {
+            console.error(`Failed to load config for ${subject.name}:`, error);
+            examState.subjectConfigs[subject.name] = {
+                totalQuestions: subject.name === 'Use of English' ? 60 : 40,
+                hasDiagrams: false,
+                minDiagramQuestions: 0
+            };
+        }
+    }
+}
+
+function renderSubjectTabs(subjects) {
+    const tabsContainer = document.getElementById('subjectTabs');
+    if (!tabsContainer) return;
+    
+    let tabsHtml = subjects.map((subject, index) => {
+        const config = examState.subjectConfigs[subject.name];
+        const questionCount = config?.totalQuestions || (subject.name === 'Use of English' ? 60 : 40);
+        const displayName = subject.name === 'Use of English' ? 'English' : subject.name;
+        const isActive = index === 0 ? 'active' : '';
+        const diagramIcon = config?.hasDiagrams ? ' 📐' : '';
+        
+        return `
+            <button class="subject-tab ${isActive}" onclick="switchSubject('${subject.name}')">
+                ${displayName}${diagramIcon}
+                <span class="count-badge">${questionCount}</span>
+            </button>
+        `;
+    }).join('');
+    
+    tabsContainer.innerHTML = tabsHtml;
+}
+
+function renderSubjectFilter(subjects) {
+    const filterContainer = document.getElementById('subjectFilter');
+    if (!filterContainer) return;
+    
+    let filterHtml = `<button class="filter-btn active" onclick="filterPalette('all')">All</button>`;
+    subjects.forEach(subject => {
+        const displayName = subject.name === 'Use of English' ? 'English' : subject.name;
+        filterHtml += `<button class="filter-btn" onclick="filterPalette('${subject.name}')">${displayName}</button>`;
+    });
+    filterContainer.innerHTML = filterHtml;
+}
+
+function switchSubject(subjectName) {
+    examState.currentSubject = subjectName;
+    
+    document.querySelectorAll('.subject-tab').forEach((tab, index) => {
+        const tabSubject = examState.subjects[index].name;
+        if (tabSubject === subjectName) {
+            tab.classList.add('active');
+        } else {
+            tab.classList.remove('active');
+        }
+    });
+    
+    renderSubjectQuestion(subjectName);
+    renderPalette();
+}
+
+function renderSubjectQuestion(subjectName) {
+    const subjectQuestions = examState.subjectQuestions[subjectName];
+    if (!subjectQuestions || subjectQuestions.length === 0) return;
+    
+    const currentIndex = examState.subjectIndices[subjectName];
+    const question = subjectQuestions[currentIndex];
+    renderQuestion(question, subjectName, currentIndex + 1, subjectQuestions.length);
+}
+
+function displaySubjectsBadge(subjects) {
+    const badgeContainer = document.getElementById('subjectsBadge');
+    if (!badgeContainer) return;
+    badgeContainer.innerHTML = subjects.map(s => 
+        `<span class="subject-tag">${s.code || s.name.substring(0, 3).toUpperCase()}</span>`
+    ).join('');
+}
+
+function randomizeQuestionOptions(question) {
+    const optionLetters = ['A', 'B', 'C', 'D'];
+    const originalCorrectLetter = question.correct_answer;
+    
+    const originalOptions = {
+        A: question.option_a,
+        B: question.option_b,
+        C: question.option_c,
+        D: question.option_d
+    };
+    
+    const correctText = originalOptions[originalCorrectLetter];
+    
+    const shuffledLetters = [...optionLetters];
+    for (let i = shuffledLetters.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffledLetters[i], shuffledLetters[j]] = [shuffledLetters[j], shuffledLetters[i]];
+    }
+    
+    const newOptions = {};
+    shuffledLetters.forEach((newLetter, idx) => {
+        const originalLetter = optionLetters[idx];
+        newOptions[newLetter] = originalOptions[originalLetter];
+    });
+    
+    let newCorrectLetter = '';
+    for (const [letter, text] of Object.entries(newOptions)) {
+        if (text === correctText) {
+            newCorrectLetter = letter;
+            break;
+        }
+    }
+    
+    return {
+        ...question,
+        option_a: newOptions.A,
+        option_b: newOptions.B,
+        option_c: newOptions.C,
+        option_d: newOptions.D,
+        correct_answer: newCorrectLetter
+    };
 }
 
 async function fetchExamQuestions(subjects) {
     try {
+        document.getElementById('questionContainer').innerHTML = 
+            '<div style="text-align: center; padding: 50px;">Loading questions...</div>';
+        
+        const token = localStorage.getItem('token');
+        
+        // Use existing exam endpoint (database only)
         const response = await fetch(`${API_BASE}/api/exam/questions`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ subjects: subjects.map(s => ({ id: s.id, name: s.name })) })
-        });
-        if (!response.ok) throw new Error('Failed to fetch questions');
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ subjects: subjects.map(s => ({ id: s.id, name: s.name })) })
+});
+        
+        if (!response.ok) {
+            throw new Error('Failed to fetch questions');
+        }
+        
         let questions = await response.json();
-        questions = questions.map(q => randomizeQuestionOptions(q));
+        
+        if (!questions || questions.length === 0) {
+            throw new Error('No questions available');
+        }
+        
+        // Randomize options for each question
+        const randomizedQuestions = questions.map(q => randomizeQuestionOptions(q));
+        
+        // Organize by subject
         examState.subjectQuestions = {};
         subjects.forEach(subject => {
-            const subjectQuestions = questions.filter(q => q.subject === subject.name);
+            const subjectQuestions = randomizedQuestions.filter(q => q.subject === subject.name);
             const targetCount = subject.name === 'Use of English' ? 60 : 40;
-            examState.subjectQuestions[subject.name] = subjectQuestions.slice(0, targetCount);
+            
+            if (subjectQuestions.length >= targetCount) {
+                examState.subjectQuestions[subject.name] = subjectQuestions.slice(0, targetCount);
+            } else {
+                examState.subjectQuestions[subject.name] = subjectQuestions;
+                console.warn(`${subject.name}: Only ${subjectQuestions.length}/${targetCount} questions available`);
+            }
         });
-        examState.questions = questions;
-        examState.examId = 'EXAM_' + Date.now();
-        document.getElementById('skeletonLoader').style.display = 'none';
-        document.getElementById('questionContainer').style.display = 'block';
-        renderSubjectQuestion(examState.currentSubject);
+        
+        examState.questions = randomizedQuestions;
+        examState.examId = generateExamId();
+        
+        const firstSubject = subjects[0].name;
+        renderSubjectQuestion(firstSubject);
         renderPalette();
+        
+        // Start timer ONLY after questions are loaded
         examState.isReady = true;
         startTimer();
+        
+        console.log('✅ Exam fully loaded');
+        
     } catch (error) {
-        document.getElementById('skeletonLoader').innerHTML = `<div class="error-message">❌ Failed to load questions. <button onclick="location.reload()">Retry</button></div>`;
+        console.error('Error loading questions:', error);
+        document.getElementById('questionContainer').innerHTML = `
+            <div style="text-align: center; padding: 50px; color: #e74c3c;">
+                ❌ Failed to load questions: ${error.message}
+                <br><br>
+                <button onclick="location.reload()" style="padding: 10px 20px;">Retry</button>
+            </div>
+        `;
     }
 }
 
-function randomizeQuestionOptions(question) {
-    const letters = ['A','B','C','D'];
-    const original = { A: question.option_a, B: question.option_b, C: question.option_c, D: question.option_d };
-    const correctText = original[question.correct_answer];
-    const shuffled = [...letters];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+function logExamStatistics() {
+    console.log('\n📊 FINAL EXAM STATISTICS:');
+    console.log('=================================');
+    for (const subject of examState.subjects) {
+        const questions = examState.subjectQuestions[subject.name];
+        const config = examState.subjectConfigs[subject.name];
+        const required = config?.totalQuestions || (subject.name === 'Use of English' ? 60 : 40);
+        const dbCount = questions.filter(q => !q.is_ai_generated).length;
+        const aiCount = questions.filter(q => q.is_ai_generated).length;
+        const diagramCount = questions.filter(q => q.diagram_url).length;
+        
+        console.log(`📖 ${subject.name}: ${questions.length}/${required} questions`);
+        console.log(`   📝 Database: ${dbCount} | 🤖 AI: ${aiCount} |  Diagrams: ${diagramCount}`);
     }
-    const newOpts = {};
-    shuffled.forEach((newLetter, idx) => { newOpts[newLetter] = original[letters[idx]]; });
-    let newCorrect = '';
-    for (let [l, txt] of Object.entries(newOpts)) if (txt === correctText) newCorrect = l;
-    return { ...question, option_a: newOpts.A, option_b: newOpts.B, option_c: newOpts.C, option_d: newOpts.D, correct_answer: newCorrect };
+    console.log('=================================\n');
 }
 
-function renderSubjectTabs(subjects) {
-    const container = document.getElementById('subjectTabs');
-    container.innerHTML = subjects.map((s, i) => `<button class="subject-tab ${i===0?'active':''}" onclick="switchSubject('${s.name}')">${s.name}</button>`).join('');
-}
-function renderSubjectFilter(subjects) {
-    const container = document.getElementById('subjectFilter');
-    container.innerHTML = `<button class="filter-btn active" onclick="filterPalette('all')">All</button>` + subjects.map(s => `<button class="filter-btn" onclick="filterPalette('${s.name}')">${s.name}</button>`).join('');
-}
-function renderSubjectQuestion(subjectName) {
-    const questions = examState.subjectQuestions[subjectName];
-    if (!questions) return;
-    const idx = examState.subjectIndices[subjectName];
-    renderQuestion(questions[idx], subjectName, idx+1, questions.length);
-}
-function renderQuestion(q, subject, num, total) {
+function renderQuestion(question, subjectName, questionNumber, totalQuestions) {
+    if (!question) return;
+    
     const container = document.getElementById('questionContainer');
-    const saved = examState.answers[q.id];
+    const savedAnswer = examState.answers[question.id];
+    
+    const options = {
+        A: question.option_a,
+        B: question.option_b,
+        C: question.option_c,
+        D: question.option_d
+    };
+    
+    // REMOVED diagram code - just show question text
+    const questionHtml = question.question_text;
+    
     container.innerHTML = `
-        <div class="question-number" style="color:var(--gray-600); margin-bottom:10px;">Question ${num} of ${total}</div>
-        <div class="question-subject" style="display:inline-block; background:var(--gray-100); padding:4px 12px; border-radius:20px; margin-bottom:15px;">${subject}</div>
-        <div class="question-text">${q.question_text}</div>
+        <div class="question-number">Question ${questionNumber} of ${totalQuestions}</div>
+        <div class="question-subject">${subjectName}</div>
+        <div class="question-text">${questionHtml}</div>
         <div class="options">
-            ${['A','B','C','D'].map(l => `
-                <div class="option ${saved===l?'selected':''}" onclick="selectAnswer('${q.id}','${l}')">
-                    <span class="option-letter">${l}</span>
-                    <span class="option-text">${q[`option_${l.toLowerCase()}`]}</span>
+            ${['A', 'B', 'C', 'D'].map(letter => `
+                <div class="option ${savedAnswer === letter ? 'selected' : ''}" onclick="selectAnswer('${question.id}', '${letter}')">
+                    <span class="option-letter">${letter}</span>
+                    <span class="option-text">${options[letter]}</span>
                 </div>
             `).join('')}
         </div>
     `;
-    updateNavButtons(subject);
+    
+    updateNavButtons(subjectName);
     updateProgress();
-    highlightCurrentInPalette(q.id);
+    highlightCurrentInPalette(question.id);
 }
-function selectAnswer(qid, letter) {
-    examState.answers[qid] = letter;
+
+function selectAnswer(questionId, answer) {
+    examState.answers[questionId] = answer;
+    
     document.querySelectorAll('.option').forEach(opt => {
-        const l = opt.querySelector('.option-letter')?.textContent;
-        if (l === letter) opt.classList.add('selected');
-        else opt.classList.remove('selected');
+        const letter = opt.querySelector('.option-letter').textContent;
+        if (letter === answer) {
+            opt.classList.add('selected');
+        } else {
+            opt.classList.remove('selected');
+        }
     });
-    updatePaletteItem(qid);
+    
+    updatePaletteItem(questionId);
 }
+
 function renderPalette() {
-    const all = [];
-    for (let sub in examState.subjectQuestions) {
-        examState.subjectQuestions[sub].forEach((q, i) => {
-            all.push({ ...q, subjectDisplay: sub.substring(0,3).toUpperCase(), subjectName: sub, idx: i+1 });
+    const palette = document.getElementById('paletteGrid');
+    if (!palette) return;
+    
+    const allQuestions = [];
+    
+    Object.keys(examState.subjectQuestions).forEach(subject => {
+        examState.subjectQuestions[subject].forEach((q, index) => {
+            allQuestions.push({
+                ...q,
+                subjectDisplay: subject === 'Use of English' ? 'ENG' : 
+                               subject === 'Mathematics' ? 'MTH' :
+                               subject === 'Physics' ? 'PHY' :
+                               subject === 'Chemistry' ? 'CHM' :
+                               subject === 'Biology' ? 'BIO' : subject.substring(0, 3).toUpperCase(),
+                subjectName: subject,
+                subjectIndex: index + 1
+            });
         });
-    }
-    let display = all;
+    });
+    
+    let displayQuestions = allQuestions;
     if (examState.currentSubject && examState.currentSubject !== 'all') {
-        display = all.filter(q => q.subjectName === examState.currentSubject);
+        displayQuestions = allQuestions.filter(q => q.subjectName === examState.currentSubject);
     }
-    const grid = document.getElementById('paletteGrid');
-    grid.innerHTML = display.map(q => {
+    
+    palette.innerHTML = displayQuestions.map((q, idx) => {
         const answered = examState.answers[q.id] ? 'answered' : 'unanswered';
-        const isCurrent = examState.currentSubject === q.subjectName && examState.subjectIndices[q.subjectName] === q.idx-1;
-        return `<div class="palette-item ${answered} ${isCurrent?'current':''}" onclick="jumpToQuestion('${q.subjectName}',${q.idx-1})" title="${q.subjectName} Q${q.idx}">${q.subjectDisplay} ${q.idx}</div>`;
+        const isCurrent = examState.currentSubject === q.subjectName && 
+                         examState.subjectIndices[q.subjectName] === q.subjectIndex - 1;
+        const current = isCurrent ? 'current' : '';
+        
+        return `
+            <div class="palette-item ${answered} ${current}" onclick="jumpToQuestion('${q.subjectName}', ${q.subjectIndex - 1})"
+                 data-subject="${q.subjectDisplay}" title="${q.subjectName} - Question ${q.subjectIndex}">
+                ${q.subjectDisplay} ${q.subjectIndex}
+            </div>
+        `;
     }).join('');
 }
-function updatePaletteItem(qid) {
-    for (let sub in examState.subjectQuestions) {
-        const idx = examState.subjectQuestions[sub].findIndex(q => q.id === qid);
-        if (idx !== -1) {
-            const items = document.querySelectorAll('.palette-item');
-            for (let item of items) {
-                if (item.textContent.trim().endsWith(` ${idx+1}`)) item.classList.add('answered');
+
+function updatePaletteItem(questionId) {
+    let targetSubject = null;
+    let targetIndex = -1;
+    
+    for (const subject in examState.subjectQuestions) {
+        const index = examState.subjectQuestions[subject].findIndex(q => q.id === questionId);
+        if (index !== -1) {
+            targetSubject = subject;
+            targetIndex = index;
+            break;
+        }
+    }
+    
+    if (targetSubject === null) return;
+    
+    const paletteItems = document.querySelectorAll('.palette-item');
+    paletteItems.forEach(item => {
+        const itemText = item.textContent.trim();
+        const subjectCode = targetSubject === 'Use of English' ? 'ENG' :
+                           targetSubject === 'Mathematics' ? 'MTH' :
+                           targetSubject === 'Physics' ? 'PHY' :
+                           targetSubject === 'Chemistry' ? 'CHM' :
+                           targetSubject === 'Biology' ? 'BIO' : targetSubject.substring(0, 3).toUpperCase();
+        
+        if (itemText === `${subjectCode} ${targetIndex + 1}`) {
+            item.className = 'palette-item answered';
+            if (examState.currentSubject === targetSubject && examState.subjectIndices[targetSubject] === targetIndex) {
+                item.classList.add('current');
             }
+        }
+    });
+}
+
+function highlightCurrentInPalette(questionId) {
+    let targetSubject = null;
+    let targetIndex = -1;
+    
+    for (const subject in examState.subjectQuestions) {
+        const index = examState.subjectQuestions[subject].findIndex(q => q.id === questionId);
+        if (index !== -1) {
+            targetSubject = subject;
+            targetIndex = index;
             break;
         }
     }
-}
-function highlightCurrentInPalette(qid) {
-    for (let sub in examState.subjectQuestions) {
-        const idx = examState.subjectQuestions[sub].findIndex(q => q.id === qid);
-        if (idx !== -1) {
-            const items = document.querySelectorAll('.palette-item');
-            items.forEach(item => {
-                if (item.textContent.trim().endsWith(` ${idx+1}`)) item.classList.add('current');
-                else item.classList.remove('current');
-            });
-            break;
+    
+    if (targetSubject === null) return;
+    
+    const paletteItems = document.querySelectorAll('.palette-item');
+    paletteItems.forEach(item => {
+        const itemText = item.textContent.trim();
+        const subjectCode = targetSubject === 'Use of English' ? 'ENG' :
+                           targetSubject === 'Mathematics' ? 'MTH' :
+                           targetSubject === 'Physics' ? 'PHY' :
+                           targetSubject === 'Chemistry' ? 'CHM' :
+                           targetSubject === 'Biology' ? 'BIO' : targetSubject.substring(0, 3).toUpperCase();
+        
+        if (itemText === `${subjectCode} ${targetIndex + 1}`) {
+            item.classList.add('current');
+        } else {
+            item.classList.remove('current');
         }
-    }
+    });
 }
-function jumpToQuestion(subject, index) {
-    examState.currentSubject = subject;
-    examState.subjectIndices[subject] = index;
-    renderSubjectQuestion(subject);
-    renderPalette();
+
+function jumpToQuestion(subjectName, index) {
+    examState.currentSubject = subjectName;
+    examState.subjectIndices[subjectName] = index;
+    
+    document.querySelectorAll('.subject-tab').forEach((tab, i) => {
+        const tabSubject = examState.subjects[i].name;
+        if (tabSubject === subjectName) {
+            tab.classList.add('active');
+        } else {
+            tab.classList.remove('active');
+        }
+    });
+    
+    renderSubjectQuestion(subjectName);
 }
-function updateNavButtons(subject) {
-    const idx = examState.subjectIndices[subject];
-    const total = examState.subjectQuestions[subject].length;
-    const isLastSubject = subject === examState.subjectOrder[examState.subjectOrder.length-1];
-    const isLast = idx === total-1;
-    document.getElementById('prevBtn').disabled = idx === 0;
-    if (isLastSubject && isLast) {
-        document.getElementById('nextBtn').style.display = 'none';
-        document.getElementById('submitBtn').style.display = 'block';
+
+ function updateNavButtons(subjectName) {
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const submitBtn = document.getElementById('submitBtn');
+    
+    if (!prevBtn || !nextBtn || !submitBtn) return;
+    
+    const currentIndex = examState.subjectIndices[subjectName];
+    const totalQuestions = examState.subjectQuestions[subjectName].length;
+    
+    prevBtn.disabled = currentIndex === 0;
+    
+    const isLastSubject = subjectName === examState.subjectOrder[examState.subjectOrder.length - 1];
+    const isLastQuestion = currentIndex === totalQuestions - 1;
+    
+    if (isLastSubject && isLastQuestion) {
+        nextBtn.style.display = 'none';
+        submitBtn.style.display = 'block';
     } else {
-        document.getElementById('nextBtn').style.display = 'block';
-        document.getElementById('submitBtn').style.display = 'none';
+        nextBtn.style.display = 'block';
+        submitBtn.style.display = 'none';
     }
 }
+
 function nextQuestion() {
-    let sub = examState.currentSubject;
-    let idx = examState.subjectIndices[sub];
-    if (idx < examState.subjectQuestions[sub].length-1) {
-        examState.subjectIndices[sub] = idx+1;
-        renderSubjectQuestion(sub);
+    const currentSubject = examState.currentSubject;
+    const currentIndex = examState.subjectIndices[currentSubject];
+    const subjectQuestions = examState.subjectQuestions[currentSubject];
+    
+    if (currentIndex < subjectQuestions.length - 1) {
+        examState.subjectIndices[currentSubject] = currentIndex + 1;
+        renderSubjectQuestion(currentSubject);
     } else {
-        let subIdx = examState.subjectOrder.indexOf(sub);
-        if (subIdx < examState.subjectOrder.length-1) {
-            let nextSub = examState.subjectOrder[subIdx+1];
-            examState.currentSubject = nextSub;
-            examState.subjectIndices[nextSub] = 0;
-            renderSubjectQuestion(nextSub);
-            document.querySelectorAll('.subject-tab').forEach((tab,i) => { if(examState.subjects[i].name===nextSub) tab.classList.add('active'); else tab.classList.remove('active'); });
+        const currentSubjectIndex = examState.subjectOrder.indexOf(currentSubject);
+        if (currentSubjectIndex < examState.subjectOrder.length - 1) {
+            const nextSubject = examState.subjectOrder[currentSubjectIndex + 1];
+            examState.currentSubject = nextSubject;
+            examState.subjectIndices[nextSubject] = 0;
+            
+            document.querySelectorAll('.subject-tab').forEach((tab, i) => {
+                const tabSubject = examState.subjects[i].name;
+                if (tabSubject === nextSubject) {
+                    tab.classList.add('active');
+                } else {
+                    tab.classList.remove('active');
+                }
+            });
+            
+            renderSubjectQuestion(nextSubject);
         }
     }
     renderPalette();
 }
+
 function prevQuestion() {
-    let sub = examState.currentSubject;
-    let idx = examState.subjectIndices[sub];
-    if (idx > 0) {
-        examState.subjectIndices[sub] = idx-1;
-        renderSubjectQuestion(sub);
+    const currentSubject = examState.currentSubject;
+    const currentIndex = examState.subjectIndices[currentSubject];
+    
+    if (currentIndex > 0) {
+        examState.subjectIndices[currentSubject] = currentIndex - 1;
+        renderSubjectQuestion(currentSubject);
     } else {
-        let subIdx = examState.subjectOrder.indexOf(sub);
-        if (subIdx > 0) {
-            let prevSub = examState.subjectOrder[subIdx-1];
-            examState.currentSubject = prevSub;
-            examState.subjectIndices[prevSub] = examState.subjectQuestions[prevSub].length-1;
-            renderSubjectQuestion(prevSub);
-            document.querySelectorAll('.subject-tab').forEach((tab,i) => { if(examState.subjects[i].name===prevSub) tab.classList.add('active'); else tab.classList.remove('active'); });
+        const currentSubjectIndex = examState.subjectOrder.indexOf(currentSubject);
+        if (currentSubjectIndex > 0) {
+            const prevSubject = examState.subjectOrder[currentSubjectIndex - 1];
+            const prevSubjectQuestions = examState.subjectQuestions[prevSubject];
+            
+            examState.currentSubject = prevSubject;
+            examState.subjectIndices[prevSubject] = prevSubjectQuestions.length - 1;
+            
+            document.querySelectorAll('.subject-tab').forEach((tab, i) => {
+                const tabSubject = examState.subjects[i].name;
+                if (tabSubject === prevSubject) {
+                    tab.classList.add('active');
+                } else {
+                    tab.classList.remove('active');
+                }
+            });
+            
+            renderSubjectQuestion(prevSubject);
         }
     }
     renderPalette();
 }
+
 function updateProgress() {
-    const total = Object.values(examState.subjectQuestions).reduce((s,a)=>s+a.length,0);
-    const answered = Object.keys(examState.answers).length;
-    document.getElementById('progressFill').style.width = (answered/total*100)+'%';
+    const answeredCount = Object.keys(examState.answers).length;
+    const totalQuestions = Object.values(examState.subjectQuestions).reduce((sum, q) => sum + q.length, 0);
+    const progress = (answeredCount / totalQuestions) * 100;
+    const progressFill = document.getElementById('progressFill');
+    if (progressFill) progressFill.style.width = `${progress}%`;
 }
+
 function startTimer() {
-    if (!examState.isReady || examState.timerInterval) return;
+    // Only start if exam is ready
+    if (!examState.isReady) {
+        console.log('⏳ Timer waiting for exam to be ready... (isReady = false)');
+        return;
+    }
+    
+    // Don't start if timer already running
+    if (examState.timerInterval) {
+        console.log('⚠️ Timer already running');
+        return;
+    }
+    
+    console.log('⏰ STARTING TIMER NOW!');
+    
     examState.timerInterval = setInterval(() => {
-        if (examState.timeRemaining <= 0) { clearInterval(examState.timerInterval); submitExam(); return; }
+        if (examState.timeRemaining <= 0) {
+            clearInterval(examState.timerInterval);
+            submitExam();
+            return;
+        }
         examState.timeRemaining--;
-        const h = Math.floor(examState.timeRemaining/3600);
-        const m = Math.floor((examState.timeRemaining%3600)/60);
-        const s = examState.timeRemaining%60;
-        const timerEl = document.getElementById('timer');
-        timerEl.textContent = `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
-        if (examState.timeRemaining < 300) timerEl.className = 'timer danger';
-        else if (examState.timeRemaining < 600) timerEl.className = 'timer warning';
-        else timerEl.className = 'timer';
+        updateTimerDisplay();
     }, 1000);
 }
+
+function updateTimerDisplay() {
+    const hours = Math.floor(examState.timeRemaining / 3600);
+    const minutes = Math.floor((examState.timeRemaining % 3600) / 60);
+    const seconds = examState.timeRemaining % 60;
+    
+    const timerElement = document.getElementById('timer');
+    if (!timerElement) return;
+    
+    timerElement.textContent = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    
+    if (examState.timeRemaining < 300) {
+        timerElement.className = 'timer danger';
+    } else if (examState.timeRemaining < 600) {
+        timerElement.className = 'timer warning';
+    }
+}
+
+function setupEventListeners() {
+    document.getElementById('prevBtn')?.addEventListener('click', prevQuestion);
+    document.getElementById('nextBtn')?.addEventListener('click', nextQuestion);
+    document.getElementById('submitBtn')?.addEventListener('click', submitExam);
+}
+
 function submitExam() {
-    const total = Object.values(examState.subjectQuestions).reduce((s,a)=>s+a.length,0);
-    const answered = Object.keys(examState.answers).length;
-    if (answered < total && !confirm(`You answered ${answered}/${total}. Submit anyway?`)) return;
+    const totalQuestions = Object.values(examState.subjectQuestions).reduce((sum, q) => sum + q.length, 0);
+    const answeredCount = Object.keys(examState.answers).length;
+    
+    if (answeredCount < totalQuestions) {
+        if (!confirm(`You have answered ${answeredCount} out of ${totalQuestions} questions. Submit anyway?`)) return;
+    }
+    
     if (examState.timerInterval) clearInterval(examState.timerInterval);
-    const results = calculateScores();
-    sessionStorage.setItem('pendingExamResults', JSON.stringify({
+    
+    const results = calculateJAMBScores();
+    
+    localStorage.setItem('lastExamResults', JSON.stringify({
         subjectQuestions: examState.subjectQuestions,
         answers: examState.answers,
         scores: results,
         subjects: examState.subjects,
-        date: new Date().toISOString(),
-        examId: examState.examId
+        date: new Date().toISOString()
     }));
-    window.location.href = '/auth.html?pending=results';
+    
+    window.location.href = '/results.html';
 }
-function calculateScores() {
-    let scores = { subjectScores: {}, total: 0, percentage: 0 };
-    for (let sub in examState.subjectQuestions) {
-        let correct = 0;
-        examState.subjectQuestions[sub].forEach(q => { if (examState.answers[q.id] === q.correct_answer) correct++; });
-        scores.subjectScores[sub] = { correct, total: examState.subjectQuestions[sub].length };
-        if (sub === 'Use of English') scores.total += correct * 1.67;
-        else scores.total += correct * 2.5;
-    }
-    scores.percentage = Math.round((scores.total/400)*100);
-    return scores;
+
+function calculateJAMBScores() {
+    let englishCorrect = 0, englishTotal = 0, otherCorrect = 0, otherTotal = 0;
+    const subjectScores = {};
+    
+    Object.keys(examState.subjectQuestions).forEach(subject => {
+        subjectScores[subject] = { correct: 0, total: examState.subjectQuestions[subject].length };
+        
+        examState.subjectQuestions[subject].forEach(q => {
+            const correctAnswer = q.correct_answer || q.correctAnswer;
+            const isCorrect = examState.answers[q.id] === correctAnswer;
+            
+            if (isCorrect) {
+                subjectScores[subject].correct++;
+                if (subject === 'Use of English') englishCorrect++;
+                else otherCorrect++;
+            }
+        });
+        
+        if (subject === 'Use of English') englishTotal = examState.subjectQuestions[subject].length;
+        else otherTotal += examState.subjectQuestions[subject].length;
+    });
+    
+    const englishScore = englishCorrect * 1.67;
+    const otherScore = otherCorrect * 2.5;
+    const totalScore = englishScore + otherScore;
+    
+    return {
+        subjectScores,
+        english: { correct: englishCorrect, total: englishTotal, score: englishScore },
+        other: { correct: otherCorrect, total: otherTotal, score: otherScore },
+        total: Math.round(totalScore * 100) / 100,
+        percentage: Math.round((totalScore / 400) * 100)
+    };
 }
-function setupEventListeners() {
-    document.getElementById('prevBtn').addEventListener('click', prevQuestion);
-    document.getElementById('nextBtn').addEventListener('click', nextQuestion);
-    document.getElementById('submitBtn').addEventListener('click', submitExam);
+
+function generateExamId() {
+    return 'EXAM_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 }
+
+function filterPalette(subject) {
+    examState.currentSubject = subject === 'all' ? null : subject;
+    
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        const btnSubject = btn.textContent.trim();
+        if ((subject === 'all' && btnSubject === 'All') || (subject !== 'all' && btnSubject === subject)) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+    
+    renderPalette();
+}
+
 function renderCalculator() {
     const container = document.getElementById('examCalculator');
     if (!container) return;
+    
     container.innerHTML = `
-        <div class="calc-display"><div class="calc-expression" id="calcExpression"></div><div class="calc-result" id="calcResult">0</div></div>
-        <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-bottom:8px;">
-            <button class="calc-btn operator" onclick="calculatorMemory('clear')">MC</button><button class="calc-btn operator" onclick="calculatorMemory('recall')">MR</button>
-            <button class="calc-btn operator" onclick="calculatorMemory('add')">M+</button><button class="calc-btn operator" onclick="calculatorMemory('subtract')">M-</button>
+        <div class="calc-display">
+            <div class="calc-expression" id="calcExpression"></div>
+            <div class="calc-result" id="calcResult">0</div>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 8px;">
+            <button class="calc-btn operator" onclick="calculatorMemory('clear'); event.stopPropagation();">MC</button>
+            <button class="calc-btn operator" onclick="calculatorMemory('recall'); event.stopPropagation();">MR</button>
+            <button class="calc-btn operator" onclick="calculatorMemory('add'); event.stopPropagation();">M+</button>
+            <button class="calc-btn operator" onclick="calculatorMemory('subtract'); event.stopPropagation();">M-</button>
         </div>
         <div class="calc-grid">
-            <button class="calc-btn clear" onclick="calculatorClear()">C</button><button class="calc-btn operator" onclick="calculatorAppend('%')">%</button>
-            <button class="calc-btn operator" onclick="calculatorOperator('/')">÷</button><button class="calc-btn operator" onclick="calculatorBackspace()">⌫</button>
-            <button class="calc-btn number" onclick="calculatorAppend('7')">7</button><button class="calc-btn number" onclick="calculatorAppend('8')">8</button>
-            <button class="calc-btn number" onclick="calculatorAppend('9')">9</button><button class="calc-btn operator" onclick="calculatorOperator('*')">×</button>
-            <button class="calc-btn number" onclick="calculatorAppend('4')">4</button><button class="calc-btn number" onclick="calculatorAppend('5')">5</button>
-            <button class="calc-btn number" onclick="calculatorAppend('6')">6</button><button class="calc-btn operator" onclick="calculatorOperator('-')">−</button>
-            <button class="calc-btn number" onclick="calculatorAppend('1')">1</button><button class="calc-btn number" onclick="calculatorAppend('2')">2</button>
-            <button class="calc-btn number" onclick="calculatorAppend('3')">3</button><button class="calc-btn operator" onclick="calculatorOperator('+')">+</button>
-            <button class="calc-btn number" onclick="calculatorAppend('0')">0</button><button class="calc-btn number" onclick="calculatorAppend('.')">.</button>
-            <button class="calc-btn equals" onclick="calculatorCalculate()" style="grid-column:span 2;">=</button>
+            <button class="calc-btn clear" onclick="calculatorClear(); event.stopPropagation();">C</button>
+            <button class="calc-btn operator" onclick="calculatorAppend('%'); event.stopPropagation();">%</button>
+            <button class="calc-btn operator" onclick="calculatorOperator('/'); event.stopPropagation();">÷</button>
+            <button class="calc-btn operator" onclick="calculatorBackspace(); event.stopPropagation();">⌫</button>
+            <button class="calc-btn number" onclick="calculatorAppend('7'); event.stopPropagation();">7</button>
+            <button class="calc-btn number" onclick="calculatorAppend('8'); event.stopPropagation();">8</button>
+            <button class="calc-btn number" onclick="calculatorAppend('9'); event.stopPropagation();">9</button>
+            <button class="calc-btn operator" onclick="calculatorOperator('*'); event.stopPropagation();">×</button>
+            <button class="calc-btn number" onclick="calculatorAppend('4'); event.stopPropagation();">4</button>
+            <button class="calc-btn number" onclick="calculatorAppend('5'); event.stopPropagation();">5</button>
+            <button class="calc-btn number" onclick="calculatorAppend('6'); event.stopPropagation();">6</button>
+            <button class="calc-btn operator" onclick="calculatorOperator('-'); event.stopPropagation();">−</button>
+            <button class="calc-btn number" onclick="calculatorAppend('1'); event.stopPropagation();">1</button>
+            <button class="calc-btn number" onclick="calculatorAppend('2'); event.stopPropagation();">2</button>
+            <button class="calc-btn number" onclick="calculatorAppend('3'); event.stopPropagation();">3</button>
+            <button class="calc-btn operator" onclick="calculatorOperator('+'); event.stopPropagation();">+</button>
+            <button class="calc-btn number" onclick="calculatorAppend('0'); event.stopPropagation();">0</button>
+            <button class="calc-btn number" onclick="calculatorAppend('.'); event.stopPropagation();">.</button>
+            <button class="calc-btn equals" onclick="calculatorCalculate(); event.stopPropagation();" style="grid-column: span 2;">=</button>
         </div>
-        <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:12px;">
-            <button class="calc-btn operator" onclick="calculatorScientific('sqrt')">√</button><button class="calc-btn operator" onclick="calculatorScientific('square')">x²</button>
-            <button class="calc-btn operator" onclick="calculatorScientific('sin')">sin</button><button class="calc-btn operator" onclick="calculatorScientific('cos')">cos</button>
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px;">
+            <button class="calc-btn operator" onclick="calculatorScientific('sqrt'); event.stopPropagation();">√</button>
+            <button class="calc-btn operator" onclick="calculatorScientific('square'); event.stopPropagation();">x²</button>
+            <button class="calc-btn operator" onclick="calculatorScientific('sin'); event.stopPropagation();">sin</button>
+            <button class="calc-btn operator" onclick="calculatorScientific('cos'); event.stopPropagation();">cos</button>
         </div>
     `;
     updateCalculatorDisplay();
 }
+
 function calculatorAppend(value) {
-    if (examCalculator.shouldReset) { examCalculator.currentInput = ''; examCalculator.shouldReset = false; }
-    if (value === '.') { if (examCalculator.currentInput.includes('.')) return; if (examCalculator.currentInput === '') examCalculator.currentInput = '0.'; }
+    if (examCalculator.shouldReset) {
+        examCalculator.currentInput = '';
+        examCalculator.shouldReset = false;
+    }
+    if (value === '.') {
+        if (examCalculator.currentInput.includes('.')) return;
+        if (examCalculator.currentInput === '') examCalculator.currentInput = '0.';
+    }
     examCalculator.currentInput += value;
     updateCalculatorDisplay();
 }
+
 function calculatorOperator(op) {
     if (examCalculator.operator && examCalculator.previousInput !== '' && examCalculator.currentInput !== '') calculatorCalculate();
     examCalculator.operator = op;
-    if (examCalculator.currentInput !== '') { examCalculator.previousInput = examCalculator.currentInput; examCalculator.currentInput = ''; }
-    else if (examCalculator.lastResult !== null) examCalculator.previousInput = examCalculator.lastResult.toString();
+    if (examCalculator.currentInput !== '') {
+        examCalculator.previousInput = examCalculator.currentInput;
+        examCalculator.currentInput = '';
+    } else if (examCalculator.lastResult !== null) examCalculator.previousInput = examCalculator.lastResult.toString();
     examCalculator.shouldReset = false;
     updateCalculatorDisplay();
 }
+
 function calculatorCalculate() {
     if (!examCalculator.operator || examCalculator.previousInput === '') return;
-    let currentValue = (examCalculator.currentInput === '') ? (examCalculator.lastResult !== null ? examCalculator.lastResult : parseFloat(examCalculator.previousInput)) : parseFloat(examCalculator.currentInput);
+    
+    let currentValue;
+    if (examCalculator.currentInput === '') {
+        if (examCalculator.lastResult !== null) currentValue = examCalculator.lastResult;
+        else currentValue = parseFloat(examCalculator.previousInput);
+    } else currentValue = parseFloat(examCalculator.currentInput);
+    
     const prevValue = parseFloat(examCalculator.previousInput);
-    if (isNaN(prevValue) || isNaN(currentValue)) { alert('Invalid input'); calculatorClear(); return; }
+    if (isNaN(prevValue) || isNaN(currentValue)) {
+        alert('Invalid input');
+        calculatorClear();
+        return;
+    }
+    
     let result;
     switch(examCalculator.operator) {
         case '+': result = prevValue + currentValue; break;
@@ -328,6 +799,7 @@ function calculatorCalculate() {
         case '%': result = prevValue % currentValue; break;
         default: return;
     }
+    
     result = Math.round(result * 100000000) / 100000000;
     examCalculator.currentInput = result.toString();
     examCalculator.lastResult = result;
@@ -336,18 +808,25 @@ function calculatorCalculate() {
     examCalculator.shouldReset = true;
     updateCalculatorDisplay();
 }
+
 function calculatorScientific(func) {
-    if (examCalculator.currentInput === '') { if (examCalculator.lastResult !== null) examCalculator.currentInput = examCalculator.lastResult.toString(); else return; }
+    if (examCalculator.currentInput === '') {
+        if (examCalculator.lastResult !== null) examCalculator.currentInput = examCalculator.lastResult.toString();
+        else return;
+    }
+    
     let value = parseFloat(examCalculator.currentInput);
     if (isNaN(value)) return;
+    
     let result;
     switch(func) {
-        case 'sqrt': if (value < 0) { alert('Cannot sqrt negative'); return; } result = Math.sqrt(value); break;
-        case 'square': result = Math.pow(value,2); break;
+        case 'sqrt': if (value < 0) { alert('Cannot calculate square root of negative number'); return; } result = Math.sqrt(value); break;
+        case 'square': result = Math.pow(value, 2); break;
         case 'sin': result = Math.sin(value * Math.PI / 180); break;
         case 'cos': result = Math.cos(value * Math.PI / 180); break;
         default: return;
     }
+    
     result = Math.round(result * 100000000) / 100000000;
     examCalculator.currentInput = result.toString();
     examCalculator.lastResult = result;
@@ -356,9 +835,14 @@ function calculatorScientific(func) {
     examCalculator.previousInput = '';
     updateCalculatorDisplay();
 }
+
 function calculatorMemory(action) {
-    let currentValue = (examCalculator.currentInput !== '') ? parseFloat(examCalculator.currentInput) : (examCalculator.lastResult !== null ? examCalculator.lastResult : 0);
+    let currentValue;
+    if (examCalculator.currentInput !== '') currentValue = parseFloat(examCalculator.currentInput);
+    else if (examCalculator.lastResult !== null) currentValue = examCalculator.lastResult;
+    else currentValue = 0;
     if (isNaN(currentValue)) currentValue = 0;
+    
     switch(action) {
         case 'clear': examCalculator.memory = 0; break;
         case 'recall': examCalculator.currentInput = examCalculator.memory.toString(); examCalculator.shouldReset = true; examCalculator.operator = null; examCalculator.previousInput = ''; updateCalculatorDisplay(); break;
@@ -367,24 +851,59 @@ function calculatorMemory(action) {
     }
 }
 
-function calculatorClear() { examCalculator.currentInput = ''; examCalculator.previousInput = ''; examCalculator.operator = null; examCalculator.shouldReset = false; updateCalculatorDisplay(); }
-function calculatorBackspace() { if (examCalculator.shouldReset) return; examCalculator.currentInput = examCalculator.currentInput.slice(0,-1); updateCalculatorDisplay(); }
-function updateCalculatorDisplay() {
-    const expr = document.getElementById('calcExpression');
-    const res = document.getElementById('calcResult');
-    if (expr) { if (examCalculator.operator && examCalculator.previousInput) expr.textContent = `${examCalculator.previousInput} ${examCalculator.operator}`; else expr.textContent = ''; }
-    if (res) { if (examCalculator.currentInput === '') res.textContent = (examCalculator.lastResult !== null && !examCalculator.operator) ? examCalculator.lastResult : '0'; else res.textContent = examCalculator.currentInput; }
+function calculatorClear() {
+    examCalculator.currentInput = '';
+    examCalculator.previousInput = '';
+    examCalculator.operator = null;
+    examCalculator.shouldReset = false;
+    updateCalculatorDisplay();
 }
+
+function calculatorBackspace() {
+    if (examCalculator.shouldReset) return;
+    examCalculator.currentInput = examCalculator.currentInput.slice(0, -1);
+    updateCalculatorDisplay();
+}
+
+function updateCalculatorDisplay() {
+    const expression = document.getElementById('calcExpression');
+    const result = document.getElementById('calcResult');
+    
+    if (expression) {
+        if (examCalculator.operator && examCalculator.previousInput) expression.textContent = `${examCalculator.previousInput} ${examCalculator.operator}`;
+        else expression.textContent = '';
+    }
+    
+    if (result) {
+        if (examCalculator.currentInput === '') {
+            if (examCalculator.lastResult !== null && !examCalculator.operator) result.textContent = examCalculator.lastResult;
+            else result.textContent = '0';
+        } else result.textContent = examCalculator.currentInput;
+    }
+}
+
 function toggleCalculator(event) {
     if (event) { event.preventDefault(); event.stopPropagation(); }
     const modal = document.getElementById('calculatorModal');
+    const btn = document.getElementById('calculatorToggle');
+    if (!modal) return;
+    
     if (modal.style.display === 'none' || modal.style.display === '') {
         modal.style.display = 'block';
+        if (btn) btn.innerHTML = '<span>🧮</span> <span class="btn-text">Hide Calculator</span>';
         renderCalculator();
         setTimeout(() => initDraggableCalculator(), 50);
-    } else { modal.style.display = 'none'; }
+    } else {
+        modal.style.display = 'none';
+        if (btn) btn.innerHTML = '<span>🧮</span> <span class="btn-text">Calculator</span>';
+        dragState.isDragging = false;
+    }
 }
-function handleModalClick(event) { if (event.target === document.getElementById('calculatorModal')) toggleCalculator(event); }
+
+function handleModalClick(event) {
+    if (event.target === document.getElementById('calculatorModal')) toggleCalculator(event);
+}
+
 function initDraggableCalculator() {
     const content = document.getElementById('calculatorContent');
     const header = document.getElementById('calculatorHeader');
@@ -396,16 +915,100 @@ function initDraggableCalculator() {
     header.addEventListener('mousedown', dragMouseDown);
     header.addEventListener('touchstart', dragTouchStart, { passive: false });
 }
-function dragMouseDown(e) { e.preventDefault(); e.stopPropagation(); const content = document.getElementById('calculatorContent'); const transform = window.getComputedStyle(content).transform; const matrix = new DOMMatrix(transform); dragState.xOffset = matrix.m41; dragState.yOffset = matrix.m42; dragState.initialX = e.clientX - dragState.xOffset; dragState.initialY = e.clientY - dragState.yOffset; dragState.isDragging = true; document.addEventListener('mousemove', dragMouseMove); document.addEventListener('mouseup', dragMouseUp); content.style.cursor = 'grabbing'; content.style.transition = 'none'; }
-function dragTouchStart(e) { e.preventDefault(); e.stopPropagation(); const touch = e.touches[0]; const content = document.getElementById('calculatorContent'); const transform = window.getComputedStyle(content).transform; const matrix = new DOMMatrix(transform); dragState.xOffset = matrix.m41; dragState.yOffset = matrix.m42; dragState.initialX = touch.clientX - dragState.xOffset; dragState.initialY = touch.clientY - dragState.yOffset; dragState.isDragging = true; document.addEventListener('touchmove', dragTouchMove, { passive: false }); document.addEventListener('touchend', dragTouchEnd); document.addEventListener('touchcancel', dragTouchEnd); content.style.cursor = 'grabbing'; content.style.transition = 'none'; }
-function dragMouseMove(e) { if (!dragState.isDragging) return; e.preventDefault(); dragState.currentX = e.clientX - dragState.initialX; dragState.currentY = e.clientY - dragState.initialY; setTranslate(dragState.currentX, dragState.currentY, document.getElementById('calculatorContent')); }
-function dragTouchMove(e) { if (!dragState.isDragging) return; e.preventDefault(); const touch = e.touches[0]; dragState.currentX = touch.clientX - dragState.initialX; dragState.currentY = touch.clientY - dragState.initialY; setTranslate(dragState.currentX, dragState.currentY, document.getElementById('calculatorContent')); }
-function dragMouseUp(e) { dragState.isDragging = false; document.removeEventListener('mousemove', dragMouseMove); document.removeEventListener('mouseup', dragMouseUp); const content = document.getElementById('calculatorContent'); if (content) { content.style.cursor = 'grab'; content.style.transition = 'box-shadow 0.2s'; } }
-function dragTouchEnd(e) { dragState.isDragging = false; document.removeEventListener('touchmove', dragTouchMove); document.removeEventListener('touchend', dragTouchEnd); document.removeEventListener('touchcancel', dragTouchEnd); const content = document.getElementById('calculatorContent'); if (content) { content.style.cursor = 'grab'; content.style.transition = 'box-shadow 0.2s'; } }
-function setTranslate(xPos, yPos, el) { if (!el) return; const rect = el.getBoundingClientRect(); const maxX = window.innerWidth - rect.width; const maxY = window.innerHeight - rect.height; xPos = Math.min(Math.max(xPos, 10), maxX - 10); yPos = Math.min(Math.max(yPos, 10), maxY - 10); el.style.transform = `translate(${xPos}px, ${yPos}px)`; }
 
-window.selectAnswer = selectAnswer; window.jumpToQuestion = jumpToQuestion; window.toggleCalculator = toggleCalculator; window.handleModalClick = handleModalClick;
-window.calculatorAppend = calculatorAppend; window.calculatorOperator = calculatorOperator; window.calculatorCalculate = calculatorCalculate;
-window.calculatorClear = calculatorClear; window.calculatorBackspace = calculatorBackspace; window.calculatorMemory = calculatorMemory;
-window.calculatorScientific = calculatorScientific; window.switchSubject = (name) => { examState.currentSubject = name; renderSubjectQuestion(name); renderPalette(); };
-window.filterPalette = (sub) => { examState.currentSubject = sub === 'all' ? null : sub; renderPalette(); };
+function dragMouseDown(e) {
+    e.preventDefault(); e.stopPropagation();
+    const content = document.getElementById('calculatorContent');
+    if (!content) return;
+    const transform = window.getComputedStyle(content).transform;
+    const matrix = new DOMMatrix(transform);
+    dragState.xOffset = matrix.m41;
+    dragState.yOffset = matrix.m42;
+    dragState.initialX = e.clientX - dragState.xOffset;
+    dragState.initialY = e.clientY - dragState.yOffset;
+    dragState.isDragging = true;
+    document.addEventListener('mousemove', dragMouseMove);
+    document.addEventListener('mouseup', dragMouseUp);
+    content.style.cursor = 'grabbing';
+    content.style.transition = 'none';
+}
+
+function dragTouchStart(e) {
+    e.preventDefault(); e.stopPropagation();
+    const touch = e.touches[0];
+    const content = document.getElementById('calculatorContent');
+    if (!content) return;
+    const transform = window.getComputedStyle(content).transform;
+    const matrix = new DOMMatrix(transform);
+    dragState.xOffset = matrix.m41;
+    dragState.yOffset = matrix.m42;
+    dragState.initialX = touch.clientX - dragState.xOffset;
+    dragState.initialY = touch.clientY - dragState.yOffset;
+    dragState.isDragging = true;
+    document.addEventListener('touchmove', dragTouchMove, { passive: false });
+    document.addEventListener('touchend', dragTouchEnd);
+    document.addEventListener('touchcancel', dragTouchEnd);
+    content.style.cursor = 'grabbing';
+    content.style.transition = 'none';
+}
+
+function dragMouseMove(e) {
+    if (!dragState.isDragging) return;
+    e.preventDefault();
+    dragState.currentX = e.clientX - dragState.initialX;
+    dragState.currentY = e.clientY - dragState.initialY;
+    setTranslate(dragState.currentX, dragState.currentY, document.getElementById('calculatorContent'));
+}
+
+function dragTouchMove(e) {
+    if (!dragState.isDragging) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    dragState.currentX = touch.clientX - dragState.initialX;
+    dragState.currentY = touch.clientY - dragState.initialY;
+    setTranslate(dragState.currentX, dragState.currentY, document.getElementById('calculatorContent'));
+}
+
+function dragMouseUp(e) {
+    dragState.isDragging = false;
+    document.removeEventListener('mousemove', dragMouseMove);
+    document.removeEventListener('mouseup', dragMouseUp);
+    const content = document.getElementById('calculatorContent');
+    if (content) { content.style.cursor = 'grab'; content.style.transition = 'box-shadow 0.2s'; }
+}
+
+function dragTouchEnd(e) {
+    dragState.isDragging = false;
+    document.removeEventListener('touchmove', dragTouchMove);
+    document.removeEventListener('touchend', dragTouchEnd);
+    document.removeEventListener('touchcancel', dragTouchEnd);
+    const content = document.getElementById('calculatorContent');
+    if (content) { content.style.cursor = 'grab'; content.style.transition = 'box-shadow 0.2s'; }
+}
+
+function setTranslate(xPos, yPos, el) {
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const maxX = window.innerWidth - rect.width;
+    const maxY = window.innerHeight - rect.height;
+    xPos = Math.min(Math.max(xPos, 10), maxX - 10);
+    yPos = Math.min(Math.max(yPos, 10), maxY - 10);
+    el.style.transform = `translate(${xPos}px, ${yPos}px)`;
+}
+
+// Make functions global
+window.selectAnswer = selectAnswer;
+window.jumpToQuestion = jumpToQuestion;
+window.toggleCalculator = toggleCalculator;
+window.handleModalClick = handleModalClick;
+window.calculatorAppend = calculatorAppend;
+window.calculatorOperator = calculatorOperator;
+window.calculatorCalculate = calculatorCalculate;
+window.calculatorClear = calculatorClear;
+window.calculatorBackspace = calculatorBackspace;
+window.calculatorMemory = calculatorMemory;
+window.calculatorScientific = calculatorScientific;
+window.switchSubject = switchSubject;
+window.filterPalette = filterPalette;
+window.prevQuestion = prevQuestion;
+window.nextQuestion = nextQuestion;

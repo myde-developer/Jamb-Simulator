@@ -13,7 +13,6 @@
     <link rel="apple-touch-icon" href="/icons/icon-152x152.png">
     <meta name="theme-color" content="#667eea">
     
-    <!-- YOUR ORIGINAL STYLE (unchanged) -->
     <style>
 /* ===== UNIVERSAL FIX FOR DESKTOP SITE MODE ===== */
 
@@ -821,7 +820,9 @@ main, .container, .practice-container, .flashcards-container, .results-container
                 font-size: 0.8rem;
             }
         }
-@media (max-width: 900px) and (orientation: landscape) {
+
+        /* Landscape mode */
+        @media (max-width: 900px) and (orientation: landscape) {
             .calculator-modal-content {
                 width: 400px;
                 max-width: 80vw;
@@ -838,132 +839,42 @@ main, .container, .practice-container, .flashcards-container, .results-container
         }
     </style>
     
-    <!-- NEW STYLES for Focused Exam, Skeleton, Fullscreen (overrides original header) -->
-    <style>
-        /* Hide the original header completely */
-        .header {
-            display: none !important;
-        }
-        
-        /* Minimal exam header */
-        .exam-top-bar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            background: #1a1a2e;
-            color: white;
-            padding: 12px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            z-index: 1000;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .exam-title {
-            font-size: 1.2rem;
-            font-weight: 600;
-        }
-        .exam-controls {
-            display: flex;
-            gap: 15px;
-            align-items: center;
-        }
-        .icon-btn {
-            background: rgba(255,255,255,0.1);
-            border: none;
-            color: white;
-            font-size: 1.2rem;
-            padding: 8px 12px;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: 0.2s;
-        }
-        .icon-btn:hover {
-            background: rgba(255,255,255,0.2);
-            transform: scale(1.05);
-        }
-        body {
-            padding-top: 70px !important;
-        }
-        /* Skeleton loading */
-        .skeleton {
-            background: linear-gradient(90deg, #e0e0e0 25%, #f0f0f0 50%, #e0e0e0 75%);
-            background-size: 200% 100%;
-            animation: shimmer 1.5s infinite;
-            border-radius: 8px;
-        }
-        @keyframes shimmer {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
-        }
-        .skeleton-text {
-            height: 20px;
-            margin: 10px 0;
-        }
-        .skeleton-option {
-            height: 50px;
-            margin: 10px 0;
-            border-radius: 8px;
-        }
-        /* Fullscreen mode */
-        .fullscreen-mode {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 9999;
-            background: #f5f7fa;
-            overflow-y: auto;
-        }
-        .fullscreen-mode .exam-top-bar {
-            position: sticky;
-            top: 0;
-        }
-        /* Offline indicator (from pwa.js) */
-        .offline-indicator {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: #e74c3c;
-            color: white;
-            padding: 8px 16px;
-            border-radius: 30px;
-            font-size: 0.8rem;
-            z-index: 1100;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-            font-weight: 500;
-            display: none;
-        }
-        @media (max-width: 768px) {
-            .offline-indicator {
-                bottom: 10px;
-                right: 10px;
-                font-size: 0.7rem;
-                padding: 6px 12px;
+    <!-- Auth Check Script -->
+    <script>
+        (function() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.replace('/auth.html');
+                return;
             }
-        }
-    </style>
+        })();
+    </script>
 </head>
 <body>
-    <!-- REPLACED HEADER: Minimal top bar -->
-    <div class="exam-top-bar">
-        <div class="exam-title">📚 JAMB UTME 2026 Mock Exam</div>
-        <div class="exam-controls">
-            <button id="fullscreenBtn" class="icon-btn">⛶</button>
-            <button id="calculatorToggle" class="calculator-btn" onclick="toggleCalculator(event)" style="background:none; border:none; padding:8px 12px;">🧮</button>
-            <div class="timer" id="timer">02:00:00</div>
-        </div>
-    </div>
+    <header class="header">
+        <nav class="nav-container">
+            <div class="logo">📚 JAMB Simulator 2026</div>
+            <div class="user-info" id="userInfo"></div>
+            <ul class="nav-menu">
+                <li><a href="/results.html">Results</a></li>
+                <li><a href="/home.html">Cancel Exam</a></li>
+            </ul>
+        </nav>
+    </header>
 
-    <div class="exam-container">
+<div class="exam-container">
         <div class="exam-info">
             <div>
                 <h2 id="examTitle">JAMB UTME 2026 Mock Exam</h2>
                 <div class="subjects-badge" id="subjectsBadge"></div>
             </div>
-            <!-- Timer and calculator removed from here (now in top bar) -->
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <button id="calculatorToggle" class="calculator-btn" onclick="toggleCalculator(event)">
+                    <span>🧮</span>
+                    <span class="btn-text">Calculator</span>
+                </button>
+                <div class="timer" id="timer">02:00:00</div>
+            </div>
         </div>
 
         <div class="warning-message" id="scoringWarning">
@@ -977,17 +888,9 @@ main, .container, .practice-container, .flashcards-container, .results-container
             <div class="progress-fill" id="progressFill" style="width: 0%"></div>
         </div>
 
-        <!-- Skeleton Loader -->
-        <div id="skeletonLoader">
-            <div class="skeleton skeleton-text" style="width:200px; height:24px;"></div>
-            <div class="skeleton skeleton-text" style="width:100%; height:80px; margin:20px 0;"></div>
-            <div class="skeleton skeleton-option"></div>
-            <div class="skeleton skeleton-option"></div>
-            <div class="skeleton skeleton-option"></div>
-            <div class="skeleton skeleton-option"></div>
+        <div class="question-container" id="questionContainer">
+            <div style="text-align: center; padding: 50px;">Loading 180 questions...</div>
         </div>
-
-        <div class="question-container" id="questionContainer" style="display:none;"></div>
 
         <div class="navigation-buttons">
             <button class="nav-btn prev-btn" id="prevBtn" disabled>← Previous</button>
@@ -1004,42 +907,20 @@ main, .container, .practice-container, .flashcards-container, .results-container
         </div>
     </div>
 
-    <!-- Calculator Modal (unchanged) -->
+    <!-- Calculator Modal -->
     <div id="calculatorModal" class="calculator-modal" style="display: none;" onclick="handleModalClick(event)">
         <div class="calculator-modal-content" id="calculatorContent" onclick="event.stopPropagation()">
             <div class="calculator-modal-header" id="calculatorHeader">
-                <h3><span>🧮</span> Calculator <span class="drag-indicator">↗️</span></h3>
+                <h3>
+                    <span>🧮</span> Calculator
+                    <span class="drag-indicator">↗️</span>
+                </h3>
                 <button class="close-btn" onclick="toggleCalculator(event)">✕</button>
             </div>
             <div id="examCalculator" class="exam-calculator"></div>
         </div>
     </div>
 
-    <!-- Include scripts -->
     <script src="js/exam.js"></script>
-    <script src="js/pwa.js"></script>
-    <script>
-        // Fullscreen toggle
-        const fullBtn = document.getElementById('fullscreenBtn');
-        fullBtn.addEventListener('click', () => {
-            if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen();
-                document.body.classList.add('fullscreen-mode');
-                fullBtn.textContent = '✕';
-            } else {
-                document.exitFullscreen();
-                document.body.classList.remove('fullscreen-mode');
-                fullBtn.textContent = '⛶';
-            }
-        });
-        // Warn before leaving
-        window.addEventListener('beforeunload', (e) => {
-            if (typeof examState !== 'undefined' && examState.timeRemaining > 0 && examState.timeRemaining < 7200) {
-                e.preventDefault();
-                e.returnValue = 'Exam in progress. Leave? Progress will be lost.';
-                return e.returnValue;
-            }
-        });
-    </script>
 </body>
 </html>
