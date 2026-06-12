@@ -59,13 +59,6 @@ const setupRoutes = () => {
     } catch (error) {
         console.warn('⚠️ Leaderboard routes not found:', error.message);
     }
-
-try {
-        app.use('/api/ai-questions', require('./routes/ai-questions'));
-        console.log('✅ Questions routes loaded');
-    } catch (error) {
-        console.warn('⚠️ :', error.message);
-    }
     
     try {
         app.use('/api/progress', require('./routes/progress'));

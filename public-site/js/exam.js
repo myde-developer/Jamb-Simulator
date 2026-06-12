@@ -1,4 +1,4 @@
-// client/js/exam.js
+// client/js/exam.js – FULLY ANONYMOUS (no authentication)
 const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://localhost:5000'
     : 'https://jamb-simulator-api.onrender.com';
@@ -16,6 +16,7 @@ let examState = {
     examId: null,
     startTime: null,
     subjectOrder: [],
+    subjectConfigs: {},
     isReady: false
 };
 
@@ -40,13 +41,11 @@ let dragState = {
     activated: false
 };
 
-// NO AUTH CHECK – removed
-// (function() { ... })();   // <-- DELETE THIS
+// NO AUTH CHECK – removed the IIFE that redirected to login
 
 document.addEventListener('DOMContentLoaded', () => {
     loadExamData();
     setupEventListeners();
-    // No user info or logout needed
 });
 
 async function loadExamData() {
@@ -68,7 +67,7 @@ async function loadExamData() {
     
     examState.currentSubject = selectedSubjects[0].name;
     
-    // No need to load subject configs – we'll use hardcoded counts in fetch
+    // Removed loadSubjectConfigs – not needed
     displaySubjectsBadge(selectedSubjects);
     renderSubjectTabs(selectedSubjects);
     renderSubjectFilter(selectedSubjects);
@@ -80,13 +79,15 @@ function renderSubjectTabs(subjects) {
     if (!tabsContainer) return;
     
     let tabsHtml = subjects.map((subject, index) => {
-        const questionCount = subject.name === 'Use of English' ? 60 : 40;
+        const config = examState.subjectConfigs[subject.name];
+        const questionCount = config?.totalQuestions || (subject.name === 'Use of English' ? 60 : 40);
         const displayName = subject.name === 'Use of English' ? 'English' : subject.name;
         const isActive = index === 0 ? 'active' : '';
+        const diagramIcon = config?.hasDiagrams ? ' 📐' : '';
         
         return `
             <button class="subject-tab ${isActive}" onclick="switchSubject('${subject.name}')">
-                ${displayName}
+                ${displayName}${diagramIcon}
                 <span class="count-badge">${questionCount}</span>
             </button>
         `;
@@ -109,6 +110,7 @@ function renderSubjectFilter(subjects) {
 
 function switchSubject(subjectName) {
     examState.currentSubject = subjectName;
+    
     document.querySelectorAll('.subject-tab').forEach((tab, index) => {
         const tabSubject = examState.subjects[index].name;
         if (tabSubject === subjectName) {
@@ -117,6 +119,7 @@ function switchSubject(subjectName) {
             tab.classList.remove('active');
         }
     });
+    
     renderSubjectQuestion(subjectName);
     renderPalette();
 }
@@ -124,6 +127,7 @@ function switchSubject(subjectName) {
 function renderSubjectQuestion(subjectName) {
     const subjectQuestions = examState.subjectQuestions[subjectName];
     if (!subjectQuestions || subjectQuestions.length === 0) return;
+    
     const currentIndex = examState.subjectIndices[subjectName];
     const question = subjectQuestions[currentIndex];
     renderQuestion(question, subjectName, currentIndex + 1, subjectQuestions.length);
@@ -140,23 +144,28 @@ function displaySubjectsBadge(subjects) {
 function randomizeQuestionOptions(question) {
     const optionLetters = ['A', 'B', 'C', 'D'];
     const originalCorrectLetter = question.correct_answer;
+    
     const originalOptions = {
         A: question.option_a,
         B: question.option_b,
         C: question.option_c,
         D: question.option_d
     };
+    
     const correctText = originalOptions[originalCorrectLetter];
+    
     const shuffledLetters = [...optionLetters];
     for (let i = shuffledLetters.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [shuffledLetters[i], shuffledLetters[j]] = [shuffledLetters[j], shuffledLetters[i]];
     }
+    
     const newOptions = {};
     shuffledLetters.forEach((newLetter, idx) => {
         const originalLetter = optionLetters[idx];
         newOptions[newLetter] = originalOptions[originalLetter];
     });
+    
     let newCorrectLetter = '';
     for (const [letter, text] of Object.entries(newOptions)) {
         if (text === correctText) {
@@ -164,6 +173,7 @@ function randomizeQuestionOptions(question) {
             break;
         }
     }
+    
     return {
         ...question,
         option_a: newOptions.A,
@@ -206,6 +216,7 @@ async function fetchExamQuestions(subjects) {
         subjects.forEach(subject => {
             const subjectQuestions = randomizedQuestions.filter(q => q.subject === subject.name);
             const targetCount = subject.name === 'Use of English' ? 60 : 40;
+            
             if (subjectQuestions.length >= targetCount) {
                 examState.subjectQuestions[subject.name] = subjectQuestions.slice(0, targetCount);
             } else {
@@ -237,22 +248,6 @@ async function fetchExamQuestions(subjects) {
         `;
     }
 }
-function logExamStatistics() {
-    console.log('\n📊 FINAL EXAM STATISTICS:');
-    console.log('=================================');
-    for (const subject of examState.subjects) {
-        const questions = examState.subjectQuestions[subject.name];
-        const config = examState.subjectConfigs[subject.name];
-        const required = config?.totalQuestions || (subject.name === 'Use of English' ? 60 : 40);
-        const dbCount = questions.filter(q => !q.is_ai_generated).length;
-        const aiCount = questions.filter(q => q.is_ai_generated).length;
-        const diagramCount = questions.filter(q => q.diagram_url).length;
-        
-        console.log(`📖 ${subject.name}: ${questions.length}/${required} questions`);
-        console.log(`   📝 Database: ${dbCount} | 🤖 AI: ${aiCount} |  Diagrams: ${diagramCount}`);
-    }
-    console.log('=================================\n');
-}
 
 function renderQuestion(question, subjectName, questionNumber, totalQuestions) {
     if (!question) return;
@@ -267,7 +262,6 @@ function renderQuestion(question, subjectName, questionNumber, totalQuestions) {
         D: question.option_d
     };
     
-    // REMOVED diagram code - just show question text
     const questionHtml = question.question_text;
     
     container.innerHTML = `
@@ -426,7 +420,7 @@ function jumpToQuestion(subjectName, index) {
     renderSubjectQuestion(subjectName);
 }
 
- function updateNavButtons(subjectName) {
+function updateNavButtons(subjectName) {
     const prevBtn = document.getElementById('prevBtn');
     const nextBtn = document.getElementById('nextBtn');
     const submitBtn = document.getElementById('submitBtn');
@@ -520,13 +514,10 @@ function updateProgress() {
 }
 
 function startTimer() {
-    // Only start if exam is ready
     if (!examState.isReady) {
-        console.log('⏳ Timer waiting for exam to be ready... (isReady = false)');
+        console.log('⏳ Timer waiting for exam to be ready...');
         return;
     }
-    
-    // Don't start if timer already running
     if (examState.timerInterval) {
         console.log('⚠️ Timer already running');
         return;
