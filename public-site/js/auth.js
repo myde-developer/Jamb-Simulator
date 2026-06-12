@@ -37,7 +37,7 @@ function toggleAuthMode(e) {
     document.getElementById('formTitle').textContent = isLogin ? 'Login' : 'Create Account';
     document.getElementById('formSubtitle').textContent = isLogin ? 
         'Welcome back! Login to continue' : 
-        'Sign up to start practicing for JAMB 2026';
+        'Sign up to see your exam results!';
     document.getElementById('submitBtn').textContent = isLogin ? 'Login' : 'Register';
     document.getElementById('toggleText').innerHTML = isLogin ?
         'Don\'t have an account? <a href="#" id="toggleAuth">Register here</a>' :
@@ -73,19 +73,13 @@ async function handleAuth(e) {
         : { email, password, fullName };
     
     try {
-        console.log('Sending request to:', url);
-        console.log('With body:', body);
-        
         const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
         });
         
-        console.log('Response status:', response.status);
-        
         const data = await response.json();
-        console.log('Response data:', data);
         
         if (!response.ok) {
             throw new Error(data.error || 'Authentication failed');
@@ -100,15 +94,26 @@ async function handleAuth(e) {
         
         showSuccess(data.message);
         
+        // ✅ Check for pending exam results
+        const urlParams = new URLSearchParams(window.location.search);
+        const pendingExam = sessionStorage.getItem('pendingExamResults');
+        
+        if (urlParams.get('pending') === 'results' && pendingExam) {
+            // Move from sessionStorage to localStorage and go to results
+            localStorage.setItem('lastExamResults', pendingExam);
+            sessionStorage.removeItem('pendingExamResults');
+            setTimeout(() => {
+                window.location.href = '/results.html';
+            }, 1500);
+            return;
+        }
+        
+        // ✅ Normal redirect after login/registration (no pending results)
         setTimeout(() => {
-            if (isLogin) {
-                if (data.user.is_admin) {
-                    window.location.href = '/admin.html';
-                } else {
-                    window.location.href = '/home.html';
-                }
+            if (data.user.is_admin) {
+                window.location.href = '/admin.html';
             } else {
-                window.location.href = '/auth.html';
+                window.location.href = '/home.html';
             }
         }, 1500);
         
@@ -145,14 +150,12 @@ function showError(message) {
     const errorDiv = document.getElementById('errorMessage');
     errorDiv.textContent = message;
     errorDiv.style.display = 'block';
-    
-    setTimeout(() => {
-        errorDiv.style.display = 'none';
-    }, 3000);
+    setTimeout(() => errorDiv.style.display = 'none', 3000);
 }
 
 function showSuccess(message) {
     const successDiv = document.getElementById('successMessage');
     successDiv.textContent = message;
     successDiv.style.display = 'block';
+    setTimeout(() => successDiv.style.display = 'none', 3000);
 }

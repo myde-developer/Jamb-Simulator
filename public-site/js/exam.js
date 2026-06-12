@@ -571,15 +571,18 @@ function submitExam() {
     
     const results = calculateJAMBScores();
     
-    localStorage.setItem('lastExamResults', JSON.stringify({
+    // ✅ Store in sessionStorage (cleared when browser closes)
+    sessionStorage.setItem('pendingExamResults', JSON.stringify({
         subjectQuestions: examState.subjectQuestions,
         answers: examState.answers,
         scores: results,
         subjects: examState.subjects,
-        date: new Date().toISOString()
+        date: new Date().toISOString(),
+        examId: examState.examId
     }));
     
-    window.location.href = '/results.html';
+    // ✅ Redirect to registration page with pending flag
+    window.location.href = '/auth.html?pending=results';
 }
 
 function calculateJAMBScores() {
