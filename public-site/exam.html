@@ -3,102 +3,981 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>JAMB Exam – In Progress</title>
+    <title>JAMB Exam Simulator - Exam in Progress</title>
+    <!-- PWA Meta Tags -->
     <link rel="manifest" href="/manifest.json">
-    <link rel="stylesheet" href="global.css">
-    <meta name="theme-color" content="#1a1a2e">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="JAMB Simulator">
+    <link rel="apple-touch-icon" href="/icons/icon-152x152.png">
+    <meta name="theme-color" content="#667eea">
+    
+    <!-- YOUR ORIGINAL STYLE (unchanged) -->
     <style>
-        body { padding-top: 70px; background: var(--gray-100); }
-        .exam-header {
-            position: fixed; top: 0; left: 0; right: 0;
-            background: var(--primary); color: white;
-            padding: 12px 20px; display: flex; justify-content: space-between;
-            align-items: center; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+/* ===== UNIVERSAL FIX FOR DESKTOP SITE MODE ===== */
+
+/* Ensure all clickable elements work properly */
+button,
+a,
+.subject-tab,
+.filter-btn,
+.palette-item,
+.option,
+.nav-menu a,
+.btn,
+.action-btn,
+.rating-btn,
+.deck-card,
+.flashcard {
+    cursor: pointer;
+    position: relative;
+    z-index: auto;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Fix for sticky headers that might block clicks */
+.header {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    background: white;
+}
+
+/* Ensure main content doesn't get hidden under header */
+main, .container, .practice-container, .flashcards-container, .results-container {
+    position: relative;
+    z-index: 1;
+}
+
+/* Fix for subject tabs - ensure they're clickable */
+.subject-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    position: relative;
+    z-index: 10;
+}
+
+.subject-tab {
+    cursor: pointer;
+    pointer-events: auto;
+    position: relative;
+    z-index: 20;
+}
+
+/* Fix for palette items */
+.palette-grid {
+    display: grid;
+    gap: 10px;
+}
+
+.palette-item {
+    cursor: pointer;
+    pointer-events: auto;
+    position: relative;
+    z-index: 5;
+}
+
+/* Override any transform that might break click area */
+.palette-item.current,
+.subject-tab.active {
+    transform: none !important;
+}
+
+/* Ensure all buttons are clickable on desktop view */
+@media (min-width: 769px) {
+    .subject-tab,
+    .filter-btn,
+    .palette-item,
+    .option,
+    .nav-menu a,
+    .btn,
+    .action-btn {
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .subject-tab:hover,
+    .filter-btn:hover,
+    .palette-item:hover,
+    .option:hover {
+        transform: translateY(-2px);
+    }
+    
+    /* Fix for any elements with transform that might block clicks */
+    .subject-tab:active,
+    .filter-btn:active,
+    .palette-item:active {
+        transform: scale(0.98);
+    }
+}
+        /* Sticky Header */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
-        .exam-title { font-size: 1.2rem; font-weight: 600; }
-        .exam-controls { display: flex; gap: 15px; align-items: center; }
-        .icon-btn {
-            background: rgba(255,255,255,0.1); border: none; color: white;
-            font-size: 1.2rem; padding: 8px 12px; border-radius: 8px;
-            cursor: pointer; transition: 0.2s;
+
+        body {
+            padding-top: 80px;
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fa;
         }
-        .icon-btn:hover { background: rgba(255,255,255,0.2); transform: scale(1.05); }
+
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .nav-menu {
+            display: flex;
+            list-style: none;
+            gap: 2rem;
+            align-items: center;
+            margin: 0;
+            padding: 0;
+        }
+
+        .nav-menu a {
+            color: white;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            transition: background 0.3s;
+        }
+
+        .nav-menu a:hover,
+        .nav-menu a.active {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .exam-container {
+            max-width: 900px;
+            margin: 100px auto 50px;
+            padding: 0 20px;
+        }
+
+        .exam-info {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
         .timer {
-            font-size: 1.5rem; font-weight: bold; font-family: monospace;
-            background: rgba(0,0,0,0.3); padding: 6px 15px; border-radius: 30px;
-            letter-spacing: 2px;
+            font-size: 2rem;
+            font-weight: bold;
+            color: #e74c3c;
+            background: #fde8e7;
+            padding: 10px 20px;
+            border-radius: 50px;
+            display: inline-block;
+            font-family: monospace;
         }
-        .timer.warning { background: #f39c12; color: #1a1a2e; }
-        .timer.danger { background: #e74c3c; animation: pulse 1s infinite; }
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
-        .subject-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+
+        .timer.warning {
+            color: #f39c12;
+            background: #fef5e7;
+        }
+
+        .timer.danger {
+            color: #c0392b;
+            background: #f9e6e4;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .calculator-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .calculator-btn:hover {
+            background: #5a6fd8;
+            transform: translateY(-2px);
+        }
+
+        .subjects-badge {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .subject-tag {
+            background: #f0f3ff;
+            color: #667eea;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        /* Subject Tabs */
+        .subject-tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
         .subject-tab {
-            padding: 10px 20px; background: white; border: 1px solid var(--gray-300);
-            border-radius: 30px; cursor: pointer; font-weight: 600; transition: all 0.2s;
+            padding: 12px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            background: #f0f0f0;
+            color: #666;
+            flex: 1;
+            text-align: center;
+            min-width: 120px;
+            border: none;
+            font-size: 1rem;
         }
-        .subject-tab.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+        .subject-tab:hover {
+            background: #e0e0e0;
+        }
+
+        .subject-tab.active {
+            background: #667eea;
+            color: white;
+            box-shadow: 0 4px 10px rgba(102, 126, 234, 0.3);
+        }
+
+        .subject-tab .count-badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            padding: 2px 8px;
+            border-radius: 20px;
+            margin-left: 8px;
+            font-size: 0.8rem;
+        }
+
+        .subject-tab.active .count-badge {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background: #e0e0e0;
+            border-radius: 5px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.3s ease;
+        }
+
         .question-container {
-            background: white; border-radius: 20px; padding: 30px; margin-bottom: 20px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
         }
-        .question-text { font-size: 1.4rem; line-height: 1.5; margin-bottom: 30px; }
+
+        .question-number {
+            color: #666;
+            font-size: 1.1rem;
+            margin-bottom: 10px;
+        }
+
+        .question-subject {
+            display: inline-block;
+            background: #e8f0fe;
+            color: #4a6fa5;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        .question-text {
+            font-size: 1.3rem;
+            color: #333;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
+        .options {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
         .option {
-            display: flex; align-items: center; padding: 14px 20px;
-            border: 2px solid var(--gray-200); border-radius: 12px;
-            margin-bottom: 12px; cursor: pointer; transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            padding: 15px 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
         }
-        .option:hover { border-color: var(--primary); background: rgba(102,126,234,0.05); }
-        .option.selected { border-color: var(--primary); background: rgba(102,126,234,0.1); }
+
+        .option:hover {
+            border-color: #667eea;
+            background: #f5f7ff;
+        }
+
+        .option.selected {
+            border-color: #667eea;
+            background: #f0f3ff;
+        }
+
         .option-letter {
-            width: 36px; height: 36px; background: var(--gray-100);
-            border-radius: 50%; display: flex; align-items: center; justify-content: center;
-            font-weight: bold; margin-right: 15px;
+            width: 35px;
+            height: 35px;
+            background: #f0f0f0;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 15px;
+            color: #666;
         }
-        .option.selected .option-letter { background: var(--primary); color: white; }
-        .navigation-buttons { display: flex; gap: 15px; margin-top: 20px; }
-        .nav-btn { flex: 1; padding: 14px; border: none; border-radius: 12px; font-weight: 600; cursor: pointer; transition: 0.2s; }
-        .prev-btn { background: var(--gray-200); color: var(--gray-700); }
-        .next-btn { background: var(--primary); color: white; }
-        .submit-btn { background: var(--success); color: white; }
+
+        .option.selected .option-letter {
+            background: #667eea;
+            color: white;
+        }
+
+        .option-text {
+            font-size: 1.1rem;
+            color: #333;
+            flex: 1;
+        }
+
+        .navigation-buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+            gap: 15px;
+        }
+
+        .nav-btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            flex: 1;
+        }
+
+        .prev-btn {
+            background: #f0f0f0;
+            color: #666;
+        }
+
+        .prev-btn:hover:not(:disabled) {
+            background: #e0e0e0;
+        }
+
+        .next-btn {
+            background: #667eea;
+            color: white;
+        }
+
+        .next-btn:hover:not(:disabled) {
+            background: #5a6fd8;
+            transform: translateX(5px);
+        }
+
+        .submit-btn {
+            background: #27ae60;
+            color: white;
+        }
+
+        .submit-btn:hover {
+            background: #229954;
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         .question-palette {
-            background: white; border-radius: 20px; padding: 20px; margin-top: 20px;
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-top: 30px;
         }
+
+        .palette-title {
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #444;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .subject-filter {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 5px 10px;
+            border: 1px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.3s;
+        }
+
+        .filter-btn.active {
+            background: #667eea;
+            color: white;
+        }
+
         .palette-grid {
-            display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 10px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+            gap: 10px;
         }
+
         .palette-item {
-            height: 55px; display: flex; align-items: center; justify-content: center;
-            border-radius: 10px; font-weight: 600; cursor: pointer; transition: 0.2s;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            position: relative;
+            font-size: 0.9rem;
         }
-        .palette-item.unanswered { background: var(--gray-200); color: var(--gray-600); }
-        .palette-item.answered { background: var(--success); color: white; }
-        .palette-item.current { border: 3px solid var(--primary); transform: scale(1.02); }
-        .fullscreen-mode {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 9999; background: var(--gray-100); overflow-y: auto;
+
+        .palette-item.unanswered {
+            background: #f0f0f0;
+            color: #666;
         }
-        .fullscreen-mode .exam-header { position: sticky; top: 0; }
+
+        .palette-item.answered {
+            background: #27ae60;
+            color: white;
+        }
+
+        .palette-item.current {
+            border: 3px solid #667eea;
+            transform: scale(1.05);
+        }
+
+        .palette-item[data-subject]:hover::after {
+            content: attr(data-subject);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            white-space: nowrap;
+            margin-bottom: 5px;
+            z-index: 10;
+        }
+
+        .warning-message {
+            background: #fef5e7;
+            color: #f39c12;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        /* Calculator Modal */
+        .calculator-modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            animation: fadeIn 0.2s ease;
+        }
+
+        .calculator-modal-content {
+            position: absolute;
+            background: white;
+            padding: 15px;
+            border-radius: 20px;
+            width: 320px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            cursor: grab;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            touch-action: none;
+            user-select: none;
+            max-width: 90vw;
+        }
+
+        .calculator-modal-content:active {
+            cursor: grabbing;
+        }
+
+        .calculator-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 10px;
+            border-bottom: 2px solid #f0f0f0;
+            cursor: grab;
+            background: #f8f9fa;
+            border-radius: 12px 12px 0 0;
+        }
+
+        .calculator-modal-header:active {
+            cursor: grabbing;
+        }
+
+        .calculator-modal-header h3 {
+            margin: 0;
+            font-size: 1.2rem;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .drag-indicator {
+            color: #999;
+            font-size: 0.8rem;
+            margin-left: 8px;
+        }
+
+        .close-btn {
+            background: #ff4757;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            color: white;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            z-index: 2001;
+            box-shadow: 0 2px 5px rgba(255,71,87,0.3);
+        }
+
+        .close-btn:hover {
+            background: #ff6b81;
+            transform: scale(1.1);
+        }
+
+        .close-btn:active {
+            transform: scale(0.95);
+        }
+
+        .exam-calculator .calc-display {
+            background: #f5f7fa;
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            text-align: right;
+            min-height: 70px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .exam-calculator .calc-expression {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 5px;
+            min-height: 20px;
+        }
+
+        .exam-calculator .calc-result {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #333;
+            font-family: monospace;
+            word-wrap: break-word;
+        }
+
+        .calc-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin: 12px 0;
+        }
+
+        .calc-btn {
+            padding: 15px 8px;
+            font-size: 1.1rem;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 600;
+            min-width: 0;
+            touch-action: manipulation;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .calc-btn.number {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .calc-btn.number:hover {
+            background: #667eea;
+            color: white;
+            transform: scale(0.95);
+        }
+
+        .calc-btn.operator {
+            background: #667eea;
+            color: white;
+        }
+
+        .calc-btn.operator:hover {
+            background: #5a6fd8;
+            transform: scale(0.95);
+        }
+
+        .calc-btn.equals {
+            background: #27ae60;
+            color: white;
+            grid-column: span 2;
+        }
+
+        .calc-btn.clear {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .calc-btn:active {
+            transform: scale(0.92);
+            opacity: 0.8;
+        }
+
+        /* Mobile Styles */
         @media (max-width: 768px) {
-            .question-text { font-size: 1.2rem; }
-            .option { padding: 12px 15px; }
-            .palette-grid { grid-template-columns: repeat(auto-fill, minmax(55px, 1fr)); }
+            .header {
+                position: relative;
+            }
+            
+            body {
+                padding-top: 0;
+            }
+            
+            .nav-container {
+                flex-direction: column;
+                padding: 1rem;
+            }
+
+            .nav-menu {
+                flex-direction: column;
+                width: 100%;
+                gap: 0.5rem;
+                margin-top: 1rem;
+            }
+            
+            .nav-menu li {
+                width: 100%;
+                text-align: center;
+            }
+            
+            .nav-menu a {
+                display: block;
+                padding: 0.5rem;
+            }
+            
+            .exam-container {
+                margin-top: 20px;
+            }
+            
+            .exam-info {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .timer {
+                font-size: 1.5rem;
+            }
+            
+            .navigation-buttons {
+                flex-direction: column;
+            }
+
+            .subject-tabs {
+                flex-direction: column;
+            }
+
+            .subject-tab {
+                width: 100%;
+            }
+
+            .subject-filter {
+                justify-content: center;
+            }
+
+            .palette-grid {
+                grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
+            }
+
+            .calculator-modal-content {
+                width: 280px;
+                padding: 12px;
+            }
+
+            .calc-btn {
+                padding: 12px 5px;
+                font-size: 0.95rem;
+            }
+
+            .exam-calculator .calc-result {
+                font-size: 1.5rem;
+            }
+        }
+
+        /* Small phones */
+        @media (max-width: 380px) {
+            .calculator-modal-content {
+                width: 250px;
+                padding: 10px;
+            }
+
+            .calc-btn {
+                padding: 10px 4px;
+                font-size: 0.85rem;
+            }
+
+            .exam-calculator .calc-result {
+                font-size: 1.2rem;
+            }
+
+            .palette-grid {
+                grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+            }
+
+            .palette-item {
+                height: 40px;
+                font-size: 0.8rem;
+            }
+        }
+@media (max-width: 900px) and (orientation: landscape) {
+            .calculator-modal-content {
+                width: 400px;
+                max-width: 80vw;
+            }
+
+            .calc-grid {
+                grid-template-columns: repeat(6, 1fr);
+            }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
+    
+    <!-- NEW STYLES for Focused Exam, Skeleton, Fullscreen (overrides original header) -->
+    <style>
+        /* Hide the original header completely */
+        .header {
+            display: none !important;
+        }
+        
+        /* Minimal exam header */
+        .exam-top-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: #1a1a2e;
+            color: white;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .exam-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+        .exam-controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        .icon-btn {
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: white;
+            font-size: 1.2rem;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .icon-btn:hover {
+            background: rgba(255,255,255,0.2);
+            transform: scale(1.05);
+        }
+        body {
+            padding-top: 70px !important;
+        }
+        /* Skeleton loading */
+        .skeleton {
+            background: linear-gradient(90deg, #e0e0e0 25%, #f0f0f0 50%, #e0e0e0 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 8px;
+        }
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        .skeleton-text {
+            height: 20px;
+            margin: 10px 0;
+        }
+        .skeleton-option {
+            height: 50px;
+            margin: 10px 0;
+            border-radius: 8px;
+        }
+        /* Fullscreen mode */
+        .fullscreen-mode {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 9999;
+            background: #f5f7fa;
+            overflow-y: auto;
+        }
+        .fullscreen-mode .exam-top-bar {
+            position: sticky;
+            top: 0;
+        }
+        /* Offline indicator (from pwa.js) */
+        .offline-indicator {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #e74c3c;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 30px;
+            font-size: 0.8rem;
+            z-index: 1100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            font-weight: 500;
+            display: none;
+        }
+        @media (max-width: 768px) {
+            .offline-indicator {
+                bottom: 10px;
+                right: 10px;
+                font-size: 0.7rem;
+                padding: 6px 12px;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="exam-header">
-        <div class="exam-title">📚 JAMB UTME 2026</div>
+    <!-- REPLACED HEADER: Minimal top bar -->
+    <div class="exam-top-bar">
+        <div class="exam-title">📚 JAMB UTME 2026 Mock Exam</div>
         <div class="exam-controls">
             <button id="fullscreenBtn" class="icon-btn">⛶</button>
-            <button id="calculatorToggle" class="icon-btn" onclick="toggleCalculator(event)">🧮</button>
+            <button id="calculatorToggle" class="calculator-btn" onclick="toggleCalculator(event)" style="background:none; border:none; padding:8px 12px;">🧮</button>
             <div class="timer" id="timer">02:00:00</div>
         </div>
     </div>
-    <div class="exam-container" style="max-width:1000px; margin:20px auto; padding:0 20px;">
-        <div class="subject-tabs" id="subjectTabs"></div>
-        <div class="progress-bar" style="height:6px; background:var(--gray-200); border-radius:3px; margin-bottom:20px;">
-            <div id="progressFill" style="width:0%; height:100%; background:var(--primary); border-radius:3px;"></div>
+
+    <div class="exam-container">
+        <div class="exam-info">
+            <div>
+                <h2 id="examTitle">JAMB UTME 2026 Mock Exam</h2>
+                <div class="subjects-badge" id="subjectsBadge"></div>
+            </div>
+            <!-- Timer and calculator removed from here (now in top bar) -->
         </div>
+
+        <div class="warning-message" id="scoringWarning">
+            ⚡ English: 60 questions × 1.67 marks | Other subjects: 40 questions × 2.5 marks
+        </div>
+
+        <!-- Subject Tabs -->
+        <div class="subject-tabs" id="subjectTabs"></div>
+
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+        </div>
+
+        <!-- Skeleton Loader -->
         <div id="skeletonLoader">
             <div class="skeleton skeleton-text" style="width:200px; height:24px;"></div>
             <div class="skeleton skeleton-text" style="width:100%; height:80px; margin:20px 0;"></div>
@@ -107,33 +986,40 @@
             <div class="skeleton skeleton-option"></div>
             <div class="skeleton skeleton-option"></div>
         </div>
-        <div id="questionContainer" style="display:none;"></div>
+
+        <div class="question-container" id="questionContainer" style="display:none;"></div>
+
         <div class="navigation-buttons">
             <button class="nav-btn prev-btn" id="prevBtn" disabled>← Previous</button>
             <button class="nav-btn next-btn" id="nextBtn">Next →</button>
-            <button class="nav-btn submit-btn" id="submitBtn" style="display:none;">Submit Exam</button>
+            <button class="nav-btn submit-btn" id="submitBtn" style="display: none;">Submit Exam</button>
         </div>
+
         <div class="question-palette">
-            <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
-                <strong>Question Palette</strong>
-                <div id="subjectFilter"></div>
+            <div class="palette-title">
+                Question Palette
+                <div class="subject-filter" id="subjectFilter"></div>
             </div>
             <div class="palette-grid" id="paletteGrid"></div>
         </div>
     </div>
-    <!-- Calculator Modal -->
-    <div id="calculatorModal" class="calculator-modal" style="display:none;" onclick="handleModalClick(event)">
+
+    <!-- Calculator Modal (unchanged) -->
+    <div id="calculatorModal" class="calculator-modal" style="display: none;" onclick="handleModalClick(event)">
         <div class="calculator-modal-content" id="calculatorContent" onclick="event.stopPropagation()">
             <div class="calculator-modal-header" id="calculatorHeader">
-                <h3>🧮 Calculator <span class="drag-indicator">↗️</span></h3>
+                <h3><span>🧮</span> Calculator <span class="drag-indicator">↗️</span></h3>
                 <button class="close-btn" onclick="toggleCalculator(event)">✕</button>
             </div>
             <div id="examCalculator" class="exam-calculator"></div>
         </div>
     </div>
+
+    <!-- Include scripts -->
     <script src="js/exam.js"></script>
     <script src="js/pwa.js"></script>
     <script>
+        // Fullscreen toggle
         const fullBtn = document.getElementById('fullscreenBtn');
         fullBtn.addEventListener('click', () => {
             if (!document.fullscreenElement) {
@@ -146,10 +1032,11 @@
                 fullBtn.textContent = '⛶';
             }
         });
+        // Warn before leaving
         window.addEventListener('beforeunload', (e) => {
             if (typeof examState !== 'undefined' && examState.timeRemaining > 0 && examState.timeRemaining < 7200) {
                 e.preventDefault();
-                e.returnValue = 'Exam in progress. Leave? Progress lost.';
+                e.returnValue = 'Exam in progress. Leave? Progress will be lost.';
                 return e.returnValue;
             }
         });

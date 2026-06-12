@@ -1,43 +1,158 @@
-const API_BASE = 'https://jamb-simulator-api.onrender.com';
+// API Base URL
+const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:5000'
+    : 'https://jamb-simulator-api.onrender.com';
+
 let isLogin = true;
+
 document.addEventListener('DOMContentLoaded', () => {
-    if (localStorage.getItem('token')) { window.location.href = '/home.html'; return; }
+    const token = localStorage.getItem('token');
+    if (token) {
+        redirectBasedOnRole();
+        return;
+    }
+    
     setupEventListeners();
+    createDefaultAdmin();
 });
+
+function redirectBasedOnRole() {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    if (user.is_admin) {
+        window.location.href = '/admin.html';
+    } else {
+        window.location.href = '/home.html';
+    }
+}
+
 function setupEventListeners() {
     document.getElementById('toggleAuth').addEventListener('click', toggleAuthMode);
     document.getElementById('authForm').addEventListener('submit', handleAuth);
 }
+
 function toggleAuthMode(e) {
     e.preventDefault();
     isLogin = !isLogin;
+    
     document.getElementById('formTitle').textContent = isLogin ? 'Login' : 'Create Account';
-    document.getElementById('formSubtitle').textContent = isLogin ? 'Welcome back!' : 'Sign up to see your exam results!';
+    document.getElementById('formSubtitle').textContent = isLogin ? 
+        'Welcome back! Login to continue' : 
+        'Sign up to start practicing for JAMB 2026';
     document.getElementById('submitBtn').textContent = isLogin ? 'Login' : 'Register';
+    document.getElementById('toggleText').innerHTML = isLogin ?
+        'Don\'t have an account? <a href="#" id="toggleAuth">Register here</a>' :
+        'Already have an account? <a href="#" id="toggleAuth">Login here</a>';
+    
     document.getElementById('nameGroup').style.display = isLogin ? 'none' : 'block';
-    document.getElementById('toggleText').innerHTML = isLogin ? 'Don\'t have an account? <a href="#" id="toggleAuth">Register here</a>' : 'Already have an account? <a href="#" id="toggleAuth">Login here</a>';
     document.getElementById('toggleAuth').addEventListener('click', toggleAuthMode);
 }
+
 async function handleAuth(e) {
     e.preventDefault();
+    
     const email = document.getElementById('email').value;
     const password = document.getElementById('password').value;
     const fullName = document.getElementById('fullName')?.value;
-    if (!email || !password || (!isLogin && !fullName)) { showError('Please fill all fields'); return; }
-    const url = isLogin ? `${API_BASE}/api/auth/login` : `${API_BASE}/api/auth/register`;
-    const body = isLogin ? { email, password } : { email, password, fullName };
+    
+    if (!email || !password) {
+        showError('Please fill all fields');
+        return;
+    }
+    
+    if (!isLogin && !fullName) {
+        showError('Full name is required');
+        return;
+    }
+    
+    const url = isLogin 
+        ? `${API_BASE}/api/auth/login`
+        : `${API_BASE}/api/auth/register`;
+    
+    const body = isLogin 
+        ? { email, password }
+        : { email, password, fullName };
+    
     try {
-        const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        console.log('Sending request to:', url);
+        console.log('With body:', body);
+        
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        
+        console.log('Response status:', response.status);
+        
         const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Authentication failed');
+        console.log('Response data:', data);
+        
+        if (!response.ok) {
+            throw new Error(data.error || 'Authentication failed');
+        }
+        
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('pending') === 'results') {
-            const pending = sessionStorage.getItem('pendingExamResults');
-            if (pending) { localStorage.setItem('lastExamResults', pending); sessionStorage.removeItem('pendingExamResults'); window.location.href = '/results.html'; return; }
+        
+        if (data.user.is_admin) {
+            localStorage.setItem('is_admin', 'true');
         }
-        window.location.href = '/home.html';
-    } catch (error) { showError(error.message); }
+        
+        showSuccess(data.message);
+        
+        setTimeout(() => {
+            if (isLogin) {
+                if (data.user.is_admin) {
+                    window.location.href = '/admin.html';
+                } else {
+                    window.location.href = '/home.html';
+                }
+            } else {
+                window.location.href = '/auth.html';
+            }
+        }, 1500);
+        
+    } catch (error) {
+        console.error('Auth error:', error);
+        showError(error.message);
+    }
 }
-function showError(msg) { const errDiv = document.getElementById('errorMessage'); errDiv.textContent = msg; errDiv.style.display = 'block'; setTimeout(() => errDiv.style.display = 'none', 3000); }
+
+async function createDefaultAdmin() {
+    try {
+        const response = await fetch(`${API_BASE}/api/auth/check-admin`);
+        const data = await response.json();
+        console.log('Admin check:', data);
+        
+        if (!data.hasAdmin) {
+            await fetch(`${API_BASE}/api/auth/create-default-admin`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: 'admin@jamb.com',
+                    password: 'Admin123!',
+                    fullName: 'System Administrator'
+                })
+            });
+            console.log('✅ Default admin created');
+        }
+    } catch (error) {
+        console.error('Error creating default admin:', error);
+    }
+}
+
+function showError(message) {
+    const errorDiv = document.getElementById('errorMessage');
+    errorDiv.textContent = message;
+    errorDiv.style.display = 'block';
+    
+    setTimeout(() => {
+        errorDiv.style.display = 'none';
+    }, 3000);
+}
+
+function showSuccess(message) {
+    const successDiv = document.getElementById('successMessage');
+    successDiv.textContent = message;
+    successDiv.style.display = 'block';
+}

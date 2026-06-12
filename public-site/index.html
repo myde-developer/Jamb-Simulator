@@ -3,12 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JAMB Simulator 2026</title>
+    <title>JAMB Simulator - Redirecting</title>
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#1a1a2e">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="JAMB Simulator">
+    <link rel="apple-touch-icon" href="/icons/icon-152x152.png">
+    <meta name="theme-color" content="#667eea">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: Arial, sans-serif;
             text-align: center;
             padding: 50px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -23,13 +28,19 @@
             animation: spin 1s linear infinite;
             margin: 20px auto;
         }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
     <h1>JAMB Simulator 2026</h1>
     <div class="loader"></div>
     <p>Redirecting to home...</p>
-    <script> window.location.replace('/home.html'); </script>
+    <script>
+        // Always go to home – no authentication required
+        window.location.replace('/home.html');
+    </script>
 </body>
 </html>

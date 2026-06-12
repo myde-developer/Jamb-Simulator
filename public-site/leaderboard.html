@@ -5,17 +5,358 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JAMB Simulator - Leaderboard</title>
     <link rel="manifest" href="/manifest.json">
-    <link rel="stylesheet" href="global.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="JAMB Simulator">
+    <link rel="apple-touch-icon" href="/icons/icon-152x152.png">
+    <meta name="theme-color" content="#1a1a2e">
+    
     <style>
-        .podium { display: flex; justify-content: center; gap: 20px; margin: 30px 0; }
-        .podium-item { text-align: center; width: 120px; }
-        .podium-item.first .medal { font-size: 3rem; }
-        .medal { font-size: 2rem; }
-        .leaderboard-table { background: white; border-radius: 20px; overflow: hidden; }
-        .table-row { display: grid; grid-template-columns: 80px 1fr 100px 80px; padding: 12px; border-bottom: 1px solid var(--gray-200); }
-        .table-header { background: var(--gray-100); font-weight: 600; }
-        .user-avatar { width: 32px; height: 32px; background: var(--primary); color: white; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-right: 10px; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f7fb;
+            color: #1a1a2e;
+            line-height: 1.5;
+        }
+
+        .header {
+            background: white;
+            border-bottom: 1px solid #e1e5eb;
+            padding: 0.75rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .logo {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #1a1a2e;
+        }
+
+        .nav-menu {
+            display: flex;
+            list-style: none;
+            gap: 0.25rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .nav-menu a {
+            color: #4a5568;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+
+        .nav-menu a:hover,
+        .nav-menu a.active {
+            background: #f0f0f5;
+            color: #1a1a2e;
+        }
+
+        #userInfo {
+            font-size: 0.75rem;
+            color: #718096;
+            margin-left: 0.5rem;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 2rem auto;
+            padding: 0 1.5rem;
+        }
+
+        .page-header {
+            background: white;
+            border: 1px solid #e1e5eb;
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        .page-header h1 {
+            font-size: 1.5rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .page-header p {
+            color: #718096;
+            font-size: 0.875rem;
+        }
+
+        .leaderboard-tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .leaderboard-tab {
+            padding: 0.5rem 1.25rem;
+            border: 1px solid #e1e5eb;
+            border-radius: 8px;
+            background: white;
+            color: #4a5568;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .leaderboard-tab.active {
+            background: #1a1a2e;
+            color: white;
+            border-color: #1a1a2e;
+        }
+
+        .filter-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .search-box {
+            width: 100%;
+            max-width: 300px;
+            padding: 0.625rem 0.75rem;
+            border: 1px solid #e1e5eb;
+            border-radius: 8px;
+            font-size: 0.875rem;
+        }
+
+        /* ADDED: Podium styles */
+        .podium-container {
+            margin: 30px 0;
+        }
+        
+        .podium {
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .podium-item {
+            text-align: center;
+            width: 120px;
+        }
+        
+        .podium-item.first {
+            width: 140px;
+        }
+        
+        .podium-avatar {
+            background: #1a1a2e;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+            font-size: 2rem;
+        }
+        
+        .podium-item.first .podium-avatar {
+            width: 100px;
+            height: 100px;
+            background: #f1c40f;
+        }
+        
+        .podium-item:not(.first) .podium-avatar {
+            width: 80px;
+            height: 80px;
+        }
+        
+        .podium-item.second .podium-avatar { background: #bdc3c7; }
+        .podium-item.third .podium-avatar { background: #e67e22; }
+        
+        .podium-name {
+            margin-top: 10px;
+            font-weight: 600;
+        }
+        
+        .podium-score {
+            font-size: 0.875rem;
+        }
+        
+        .podium-item.first .podium-score { color: #f1c40f; }
+        .podium-item.second .podium-score { color: #bdc3c7; }
+        .podium-item.third .podium-score { color: #e67e22; }
+
+        .leaderboard-table {
+            background: white;
+            border-radius: 16px;
+            border: 1px solid #e1e5eb;
+            overflow: hidden;
+        }
+
+        .table-header {
+            display: grid;
+            grid-template-columns: 80px 1fr 100px 80px 80px;
+            padding: 12px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e1e5eb;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #718096;
+        }
+
+        .table-row {
+            display: grid;
+            grid-template-columns: 80px 1fr 100px 80px 80px;
+            padding: 12px;
+            border-bottom: 1px solid #e1e5eb;
+            font-size: 0.875rem;
+            transition: background 0.2s;
+        }
+
+        .table-row:hover {
+            background: #f8f9fa;
+        }
+
+        .table-row.current-user {
+            background: #fff3e0;
+            border-left: 4px solid #e74c3c;
+        }
+
+        .rank {
+            font-weight: 600;
+        }
+
+        .rank-1 { color: #f1c40f; }
+        .rank-2 { color: #bdc3c7; }
+        .rank-3 { color: #e67e22; }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            background: #1a1a2e;
+            color: white;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-right: 0.5rem;
+        }
+
+        .user-name {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .score-value {
+            font-weight: 600;
+            color: #2d6a4f;
+        }
+
+        .your-rank {
+            background: white;
+            border-radius: 16px;
+            border: 1px solid #e1e5eb;
+            padding: 1rem;
+            margin-top: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .your-rank-label {
+            font-weight: 600;
+        }
+
+        .your-rank-value {
+            color: #2d6a4f;
+            font-weight: 700;
+        }
+
+        .loading-state, .error-state {
+            text-align: center;
+            padding: 40px;
+        }
+        
+        .error-state {
+            color: #e74c3c;
+        }
+        
+        .error-state button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #1a1a2e;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        @media (max-width: 768px) {
+            .nav-container {
+                flex-direction: column;
+            }
+            
+            .nav-menu {
+                justify-content: center;
+            }
+            
+            .table-header {
+                display: none;
+            }
+            
+            .table-row {
+                grid-template-columns: 1fr;
+                gap: 0.25rem;
+                padding: 1rem;
+            }
+            
+            .your-rank {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .podium {
+                gap: 10px;
+            }
+            
+            .podium-item {
+                width: 100px;
+            }
+            
+            .podium-item.first {
+                width: 120px;
+            }
+        }
     </style>
+    
+    <script>
+        (function() {
+            const token = localStorage.getItem('token');
+            if (!token) window.location.replace('/auth.html');
+        })();
+    </script>
 </head>
 <body>
     <header class="header">
@@ -28,19 +369,45 @@
                 <li><a href="progress.html">Progress</a></li>
                 <li><a href="leaderboard.html" class="active">Leaderboard</a></li>
                 <li><a href="#" id="logoutBtn">Logout</a></li>
+                <li><span id="userInfo"></span></li>
             </ul>
         </nav>
     </header>
+
     <div class="container">
-        <div class="page-header"><h1>Leaderboard</h1><p>Compete with other JAMB aspirants</p></div>
-        <div class="leaderboard-tabs"><button class="leaderboard-tab active" data-type="global" onclick="switchLeaderboard('global')">Global</button><button class="leaderboard-tab" data-type="weekly" onclick="switchLeaderboard('weekly')">This Week</button><button class="leaderboard-tab" data-type="monthly" onclick="switchLeaderboard('monthly')">This Month</button></div>
-        <div class="filter-section"><input type="text" id="searchUser" placeholder="Search your name..." onkeyup="searchLeaderboard()"></div>
-        <div id="podiumContainer" class="podium"></div>
-        <div class="leaderboard-table"><div class="table-header"><div>Rank</div><div>User</div><div>Score</div><div>Exams</div></div><div id="leaderboardRows"></div></div>
-        <div id="yourRank" class="your-rank"></div>
+        <div class="page-header">
+            <h1>Leaderboard</h1>
+            <p>Compete with other JAMB aspirants</p>
+        </div>
+
+        <div class="leaderboard-tabs">
+            <button class="leaderboard-tab active" data-type="global" onclick="switchLeaderboard('global', event)">Global</button>
+            <button class="leaderboard-tab" data-type="weekly" onclick="switchLeaderboard('weekly', event)">This Week</button>
+            <button class="leaderboard-tab" data-type="monthly" onclick="switchLeaderboard('monthly', event)">This Month</button>
+        </div>
+
+        <div class="filter-section">
+            <input type="text" class="search-box" id="searchUser" placeholder="Search your name..." onkeyup="searchLeaderboard()">
+        </div>
+
+        <!-- ADDED: Podium container -->
+        <div id="podiumContainer" class="podium-container"></div>
+
+        <div class="leaderboard-table">
+            <div class="table-header">
+                <div>Rank</div>
+                <div>User</div>
+                <div>Score</div>
+                <div>Exams</div>
+                <div>🏆</div>
+            </div>
+            <div id="leaderboardRows"></div>
+        </div>
+
+        <div class="your-rank" id="yourRank"></div>
     </div>
+
     <script src="js/streak.js"></script>
     <script src="js/leaderboard.js"></script>
-    <script src="js/pwa.js"></script>
 </body>
 </html>
