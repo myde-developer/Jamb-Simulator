@@ -16,11 +16,10 @@ let examState = {
     examId: null,
     startTime: null,
     subjectOrder: [],
-    subjectConfigs: {},
-    isReady: false  // Timer won't start until this is true
+    isReady: false
 };
 
-// Calculator state
+// Calculator state (unchanged)
 let examCalculator = {
     currentInput: '',
     previousInput: '',
@@ -41,32 +40,14 @@ let dragState = {
     activated: false
 };
 
-// Initialize
-(function() {
-    const token = localStorage.getItem('token');
-    if (!token) window.location.replace('/auth.html');
-})();
+// NO AUTH CHECK – removed
+// (function() { ... })();   // <-- DELETE THIS
 
 document.addEventListener('DOMContentLoaded', () => {
     loadExamData();
     setupEventListeners();
-    displayUserInfo();
-    document.getElementById('logoutBtn')?.addEventListener('click', logout);
+    // No user info or logout needed
 });
-
-function displayUserInfo() {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const userInfo = document.getElementById('userInfo');
-    if (userInfo && user.full_name) userInfo.textContent = `Welcome, ${user.full_name}`;
-}
-
-function logout(e) {
-    e.preventDefault();
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    localStorage.removeItem('is_admin');
-    window.location.href = '/auth.html';
-}
 
 async function loadExamData() {
     const selectedSubjects = JSON.parse(localStorage.getItem('jambSelectedSubjects'));
@@ -87,37 +68,11 @@ async function loadExamData() {
     
     examState.currentSubject = selectedSubjects[0].name;
     
-    await loadSubjectConfigs(selectedSubjects);
-    
+    // No need to load subject configs – we'll use hardcoded counts in fetch
     displaySubjectsBadge(selectedSubjects);
     renderSubjectTabs(selectedSubjects);
     renderSubjectFilter(selectedSubjects);
     fetchExamQuestions(selectedSubjects);
-}
-
-async function loadSubjectConfigs(subjects) {
-    const token = localStorage.getItem('token');
-    
-    for (const subject of subjects) {
-        try {
-            const response = await fetch(`${API_BASE}/api/ai-questions/subject/${subject.id}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            
-            if (response.ok) {
-                const config = await response.json();
-                examState.subjectConfigs[subject.name] = config;
-                console.log(`Loaded config for ${subject.name}: ${config.totalQuestions} questions`);
-            }
-        } catch (error) {
-            console.error(`Failed to load config for ${subject.name}:`, error);
-            examState.subjectConfigs[subject.name] = {
-                totalQuestions: subject.name === 'Use of English' ? 60 : 40,
-                hasDiagrams: false,
-                minDiagramQuestions: 0
-            };
-        }
-    }
 }
 
 function renderSubjectTabs(subjects) {
@@ -125,15 +80,13 @@ function renderSubjectTabs(subjects) {
     if (!tabsContainer) return;
     
     let tabsHtml = subjects.map((subject, index) => {
-        const config = examState.subjectConfigs[subject.name];
-        const questionCount = config?.totalQuestions || (subject.name === 'Use of English' ? 60 : 40);
+        const questionCount = subject.name === 'Use of English' ? 60 : 40;
         const displayName = subject.name === 'Use of English' ? 'English' : subject.name;
         const isActive = index === 0 ? 'active' : '';
-        const diagramIcon = config?.hasDiagrams ? ' 📐' : '';
         
         return `
             <button class="subject-tab ${isActive}" onclick="switchSubject('${subject.name}')">
-                ${displayName}${diagramIcon}
+                ${displayName}
                 <span class="count-badge">${questionCount}</span>
             </button>
         `;
@@ -156,7 +109,6 @@ function renderSubjectFilter(subjects) {
 
 function switchSubject(subjectName) {
     examState.currentSubject = subjectName;
-    
     document.querySelectorAll('.subject-tab').forEach((tab, index) => {
         const tabSubject = examState.subjects[index].name;
         if (tabSubject === subjectName) {
@@ -165,7 +117,6 @@ function switchSubject(subjectName) {
             tab.classList.remove('active');
         }
     });
-    
     renderSubjectQuestion(subjectName);
     renderPalette();
 }
@@ -173,7 +124,6 @@ function switchSubject(subjectName) {
 function renderSubjectQuestion(subjectName) {
     const subjectQuestions = examState.subjectQuestions[subjectName];
     if (!subjectQuestions || subjectQuestions.length === 0) return;
-    
     const currentIndex = examState.subjectIndices[subjectName];
     const question = subjectQuestions[currentIndex];
     renderQuestion(question, subjectName, currentIndex + 1, subjectQuestions.length);
@@ -190,28 +140,23 @@ function displaySubjectsBadge(subjects) {
 function randomizeQuestionOptions(question) {
     const optionLetters = ['A', 'B', 'C', 'D'];
     const originalCorrectLetter = question.correct_answer;
-    
     const originalOptions = {
         A: question.option_a,
         B: question.option_b,
         C: question.option_c,
         D: question.option_d
     };
-    
     const correctText = originalOptions[originalCorrectLetter];
-    
     const shuffledLetters = [...optionLetters];
     for (let i = shuffledLetters.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [shuffledLetters[i], shuffledLetters[j]] = [shuffledLetters[j], shuffledLetters[i]];
     }
-    
     const newOptions = {};
     shuffledLetters.forEach((newLetter, idx) => {
         const originalLetter = optionLetters[idx];
         newOptions[newLetter] = originalOptions[originalLetter];
     });
-    
     let newCorrectLetter = '';
     for (const [letter, text] of Object.entries(newOptions)) {
         if (text === correctText) {
@@ -219,7 +164,6 @@ function randomizeQuestionOptions(question) {
             break;
         }
     }
-    
     return {
         ...question,
         option_a: newOptions.A,
@@ -235,14 +179,14 @@ async function fetchExamQuestions(subjects) {
         document.getElementById('questionContainer').innerHTML = 
             '<div style="text-align: center; padding: 50px;">Loading questions...</div>';
         
-        const token = localStorage.getItem('token');
-        
-        // Use existing exam endpoint (database only)
+        // NO AUTHENTICATION – removed Authorization header
         const response = await fetch(`${API_BASE}/api/exam/questions`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ subjects: subjects.map(s => ({ id: s.id, name: s.name })) })
-});
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                subjects: subjects.map(s => ({ id: s.id, name: s.name }))
+            })
+        });
         
         if (!response.ok) {
             throw new Error('Failed to fetch questions');
@@ -262,7 +206,6 @@ async function fetchExamQuestions(subjects) {
         subjects.forEach(subject => {
             const subjectQuestions = randomizedQuestions.filter(q => q.subject === subject.name);
             const targetCount = subject.name === 'Use of English' ? 60 : 40;
-            
             if (subjectQuestions.length >= targetCount) {
                 examState.subjectQuestions[subject.name] = subjectQuestions.slice(0, targetCount);
             } else {
@@ -278,7 +221,6 @@ async function fetchExamQuestions(subjects) {
         renderSubjectQuestion(firstSubject);
         renderPalette();
         
-        // Start timer ONLY after questions are loaded
         examState.isReady = true;
         startTimer();
         
@@ -295,7 +237,6 @@ async function fetchExamQuestions(subjects) {
         `;
     }
 }
-
 function logExamStatistics() {
     console.log('\n📊 FINAL EXAM STATISTICS:');
     console.log('=================================');
