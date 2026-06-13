@@ -579,7 +579,6 @@ function submitExam() {
         examId: examState.examId
     };
     
-    // If user is already logged in, go directly to results
     const token = localStorage.getItem('token');
     if (token) {
         localStorage.setItem('lastExamResults', JSON.stringify(examData));
@@ -587,7 +586,6 @@ function submitExam() {
         return;
     }
     
-    // Not logged in – store pending data and flag
     sessionStorage.setItem('pendingExamResults', JSON.stringify(examData));
     sessionStorage.setItem('redirectAfterAuth', 'results');
     window.location.href = '/auth.html';

@@ -82,25 +82,31 @@ async function handleAuth(e) {
         
         showSuccess(data.message);
         
-        // Check for pending exam results
+        // Log for debugging
+        console.log('Auth success. isLogin:', isLogin);
+        console.log('redirectAfterAuth flag:', sessionStorage.getItem('redirectAfterAuth'));
+        console.log('pendingExamResults exists?', !!sessionStorage.getItem('pendingExamResults'));
+        
         const redirectToResults = sessionStorage.getItem('redirectAfterAuth') === 'results';
         const pendingExam = sessionStorage.getItem('pendingExamResults');
         
-        // For login: if pending results exist, go to results
+        // For login: if pending results, move and go to results
         if (isLogin && redirectToResults && pendingExam) {
             localStorage.setItem('lastExamResults', pendingExam);
             sessionStorage.removeItem('pendingExamResults');
             sessionStorage.removeItem('redirectAfterAuth');
+            console.log('Redirecting to results.html');
             setTimeout(() => {
-                window.location.href = '/results.html';
+                window.location.replace('/results.html'); // Use replace to avoid back button issues
             }, 1500);
             return;
         }
         
         // For registration: redirect to login page (pending data stays)
         if (!isLogin) {
+            console.log('Registration complete. Redirecting to login page.');
             setTimeout(() => {
-                window.location.href = '/auth.html';
+                window.location.replace('/auth.html'); // Go to login form
             }, 1500);
             return;
         }
@@ -108,9 +114,9 @@ async function handleAuth(e) {
         // Normal login without pending results
         setTimeout(() => {
             if (data.user.is_admin) {
-                window.location.href = '/admin.html';
+                window.location.replace('/admin.html');
             } else {
-                window.location.href = '/home.html';
+                window.location.replace('/home.html');
             }
         }, 1500);
         

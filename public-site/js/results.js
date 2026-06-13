@@ -25,10 +25,23 @@ function logout(e) {
 }
 
 function loadResults() {
+    // First try to get from localStorage
     examResults = JSON.parse(localStorage.getItem('lastExamResults'));
     
+    // Fallback: if not found, check sessionStorage (in case move failed)
     if (!examResults) {
-        // No results – redirect to home or auth depending on login state
+        const pending = sessionStorage.getItem('pendingExamResults');
+        if (pending) {
+            console.log('Results found in sessionStorage, moving to localStorage');
+            examResults = JSON.parse(pending);
+            localStorage.setItem('lastExamResults', pending);
+            sessionStorage.removeItem('pendingExamResults');
+            sessionStorage.removeItem('redirectAfterAuth');
+        }
+    }
+    
+    if (!examResults) {
+        console.log('No exam results found. Redirecting.');
         const token = localStorage.getItem('token');
         if (token) {
             window.location.href = '/home.html';
@@ -38,9 +51,9 @@ function loadResults() {
         return;
     }
     
+    console.log('Displaying results');
     displayResults(examResults);
 }
-
 function displayResults(results) {
     displayHeader(results);
     displaySummaryCards(results);
