@@ -29,6 +29,11 @@
         .btn-practice:hover { background: rgba(255,255,255,0.3); transform: translateY(-3px); }
         .btn-flashcard { background: white; color: #764ba2; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
         .btn-flashcard:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0,0,0,0.3); }
+        .btn-past { background: white; color: #2d6a4f; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+.btn-past:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+}
         .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-top: 3rem; }
         .feature-card { background: white; padding: 1.5rem; border-radius: 20px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.05); transition: 0.2s; }
         .feature-card:hover { transform: translateY(-5px); }
@@ -56,11 +61,12 @@
         <div class="hero">
             <h1>Prepare for JAMB UTME 2026</h1>
             <p>Realistic mock exams, practice questions, flashcards, and study tools – all in one place</p>
-            <div class="button-group">
-                <a href="select-subjects.html" class="btn-lg btn-exam"> Start an Exam</a>
-                <a href="practice.html" class="btn-lg btn-practice"> Take a Practice Test</a>
-                <a href="flashcards.html" class="btn-lg btn-flashcard">Create and Study Flashcards</a>
-            </div>
+<div class="button-group">
+    <a href="select-subjects.html" class="btn-lg btn-exam"> Start an Exam</a>
+    <a href="practice.html" class="btn-lg btn-practice">Take a Practice Test</a>
+    <a href="flashcards.html" class="btn-lg btn-flashcard"> Study Flashcards</a>
+    <a href="past-results.html" id="pastResultsBtn" class="btn-lg btn-past" style="display: none;">Past Results</a>
+</div>
         </div>
         <div class="features">
             <div class="feature-card"><div class="feature-icon"></div><h3>400+ Questions per Subject</h3><p>Fresh questions every time</p></div>

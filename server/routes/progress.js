@@ -70,4 +70,54 @@ router.get('/recent', auth, async (req, res) => {
     }
 });
 
+// Get full details of a specific exam (for the authenticated user)
+router.get('/exam/:id', auth, async (req, res) => {
+    try {
+        const examId = req.params.id;
+        const userId = req.user.id;
+
+        // Verify exam belongs to this user
+        const examCheck = await db.query(
+            `SELECT id FROM exam_sessions WHERE id = $1 AND user_id = $2`,
+            [examId, userId]
+        );
+        if (examCheck.rows.length === 0) {
+            return res.status(404).json({ error: 'Exam not found' });
+        }
+
+        const result = await db.query(
+            `SELECT es.*, 
+                    json_agg(json_build_object(
+                        'question_id', q.id,
+                        'question_text', q.question_text,
+                        'option_a', q.option_a,
+                        'option_b', q.option_b,
+                        'option_c', q.option_c,
+                        'option_d', q.option_d,
+                        'user_answer', ua.selected_answer,
+                        'correct_answer', q.correct_answer,
+                        'is_correct', ua.is_correct,
+                        'explanation', q.explanation,
+                        'subject', s.name
+                    ) ORDER BY q.id) as answers
+             FROM exam_sessions es
+             LEFT JOIN user_answers ua ON ua.session_id = es.id
+             LEFT JOIN questions q ON q.id = ua.question_id
+             LEFT JOIN subjects s ON s.id = q.subject_id
+             WHERE es.id = $1
+             GROUP BY es.id`,
+            [examId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Exam data not found' });
+        }
+
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error('Error fetching exam details:', error);
+        res.status(500).json({ error: 'Failed to fetch exam details' });
+    }
+});
+
 module.exports = router;

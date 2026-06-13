@@ -1,13 +1,23 @@
-// js/authUI.js – shared authentication UI logic
-
-function updateLogoutButtonVisibility() {
-    const logoutBtn = document.getElementById('logoutBtn');
-    if (!logoutBtn) return;
+// js/authUI.js
+function updateAuthButtons() {
     const token = localStorage.getItem('token');
-    if (token) {
-        logoutBtn.style.display = 'inline-block';
-    } else {
-        logoutBtn.style.display = 'none';
+    const loginBtn = document.getElementById('loginBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const pastResultsBtn = document.getElementById('pastResultsBtn');
+    const navPastResults = document.getElementById('navPastResults'); // optional, for navigation menu
+    
+    if (loginBtn && logoutBtn) {
+        if (token) {
+            loginBtn.style.display = 'none';
+            logoutBtn.style.display = 'inline-block';
+            if (pastResultsBtn) pastResultsBtn.style.display = 'inline-block';
+            if (navPastResults) navPastResults.style.display = 'inline-block';
+        } else {
+            loginBtn.style.display = 'inline-block';
+            logoutBtn.style.display = 'none';
+            if (pastResultsBtn) pastResultsBtn.style.display = 'none';
+            if (navPastResults) navPastResults.style.display = 'none';
+        }
     }
 }
 
@@ -18,15 +28,12 @@ function logoutUser(e) {
         showToast('You are already logged out');
         return;
     }
-    // Clear only authentication data – keep exam results
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('is_admin');
-    // Clear pending exam flags so next user doesn't see old pending results
     sessionStorage.removeItem('pendingExamResults');
     sessionStorage.removeItem('redirectAfterAuth');
     showToast('Logged out successfully');
-    // Redirect to home page; logout button will be hidden by updateLogoutButtonVisibility on page load
     window.location.href = '/home.html';
 }
 
@@ -51,16 +58,16 @@ function showToast(message) {
     }
     toast.textContent = message;
     toast.style.opacity = '1';
-    setTimeout(() => {
-        toast.style.opacity = '0';
-    }, 3000);
+    setTimeout(() => toast.style.opacity = '0', 3000);
 }
 
-// Initialize visibility on every page load
 document.addEventListener('DOMContentLoaded', () => {
-    updateLogoutButtonVisibility();
+    updateAuthButtons();
+    const loginBtn = document.getElementById('loginBtn');
     const logoutBtn = document.getElementById('logoutBtn');
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', logoutUser);
-    }
+    if (loginBtn) loginBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        window.location.href = '/auth.html';
+    });
+    if (logoutBtn) logoutBtn.addEventListener('click', logoutUser);
 });
