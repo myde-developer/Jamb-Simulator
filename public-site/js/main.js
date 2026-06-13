@@ -35,10 +35,10 @@ document.addEventListener('DOMContentLoaded', () => {
 function renderSubjects() {
     const container = document.getElementById('subjectsContainer');
     const categories = {
-        compulsory: { title: '📖 Compulsory', subjects: [] },
-        science: { title: '🔬 Sciences', subjects: [] },
-        arts: { title: '🎭 Arts & Humanities', subjects: [] },
-        commercial: { title: '📊 Commercial & Social Sciences', subjects: [] }
+        compulsory: { title: ' Compulsory', subjects: [] },
+        science: { title: ' Sciences', subjects: [] },
+        arts: { title: 'Arts', subjects: [] },
+        commercial: { title: 'Commercial', subjects: [] }
     };
     allSubjects.forEach(subject => {
         if (subject.category) categories[subject.category].subjects.push(subject);

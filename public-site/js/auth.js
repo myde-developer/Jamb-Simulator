@@ -87,14 +87,33 @@ async function handleAuth(e) {
             const pendingExam = sessionStorage.getItem('pendingExamResults');
             
             if (redirectToResults && pendingExam) {
-                localStorage.setItem('lastExamResults', pendingExam);
-                sessionStorage.removeItem('pendingExamResults');
-                sessionStorage.removeItem('redirectAfterAuth');
-                setTimeout(() => {
-                    window.location.replace('/results.html');
-                }, 1500);
-                return;
-            }
+    // Save exam results to backend first
+    const examData = JSON.parse(pendingExam);
+    try {
+        const saveResponse = await fetch(`${API_BASE}/api/exam/save`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${data.token}`
+            },
+            body: JSON.stringify({ examData })
+        });
+        if (!saveResponse.ok) {
+            console.warn('Failed to save exam to backend, but continuing anyway');
+        }
+    } catch (saveError) {
+        console.error('Error saving exam:', saveError);
+    }
+    
+    // Move to localStorage and redirect
+    localStorage.setItem('lastExamResults', pendingExam);
+    sessionStorage.removeItem('pendingExamResults');
+    sessionStorage.removeItem('redirectAfterAuth');
+    setTimeout(() => {
+        window.location.href = '/results.html';
+    }, 1500);
+    return;
+}
             
             // Normal login
             setTimeout(() => {

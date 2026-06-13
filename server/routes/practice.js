@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/database');
+const { allSubjects } = require('../data/all-subjects');
 
 // Helper: Generate AI questions for a subject/topic/difficulty
 async function generateAIQuestions(subjectName, topic, difficulty, countNeeded) {
@@ -87,7 +88,7 @@ Return ONLY a valid JSON array of ${countNeeded} questions. No extra text.`;
     }));
 }
 
-// GET /api/practice/subjects – public
+// GET /api/practice/subjects 
 router.get('/subjects', async (req, res) => {
     try {
         const result = await pool.query('SELECT id, name, code FROM subjects ORDER BY name');
@@ -98,18 +99,22 @@ router.get('/subjects', async (req, res) => {
     }
 });
 
-// GET /api/practice/topics/:subjectId – public
+// GET /api/practice/topics/:subjectId 
 router.get('/topics/:subjectId', async (req, res) => {
     try {
         const subjectId = parseInt(req.params.subjectId);
-        const result = await pool.query(
-            `SELECT DISTINCT topic FROM questions WHERE subject_id = $1 AND topic IS NOT NULL ORDER BY topic`,
-            [subjectId]
-        );
-        const topics = result.rows.map(row => row.topic);
+        const subject = allSubjects[subjectId];
+        
+        if (!subject) {
+            return res.json({ topics: [] });
+        }
+        
+        // Return the topics array from your curated list
+        const topics = subject.topics || [];
         res.json({ topics });
+        
     } catch (error) {
-        console.error('Error fetching topics:', error);
+        console.error('Error fetching static topics:', error);
         res.json({ topics: [] });
     }
 });

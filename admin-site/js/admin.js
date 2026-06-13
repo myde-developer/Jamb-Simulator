@@ -424,9 +424,9 @@ function loadQuestionBank() {
             <button class="export-btn" onclick="exportData('questions')">📥 Export CSV</button>
         </div>
         
-       <div class="admin-tabs" style="margin-bottom: 20px;" id="subjectFilters">
-    <button class="tab-btn active" onclick="filterBySubject('all', event)">All</button>
-</div>
+        <div class="admin-tabs" style="margin-bottom: 20px;" id="subjectFilters">
+            <button class="tab-btn active" onclick="filterBySubject('all', event)">All</button>
+        </div>
         
         <div class="search-bar">
             <input type="text" id="questionSearch" placeholder="Search questions...">
@@ -440,6 +440,7 @@ function loadQuestionBank() {
         </div>
     `;
     
+    loadSubjectFilters();  
     loadQuestions();
 }
 
@@ -461,17 +462,23 @@ function filterBySubject(subjectId, event) {
 async function loadSubjectFilters() {
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE}/api/ai-questions/subjects`, {
+        const response = await fetch(`${API_BASE}/api/practice/subjects`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        const subjects = await response.json();
+        const data = await response.json();
+        const subjects = data.subjects;  // ✅ response is { subjects: [...] }
         
         const container = document.getElementById('subjectFilters');
+        if (!container) return;
+        
+        // Clear existing buttons (except the "All" button that's already there)
+        container.innerHTML = '<button class="tab-btn active" onclick="filterBySubject(\'all\', event)">All</button>';
+        
         subjects.forEach(subject => {
             const btn = document.createElement('button');
             btn.className = 'tab-btn';
             btn.textContent = subject.name;
-            btn.onclick = () => filterBySubject(subject.id, event);
+            btn.onclick = (e) => filterBySubject(subject.id, e);
             container.appendChild(btn);
         });
     } catch (error) {

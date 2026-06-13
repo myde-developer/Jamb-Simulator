@@ -3,287 +3,440 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>JAMB CBT Exam</title>
+    <title>JAMB Exam Simulator - Exam in Progress</title>
+    <!-- PWA Meta Tags -->
     <link rel="manifest" href="/manifest.json">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <meta name="apple-mobile-web-app-title" content="JAMB Simulator">
     <link rel="apple-touch-icon" href="/icons/icon-152x152.png">
-    <meta name="theme-color" content="#1a73e8">
+    <meta name="theme-color" content="#667eea">
+    
     <style>
-        /* ===== 3‑thirty Inspired Exam Mode ===== */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
+/* ===== UNIVERSAL FIX FOR DESKTOP SITE MODE ===== */
+
+/* Ensure all clickable elements work properly */
+button,
+a,
+.subject-tab,
+.filter-btn,
+.palette-item,
+.option,
+.nav-menu a,
+.btn,
+.action-btn,
+.rating-btn,
+.deck-card,
+.flashcard {
+    cursor: pointer;
+    position: relative;
+    z-index: auto;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Fix for sticky headers that might block clicks */
+.header {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    background: white;
+}
+
+/* Ensure main content doesn't get hidden under header */
+main, .container, .practice-container, .flashcards-container, .results-container {
+    position: relative;
+    z-index: 1;
+}
+
+/* Fix for subject tabs - ensure they're clickable */
+.subject-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    position: relative;
+    z-index: 10;
+}
+
+.subject-tab {
+    cursor: pointer;
+    pointer-events: auto;
+    position: relative;
+    z-index: 20;
+}
+
+/* Fix for palette items */
+.palette-grid {
+    display: grid;
+    gap: 10px;
+}
+
+.palette-item {
+    cursor: pointer;
+    pointer-events: auto;
+    position: relative;
+    z-index: 5;
+}
+
+/* Override any transform that might break click area */
+.palette-item.current,
+.subject-tab.active {
+    transform: none !important;
+}
+
+/* Ensure all buttons are clickable on desktop view */
+@media (min-width: 769px) {
+    .subject-tab,
+    .filter-btn,
+    .palette-item,
+    .option,
+    .nav-menu a,
+    .btn,
+    .action-btn {
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .subject-tab:hover,
+    .filter-btn:hover,
+    .palette-item:hover,
+    .option:hover {
+        transform: translateY(-2px);
+    }
+    
+    /* Fix for any elements with transform that might block clicks */
+    .subject-tab:active,
+    .filter-btn:active,
+    .palette-item:active {
+        transform: scale(0.98);
+    }
+}
+        /* Sticky Header */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
 
         body {
-            background: #f0f2f5;
-            font-family: 'Segoe UI', 'Inter', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
-            padding: 0;
+            padding-top: 80px;
             margin: 0;
-            overflow-x: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fa;
         }
 
-        /* Top bar – only timer and calculator */
-        .exam-top-bar {
-            position: sticky;
-            top: 0;
-            background: #ffffff;
-            padding: 12px 20px;
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-            z-index: 100;
-            backdrop-filter: blur(10px);
-            background: rgba(255,255,255,0.96);
         }
 
-        .exam-title {
-            font-weight: 600;
-            font-size: 1rem;
-            color: #1e293b;
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
         }
 
-        .exam-controls {
+        .nav-menu {
             display: flex;
-            gap: 12px;
+            list-style: none;
+            gap: 2rem;
             align-items: center;
+            margin: 0;
+            padding: 0;
         }
 
-        .icon-btn {
-            background: #f1f5f9;
-            border: none;
-            width: 40px;
-            height: 40px;
-            border-radius: 40px;
-            font-size: 1.2rem;
-            cursor: pointer;
-            transition: all 0.2s;
+        .nav-menu a {
+            color: white;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            transition: background 0.3s;
+        }
+
+        .nav-menu a:hover,
+        .nav-menu a.active {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .exam-container {
+            max-width: 900px;
+            margin: 100px auto 50px;
+            padding: 0 20px;
+        }
+
+        .exam-info {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            justify-content: center;
-            color: #1e293b;
-        }
-
-        .icon-btn:hover {
-            background: #e2e8f0;
-            transform: scale(0.96);
+            flex-wrap: wrap;
+            gap: 15px;
         }
 
         .timer {
-            background: #1e293b;
-            color: white;
-            padding: 8px 18px;
-            border-radius: 60px;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 1.3rem;
-            font-weight: 600;
-            letter-spacing: 2px;
+            font-size: 2rem;
+            font-weight: bold;
+            color: #e74c3c;
+            background: #fde8e7;
+            padding: 10px 20px;
+            border-radius: 50px;
+            display: inline-block;
+            font-family: monospace;
         }
 
         .timer.warning {
-            background: #f59e0b;
-            color: #1e293b;
+            color: #f39c12;
+            background: #fef5e7;
         }
 
         .timer.danger {
-            background: #ef4444;
+            color: #c0392b;
+            background: #f9e6e4;
             animation: pulse 1s infinite;
         }
 
         @keyframes pulse {
-            0% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.02); opacity: 0.9; }
-            100% { transform: scale(1); opacity: 1; }
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
         }
 
-        /* Main content */
-        .exam-container {
-            max-width: 1000px;
-            margin: 20px auto;
-            padding: 0 16px 80px;
+        .calculator-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
-        /* Subject chips */
-        .subject-chips {
+        .calculator-btn:hover {
+            background: #5a6fd8;
+            transform: translateY(-2px);
+        }
+
+        .subjects-badge {
             display: flex;
             gap: 10px;
-            overflow-x: auto;
-            padding: 8px 0 12px;
-            margin-bottom: 16px;
-            scrollbar-width: thin;
+            flex-wrap: wrap;
         }
 
-        .subject-chip {
+        .subject-tag {
+            background: #f0f3ff;
+            color: #667eea;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        /* Subject Tabs */
+        .subject-tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
             background: white;
-            padding: 8px 20px;
-            border-radius: 40px;
-            font-weight: 500;
-            font-size: 0.85rem;
-            white-space: nowrap;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            cursor: pointer;
-            transition: all 0.2s;
-            border: 1px solid #e2e8f0;
-        }
-
-        .subject-chip.active {
-            background: #1a73e8;
-            color: white;
-            border-color: #1a73e8;
-            box-shadow: 0 4px 8px rgba(26,115,232,0.2);
-        }
-
-        /* Progress bar */
-        .progress-section {
-            margin-bottom: 24px;
-        }
-        .progress-label {
-            font-size: 0.75rem;
-            color: #475569;
-            margin-bottom: 6px;
-        }
-        .progress-bar {
-            height: 8px;
-            background: #e2e8f0;
+            padding: 15px;
             border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .subject-tab {
+            padding: 12px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            background: #f0f0f0;
+            color: #666;
+            flex: 1;
+            text-align: center;
+            min-width: 120px;
+            border: none;
+            font-size: 1rem;
+        }
+
+        .subject-tab:hover {
+            background: #e0e0e0;
+        }
+
+        .subject-tab.active {
+            background: #667eea;
+            color: white;
+            box-shadow: 0 4px 10px rgba(102, 126, 234, 0.3);
+        }
+
+        .subject-tab .count-badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            padding: 2px 8px;
+            border-radius: 20px;
+            margin-left: 8px;
+            font-size: 0.8rem;
+        }
+
+        .subject-tab.active .count-badge {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background: #e0e0e0;
+            border-radius: 5px;
+            margin: 20px 0;
             overflow: hidden;
         }
+
         .progress-fill {
             height: 100%;
-            background: #1a73e8;
-            width: 0%;
-            border-radius: 10px;
-            transition: width 0.2s;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.3s ease;
         }
 
-        /* Question card */
-        .question-card {
+        .question-container {
             background: white;
-            border-radius: 24px;
-            padding: 24px 20px;
-            margin-bottom: 24px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
-            border: 1px solid #eef2f6;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
         }
 
         .question-number {
-            font-size: 0.8rem;
-            color: #1a73e8;
+            color: #666;
+            font-size: 1.1rem;
+            margin-bottom: 10px;
+        }
+
+        .question-subject {
+            display: inline-block;
+            background: #e8f0fe;
+            color: #4a6fa5;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin-bottom: 20px;
             font-weight: 600;
-            margin-bottom: 12px;
         }
 
         .question-text {
-            font-size: 1.2rem;
-            line-height: 1.5;
-            color: #0f172a;
-            margin-bottom: 28px;
-            font-weight: 500;
+            font-size: 1.3rem;
+            color: #333;
+            margin-bottom: 30px;
+            line-height: 1.6;
         }
 
-        .options-list {
+        .options {
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 15px;
         }
 
         .option {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 16px;
-            padding: 14px 18px;
             display: flex;
             align-items: center;
-            gap: 14px;
+            padding: 15px 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.3s ease;
         }
 
         .option:hover {
-            background: #f1f5f9;
-            border-color: #cbd5e1;
+            border-color: #667eea;
+            background: #f5f7ff;
         }
 
         .option.selected {
-            background: #e8f0fe;
-            border-color: #1a73e8;
+            border-color: #667eea;
+            background: #f0f3ff;
         }
 
         .option-letter {
-            width: 32px;
-            height: 32px;
-            background: white;
-            border-radius: 32px;
+            width: 35px;
+            height: 35px;
+            background: #f0f0f0;
+            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: 700;
-            color: #1e293b;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            font-weight: bold;
+            margin-right: 15px;
+            color: #666;
         }
 
         .option.selected .option-letter {
-            background: #1a73e8;
+            background: #667eea;
             color: white;
         }
 
         .option-text {
+            font-size: 1.1rem;
+            color: #333;
             flex: 1;
-            font-size: 0.95rem;
-            color: #1e293b;
         }
 
-        /* Navigation buttons */
-        .nav-buttons {
+        .navigation-buttons {
             display: flex;
-            gap: 16px;
-            margin: 24px 0 32px;
+            justify-content: space-between;
+            margin-top: 30px;
+            gap: 15px;
         }
 
         .nav-btn {
-            flex: 1;
-            padding: 14px;
-            border-radius: 60px;
-            font-weight: 600;
-            font-size: 0.9rem;
+            padding: 15px 30px;
             border: none;
+            border-radius: 10px;
+            font-size: 1.1rem;
             cursor: pointer;
-            transition: 0.2s;
+            transition: all 0.3s ease;
+            flex: 1;
         }
 
         .prev-btn {
-            background: #f1f5f9;
-            color: #334155;
+            background: #f0f0f0;
+            color: #666;
         }
 
         .prev-btn:hover:not(:disabled) {
-            background: #e2e8f0;
+            background: #e0e0e0;
         }
 
         .next-btn {
-            background: #1a73e8;
+            background: #667eea;
             color: white;
-            box-shadow: 0 2px 6px rgba(26,115,232,0.3);
         }
 
         .next-btn:hover:not(:disabled) {
-            background: #1557b0;
-            transform: translateY(-1px);
+            background: #5a6fd8;
+            transform: translateX(5px);
         }
 
         .submit-btn {
-            background: #10b981;
+            background: #27ae60;
             color: white;
         }
 
         .submit-btn:hover {
-            background: #059669;
+            background: #229954;
         }
 
         .nav-btn:disabled {
@@ -291,84 +444,106 @@
             cursor: not-allowed;
         }
 
-        /* Question palette */
-        .palette-section {
+        .question-palette {
             background: white;
-            border-radius: 20px;
-            padding: 16px;
-            margin-top: 16px;
-            border: 1px solid #eef2f6;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-top: 30px;
         }
 
-        .palette-header {
-            font-weight: 600;
-            margin-bottom: 12px;
-            color: #1e293b;
-            font-size: 0.9rem;
+        .palette-title {
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #444;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
+        .subject-filter {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 5px 10px;
+            border: 1px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.3s;
+        }
+
+        .filter-btn.active {
+            background: #667eea;
+            color: white;
+        }
+
         .palette-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
             gap: 10px;
         }
 
         .palette-item {
-            background: #f1f5f9;
-            border-radius: 12px;
-            height: 48px;
+            height: 50px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: 600;
-            font-size: 0.8rem;
+            border-radius: 8px;
             cursor: pointer;
-            transition: 0.1s;
-            color: #334155;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            position: relative;
+            font-size: 0.9rem;
+        }
+
+        .palette-item.unanswered {
+            background: #f0f0f0;
+            color: #666;
         }
 
         .palette-item.answered {
-            background: #10b981;
+            background: #27ae60;
             color: white;
         }
 
         .palette-item.current {
-            background: #1a73e8;
+            border: 3px solid #667eea;
+            transform: scale(1.05);
+        }
+
+        .palette-item[data-subject]:hover::after {
+            content: attr(data-subject);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
             color: white;
-            box-shadow: 0 0 0 2px white, 0 0 0 4px #1a73e8;
-            transform: scale(1.02);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            white-space: nowrap;
+            margin-bottom: 5px;
+            z-index: 10;
         }
 
-        .palette-item.unanswered {
-            background: #f1f5f9;
-            color: #64748b;
+        .warning-message {
+            background: #fef5e7;
+            color: #f39c12;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: 600;
         }
 
-        /* Skeleton loader */
-        .skeleton {
-            background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
-            background-size: 200% 100%;
-            animation: shimmer 1.2s infinite;
-            border-radius: 12px;
-        }
-        @keyframes shimmer {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
-        }
-        .skeleton-text {
-            height: 20px;
-            margin: 12px 0;
-        }
-        .skeleton-option {
-            height: 60px;
-            margin: 12px 0;
-            border-radius: 16px;
-        }
-
-        /* Calculator Modal (same as before, slightly refined) */
+        /* Calculator Modal */
         .calculator-modal {
             display: none;
             position: fixed;
@@ -377,179 +552,372 @@
             top: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0,0,0,0.4);
-            backdrop-filter: blur(4px);
+            background-color: rgba(0,0,0,0.5);
+            animation: fadeIn 0.2s ease;
         }
 
         .calculator-modal-content {
-            background: white;
-            border-radius: 28px;
-            width: 90%;
-            max-width: 340px;
-            box-shadow: 0 20px 35px rgba(0,0,0,0.2);
-            cursor: grab;
             position: absolute;
+            background: white;
+            padding: 15px;
+            border-radius: 20px;
+            width: 320px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            cursor: grab;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
             touch-action: none;
+            user-select: none;
+            max-width: 90vw;
         }
-        .calc-display {
-            background: #f8fafc;
-            padding: 16px;
-            border-radius: 20px;
-            margin-bottom: 12px;
-            text-align: right;
+
+        .calculator-modal-content:active {
+            cursor: grabbing;
         }
-        .calc-expression {
+
+        .calculator-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 10px;
+            border-bottom: 2px solid #f0f0f0;
+            cursor: grab;
+            background: #f8f9fa;
+            border-radius: 12px 12px 0 0;
+        }
+
+        .calculator-modal-header:active {
+            cursor: grabbing;
+        }
+
+        .calculator-modal-header h3 {
+            margin: 0;
+            font-size: 1.2rem;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .drag-indicator {
+            color: #999;
             font-size: 0.8rem;
-            color: #64748b;
+            margin-left: 8px;
         }
-        .calc-result {
+
+        .close-btn {
+            background: #ff4757;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            color: white;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            z-index: 2001;
+            box-shadow: 0 2px 5px rgba(255,71,87,0.3);
+        }
+
+        .close-btn:hover {
+            background: #ff6b81;
+            transform: scale(1.1);
+        }
+
+        .close-btn:active {
+            transform: scale(0.95);
+        }
+
+        .exam-calculator .calc-display {
+            background: #f5f7fa;
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            text-align: right;
+            min-height: 70px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .exam-calculator .calc-expression {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 5px;
+            min-height: 20px;
+        }
+
+        .exam-calculator .calc-result {
             font-size: 2rem;
-            font-weight: 600;
+            font-weight: bold;
+            color: #333;
             font-family: monospace;
+            word-wrap: break-word;
         }
+
         .calc-grid {
             display: grid;
-            grid-template-columns: repeat(4,1fr);
+            grid-template-columns: repeat(4, 1fr);
             gap: 8px;
             margin: 12px 0;
         }
+
         .calc-btn {
-            background: #f1f5f9;
-            border: none;
-            padding: 14px;
-            border-radius: 40px;
-            font-weight: 600;
+            padding: 15px 8px;
             font-size: 1.1rem;
+            border: none;
+            border-radius: 12px;
             cursor: pointer;
-        }
-        .calc-btn.operator { background: #e2e8f0; color: #1a73e8; }
-        .calc-btn.equals { background: #1a73e8; color: white; }
-        .calc-btn.clear { background: #fee2e2; color: #dc2626; }
-
-        /* Fullscreen mode adjustments */
-        .fullscreen-mode {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: #f0f2f5;
-            overflow-y: auto;
-            z-index: 9999;
-        }
-        .fullscreen-mode .exam-top-bar {
-            position: sticky;
-            top: 0;
+            transition: all 0.2s;
+            font-weight: 600;
+            min-width: 0;
+            touch-action: manipulation;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
 
-        /* Mobile adjustments */
-        @media (max-width: 640px) {
+        .calc-btn.number {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .calc-btn.number:hover {
+            background: #667eea;
+            color: white;
+            transform: scale(0.95);
+        }
+
+        .calc-btn.operator {
+            background: #667eea;
+            color: white;
+        }
+
+        .calc-btn.operator:hover {
+            background: #5a6fd8;
+            transform: scale(0.95);
+        }
+
+        .calc-btn.equals {
+            background: #27ae60;
+            color: white;
+            grid-column: span 2;
+        }
+
+        .calc-btn.clear {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .calc-btn:active {
+            transform: scale(0.92);
+            opacity: 0.8;
+        }
+
+        /* Mobile Styles */
+        @media (max-width: 768px) {
+            .header {
+                position: relative;
+            }
+            
+            body {
+                padding-top: 0;
+            }
+            
+            .nav-container {
+                flex-direction: column;
+                padding: 1rem;
+            }
+
+            .nav-menu {
+                flex-direction: column;
+                width: 100%;
+                gap: 0.5rem;
+                margin-top: 1rem;
+            }
+            
+            .nav-menu li {
+                width: 100%;
+                text-align: center;
+            }
+            
+            .nav-menu a {
+                display: block;
+                padding: 0.5rem;
+            }
+            
             .exam-container {
-                padding: 0 12px 80px;
+                margin-top: 20px;
             }
-            .question-text {
-                font-size: 1rem;
+            
+            .exam-info {
+                flex-direction: column;
+                align-items: flex-start;
             }
-            .option {
-                padding: 12px 14px;
+            
+            .timer {
+                font-size: 1.5rem;
             }
+            
+            .navigation-buttons {
+                flex-direction: column;
+            }
+
+            .subject-tabs {
+                flex-direction: column;
+            }
+
+            .subject-tab {
+                width: 100%;
+            }
+
+            .subject-filter {
+                justify-content: center;
+            }
+
             .palette-grid {
-                grid-template-columns: repeat(auto-fill, minmax(42px,1fr));
-                gap: 8px;
+                grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
             }
+
+            .calculator-modal-content {
+                width: 280px;
+                padding: 12px;
+            }
+
+            .calc-btn {
+                padding: 12px 5px;
+                font-size: 0.95rem;
+            }
+
+            .exam-calculator .calc-result {
+                font-size: 1.5rem;
+            }
+        }
+
+        /* Small phones */
+        @media (max-width: 380px) {
+            .calculator-modal-content {
+                width: 250px;
+                padding: 10px;
+            }
+
+            .calc-btn {
+                padding: 10px 4px;
+                font-size: 0.85rem;
+            }
+
+            .exam-calculator .calc-result {
+                font-size: 1.2rem;
+            }
+
+            .palette-grid {
+                grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+            }
+
             .palette-item {
-                height: 42px;
-                font-size: 0.7rem;
+                height: 40px;
+                font-size: 0.8rem;
             }
+        }
+
+        /* Landscape mode */
+         @media (max-width: 900px) and (orientation: landscape) {
+            .calculator-modal-content {
+                width: 400px;
+                max-width: 80vw;
+            }
+
+            .calc-grid {
+                grid-template-columns: repeat(6, 1fr);
+            }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
     </style>
 </head>
 <body>
-    <!-- Minimal top bar -->
-    <div class="exam-top-bar">
-        <div class="exam-title">📝 JAMB CBT</div>
-        <div class="exam-controls">
-            <button id="fullscreenBtn" class="icon-btn">⛶</button>
-            <button id="calculatorToggle" class="icon-btn" onclick="toggleCalculator(event)">🧮</button>
-            <div class="timer" id="timer">02:00:00</div>
-        </div>
-    </div>
+    <header class="header">
+        <nav class="nav-container">
+            <div class="logo">JAMB Simulator 2026</div>
+            <div class="user-info" id="userInfo"></div>
+            <ul class="nav-menu">
+                <li><a href="/home.html">Cancel Exam</a></li>
+            </ul>
+        </nav>
+    </header>
 
-    <div class="exam-container">
-        <!-- Subject chips (horizontal scroll) -->
-        <div class="subject-chips" id="subjectTabs"></div>
-
-        <!-- Progress -->
-        <div class="progress-section">
-            <div class="progress-label">Overall Progress</div>
-            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-        </div>
-
-        <!-- Skeleton loader -->
-        <div id="skeletonLoader">
-            <div class="skeleton skeleton-text" style="width: 120px;"></div>
-            <div class="skeleton skeleton-text" style="width: 100%; height: 60px;"></div>
-            <div class="skeleton skeleton-option"></div>
-            <div class="skeleton skeleton-option"></div>
-            <div class="skeleton skeleton-option"></div>
-            <div class="skeleton skeleton-option"></div>
+<div class="exam-container">
+        <div class="exam-info">
+            <div>
+                <h2 id="examTitle">JAMB UTME 2026 Mock Exam</h2>
+                <div class="subjects-badge" id="subjectsBadge"></div>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <button id="calculatorToggle" class="calculator-btn" onclick="toggleCalculator(event)">
+                    <span>🧮</span>
+                    <span class="btn-text">Calculator</span>
+                </button>
+                <div class="timer" id="timer">02:00:00</div>
+            </div>
         </div>
 
-        <!-- Question area (hidden until loaded) -->
-        <div id="questionContainer" style="display:none;"></div>
+        <div class="warning-message" id="scoringWarning">
+            ⚡ English: 60 questions × 1.67 marks | Other subjects: 40 questions × 2.5 marks
+        </div>
 
-        <!-- Navigation buttons -->
-        <div class="nav-buttons">
+        <!-- Subject Tabs -->
+        <div class="subject-tabs" id="subjectTabs"></div>
+
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+        </div>
+
+        <div class="question-container" id="questionContainer">
+            <div style="text-align: center; padding: 50px;">Loading 180 questions...</div>
+        </div>
+
+        <div class="navigation-buttons">
             <button class="nav-btn prev-btn" id="prevBtn" disabled>← Previous</button>
             <button class="nav-btn next-btn" id="nextBtn">Next →</button>
-            <button class="nav-btn submit-btn" id="submitBtn" style="display:none;">Submit Exam</button>
+            <button class="nav-btn submit-btn" id="submitBtn" style="display: none;">Submit Exam</button>
         </div>
 
-        <!-- Question palette -->
-        <div class="palette-section">
-            <div class="palette-header">
-                <span>📌 Question Palette</span>
-                <span id="subjectFilter"></span>
+        <div class="question-palette">
+            <div class="palette-title">
+                Question Palette
+                <div class="subject-filter" id="subjectFilter"></div>
             </div>
             <div class="palette-grid" id="paletteGrid"></div>
         </div>
     </div>
 
-    <!-- Calculator Modal (draggable) -->
-    <div id="calculatorModal" class="calculator-modal" onclick="handleModalClick(event)">
+    <!-- Calculator Modal -->
+    <div id="calculatorModal" class="calculator-modal" style="display: none;" onclick="handleModalClick(event)">
         <div class="calculator-modal-content" id="calculatorContent" onclick="event.stopPropagation()">
-            <div class="calculator-modal-header" id="calculatorHeader" style="cursor:grab; padding:12px; background:#f8fafc; border-radius:28px 28px 0 0; display:flex; justify-content:space-between;">
-                <strong>🧮 Calculator</strong>
-                <button class="close-btn" onclick="toggleCalculator(event)" style="background:none; border:none; font-size:1.2rem;">✕</button>
+            <div class="calculator-modal-header" id="calculatorHeader">
+                <h3>
+                    <span>🧮</span> Calculator
+                    <span class="drag-indicator">↗️</span>
+                </h3>
+                <button class="close-btn" onclick="toggleCalculator(event)">✕</button>
             </div>
-            <div id="examCalculator" style="padding:12px;"></div>
+            <div id="examCalculator" class="exam-calculator"></div>
         </div>
     </div>
 
     <script src="js/exam.js"></script>
-    <script src="js/pwa.js"></script>
+    
+    <!-- Added beforeunload warning -->
     <script>
-        // Fullscreen toggle
-        const fullBtn = document.getElementById('fullscreenBtn');
-        fullBtn.addEventListener('click', () => {
-            if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen();
-                document.body.classList.add('fullscreen-mode');
-                fullBtn.textContent = '✕';
-            } else {
-                document.exitFullscreen();
-                document.body.classList.remove('fullscreen-mode');
-                fullBtn.textContent = '⛶';
-            }
-        });
-        // Warn before leaving
-        window.addEventListener('beforeunload', (e) => {
+        window.addEventListener('beforeunload', function (e) {
+            // Only show warning if exam is in progress (not submitted and timer not expired)
             if (typeof examState !== 'undefined' && examState.timeRemaining > 0 && examState.timeRemaining < 7200) {
                 e.preventDefault();
-                e.returnValue = 'Exam in progress. Leave? Progress lost.';
+                e.returnValue = 'You are still in the middle of an exam. Are you sure you want to leave? Your progress will be lost.';
                 return e.returnValue;
             }
         });
