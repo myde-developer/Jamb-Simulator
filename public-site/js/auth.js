@@ -35,13 +35,13 @@ function toggleAuthMode(e) {
     isLogin = !isLogin;
     
     document.getElementById('formTitle').textContent = isLogin ? 'Login' : 'Create Account';
-    document.getElementById('formSubtitle').textContent = isLogin ? 
-        'Welcome back! Login to continue' : 
-        'Sign up to see your exam results!';
+    document.getElementById('formSubtitle').textContent = isLogin 
+        ? 'Welcome back! Login to continue' 
+        : 'Sign up to see your exam results!';
     document.getElementById('submitBtn').textContent = isLogin ? 'Login' : 'Register';
-    document.getElementById('toggleText').innerHTML = isLogin ?
-        'Don\'t have an account? <a href="#" id="toggleAuth">Register here</a>' :
-        'Already have an account? <a href="#" id="toggleAuth">Login here</a>';
+    document.getElementById('toggleText').innerHTML = isLogin
+        ? 'Don\'t have an account? <a href="#" id="toggleAuth">Register here</a>'
+        : 'Already have an account? <a href="#" id="toggleAuth">Login here</a>';
     
     document.getElementById('nameGroup').style.display = isLogin ? 'none' : 'block';
     document.getElementById('toggleAuth').addEventListener('click', toggleAuthMode);
@@ -94,21 +94,22 @@ async function handleAuth(e) {
         
         showSuccess(data.message);
         
-        // ✅ Check for pending exam results
-        const urlParams = new URLSearchParams(window.location.search);
+        // ✅ Check if we need to redirect to results (from pending exam)
+        const redirectToResults = sessionStorage.getItem('redirectAfterAuth') === 'results';
         const pendingExam = sessionStorage.getItem('pendingExamResults');
         
-        if (urlParams.get('pending') === 'results' && pendingExam) {
-            // Move from sessionStorage to localStorage and go to results
+        if (redirectToResults && pendingExam) {
+            // Move results to localStorage and clean up
             localStorage.setItem('lastExamResults', pendingExam);
             sessionStorage.removeItem('pendingExamResults');
+            sessionStorage.removeItem('redirectAfterAuth');
             setTimeout(() => {
                 window.location.href = '/results.html';
             }, 1500);
             return;
         }
         
-        // ✅ Normal redirect after login/registration (no pending results)
+        // Normal redirect (no pending results)
         setTimeout(() => {
             if (data.user.is_admin) {
                 window.location.href = '/admin.html';
