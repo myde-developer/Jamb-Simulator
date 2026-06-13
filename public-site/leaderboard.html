@@ -14,7 +14,7 @@
     
     <style>
         * {
-            margin: 0;
+            scriptmargin: 0;
             padding: 0;
             box-sizing: border-box;
         }
@@ -350,13 +350,6 @@
             }
         }
     </style>
-    
-    <script>
-        (function() {
-            const token = localStorage.getItem('token');
-            if (!token) window.location.replace('/auth.html');
-        })();
-    </script>
 </head>
 <body>
     <header class="header">
