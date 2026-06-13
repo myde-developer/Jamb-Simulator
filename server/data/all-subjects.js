@@ -103,14 +103,14 @@ const allSubjects = {
             'Acids & Bases': 3,
             'Salts': 2,
             'Oxidation & Reduction': 3,
-            'Electrolysis': 3,
+            'Electrolysis': 4,
             'Organic Chemistry': 4,
             'Separation of Mixtures': 2,
             'Environmental Pollution': 2,
             'Chemical Kinetics': 2,
             'Thermochemistry': 2,
             'Nuclear Chemistry': 1,
-            'Qualitative Analysis': 2,
+            'Qualitative Analysis': 3,
             'Stoichiometry': 2
         },
         topics: [
