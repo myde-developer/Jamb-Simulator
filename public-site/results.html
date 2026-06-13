@@ -32,6 +32,7 @@
         .subject-breakdown { background: white; border: 1px solid #e1e5eb; border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; }
         .subject-breakdown h2 { font-size: 1rem; font-weight: 600; margin-bottom: 1rem; }
         .subject-row { display: flex; align-items: center; padding: 0.75rem 0; border-bottom: 1px solid #e1e5eb; }
+        .share-btn { background: #f1c40f; color: #1a1a2e; }
         .subject-name { width: 140px; font-weight: 500; font-size: 0.875rem; }
         .subject-score-bar { flex: 1; height: 6px; background: #e1e5eb; border-radius: 3px; margin: 0 1rem; overflow: hidden; }
         .subject-score-fill { height: 100%; background: #1a1a2e; border-radius: 3px; }
@@ -62,7 +63,6 @@
             .action-buttons { flex-direction: column; }
         }
     </style>
-    <script>(function() { const token = localStorage.getItem('token'); if (!token) window.location.replace('/auth.html'); })();</script>
 </head>
 <body>
     <header class="header">
@@ -82,11 +82,13 @@
         <div class="results-header" id="resultsHeader"></div>
         <div class="summary-cards" id="summaryCards"></div>
         <div class="subject-breakdown" id="subjectBreakdown"></div>
-        <div class="action-buttons">
-            <button class="action-btn review-btn" onclick="toggleReview()">Review Answers</button>
-            <button class="action-btn home-btn" onclick="goHome()">Back to Home</button>
-            <button class="action-btn pdf-btn" onclick="exportAsPDF()">📄 Download PDF</button>
-        </div>
+<div class="action-buttons">
+    <button class="action-btn review-btn" onclick="toggleReview()">Review Answers</button>
+    <button class="action-btn home-btn" onclick="goHome()">Back to Home</button>
+    <button class="action-btn pdf-btn" onclick="exportAsPDF()">📄 Download PDF</button>
+    <button class="action-btn share-btn" id="shareScoreBtn">📸 Share Score Card</button>
+</div>
+ </div>
         <div class="review-container" id="reviewSection">
             <h2 style="font-size: 1rem; margin-bottom: 1rem;">Review Your Answers</h2>
             <div class="review-filters">

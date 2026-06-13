@@ -11,7 +11,6 @@ document.addEventListener('DOMContentLoaded', () => {
         redirectBasedOnRole();
         return;
     }
-    
     setupEventListeners();
     createDefaultAdmin();
 });
@@ -33,7 +32,6 @@ function setupEventListeners() {
 function toggleAuthMode(e) {
     e.preventDefault();
     isLogin = !isLogin;
-    
     document.getElementById('formTitle').textContent = isLogin ? 'Login' : 'Create Account';
     document.getElementById('formSubtitle').textContent = isLogin 
         ? 'Welcome back! Login to continue' 
@@ -42,7 +40,6 @@ function toggleAuthMode(e) {
     document.getElementById('toggleText').innerHTML = isLogin
         ? 'Don\'t have an account? <a href="#" id="toggleAuth">Register here</a>'
         : 'Already have an account? <a href="#" id="toggleAuth">Login here</a>';
-    
     document.getElementById('nameGroup').style.display = isLogin ? 'none' : 'block';
     document.getElementById('toggleAuth').addEventListener('click', toggleAuthMode);
 }
@@ -58,7 +55,6 @@ async function handleAuth(e) {
         showError('Please fill all fields');
         return;
     }
-    
     if (!isLogin && !fullName) {
         showError('Full name is required');
         return;
@@ -67,7 +63,6 @@ async function handleAuth(e) {
     const url = isLogin 
         ? `${API_BASE}/api/auth/login`
         : `${API_BASE}/api/auth/register`;
-    
     const body = isLogin 
         ? { email, password }
         : { email, password, fullName };
@@ -78,28 +73,21 @@ async function handleAuth(e) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
         });
-        
         const data = await response.json();
-        
-        if (!response.ok) {
-            throw new Error(data.error || 'Authentication failed');
-        }
+        if (!response.ok) throw new Error(data.error || 'Authentication failed');
         
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
-        
-        if (data.user.is_admin) {
-            localStorage.setItem('is_admin', 'true');
-        }
+        if (data.user.is_admin) localStorage.setItem('is_admin', 'true');
         
         showSuccess(data.message);
         
-        // ✅ Check if we need to redirect to results (from pending exam)
+        // Check for pending exam results
         const redirectToResults = sessionStorage.getItem('redirectAfterAuth') === 'results';
         const pendingExam = sessionStorage.getItem('pendingExamResults');
         
-        if (redirectToResults && pendingExam) {
-            // Move results to localStorage and clean up
+        // For login: if pending results exist, go to results
+        if (isLogin && redirectToResults && pendingExam) {
             localStorage.setItem('lastExamResults', pendingExam);
             sessionStorage.removeItem('pendingExamResults');
             sessionStorage.removeItem('redirectAfterAuth');
@@ -109,7 +97,15 @@ async function handleAuth(e) {
             return;
         }
         
-        // Normal redirect (no pending results)
+        // For registration: redirect to login page (pending data stays)
+        if (!isLogin) {
+            setTimeout(() => {
+                window.location.href = '/auth.html';
+            }, 1500);
+            return;
+        }
+        
+        // Normal login without pending results
         setTimeout(() => {
             if (data.user.is_admin) {
                 window.location.href = '/admin.html';
@@ -128,8 +124,6 @@ async function createDefaultAdmin() {
     try {
         const response = await fetch(`${API_BASE}/api/auth/check-admin`);
         const data = await response.json();
-        console.log('Admin check:', data);
-        
         if (!data.hasAdmin) {
             await fetch(`${API_BASE}/api/auth/create-default-admin`, {
                 method: 'POST',

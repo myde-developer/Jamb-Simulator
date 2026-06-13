@@ -570,19 +570,27 @@ function submitExam() {
     if (examState.timerInterval) clearInterval(examState.timerInterval);
     
     const results = calculateJAMBScores();
-    
-    // ✅ Store in sessionStorage (cleared when browser closes)
-    sessionStorage.setItem('pendingExamResults', JSON.stringify({
+    const examData = {
         subjectQuestions: examState.subjectQuestions,
         answers: examState.answers,
         scores: results,
         subjects: examState.subjects,
         date: new Date().toISOString(),
         examId: examState.examId
-    }));
+    };
     
-    // ✅ Redirect to registration page with pending flag
-    window.location.href = '/auth.html?pending=results';
+    // If user is already logged in, go directly to results
+    const token = localStorage.getItem('token');
+    if (token) {
+        localStorage.setItem('lastExamResults', JSON.stringify(examData));
+        window.location.href = '/results.html';
+        return;
+    }
+    
+    // Not logged in – store pending data and flag
+    sessionStorage.setItem('pendingExamResults', JSON.stringify(examData));
+    sessionStorage.setItem('redirectAfterAuth', 'results');
+    window.location.href = '/auth.html';
 }
 
 function calculateJAMBScores() {
