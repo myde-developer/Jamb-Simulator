@@ -76,48 +76,45 @@ async function handleAuth(e) {
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Authentication failed');
         
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-        if (data.user.is_admin) localStorage.setItem('is_admin', 'true');
-        
-        showSuccess(data.message);
-        
-        // Log for debugging
-        console.log('Auth success. isLogin:', isLogin);
-        console.log('redirectAfterAuth flag:', sessionStorage.getItem('redirectAfterAuth'));
-        console.log('pendingExamResults exists?', !!sessionStorage.getItem('pendingExamResults'));
-        
-        const redirectToResults = sessionStorage.getItem('redirectAfterAuth') === 'results';
-        const pendingExam = sessionStorage.getItem('pendingExamResults');
-        
-        // For login: if pending results, move and go to results
-        if (isLogin && redirectToResults && pendingExam) {
-            localStorage.setItem('lastExamResults', pendingExam);
-            sessionStorage.removeItem('pendingExamResults');
-            sessionStorage.removeItem('redirectAfterAuth');
-            console.log('Redirecting to results.html');
-            setTimeout(() => {
-                window.location.replace('/results.html'); // Use replace to avoid back button issues
-            }, 1500);
-            return;
-        }
-        
-        // For registration: redirect to login page (pending data stays)
-        if (!isLogin) {
-            console.log('Registration complete. Redirecting to login page.');
-            setTimeout(() => {
-                window.location.replace('/auth.html'); // Go to login form
-            }, 1500);
-            return;
-        }
-        
-        // Normal login without pending results
-        setTimeout(() => {
-            if (data.user.is_admin) {
-                window.location.replace('/admin.html');
-            } else {
-                window.location.replace('/home.html');
+        // For login: store token and handle pending results
+        if (isLogin) {
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('user', JSON.stringify(data.user));
+            if (data.user.is_admin) localStorage.setItem('is_admin', 'true');
+            showSuccess(data.message);
+            
+            const redirectToResults = sessionStorage.getItem('redirectAfterAuth') === 'results';
+            const pendingExam = sessionStorage.getItem('pendingExamResults');
+            
+            if (redirectToResults && pendingExam) {
+                localStorage.setItem('lastExamResults', pendingExam);
+                sessionStorage.removeItem('pendingExamResults');
+                sessionStorage.removeItem('redirectAfterAuth');
+                setTimeout(() => {
+                    window.location.replace('/results.html');
+                }, 1500);
+                return;
             }
+            
+            // Normal login
+            setTimeout(() => {
+                if (data.user.is_admin) {
+                    window.location.replace('/admin.html');
+                } else {
+                    window.location.replace('/home.html');
+                }
+            }, 1500);
+            return;
+        }
+        
+        // For registration: do NOT store token – clear any existing token
+        // This prevents the login page from auto‑redirecting to home
+        showSuccess(data.message);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('is_admin');
+        setTimeout(() => {
+            window.location.replace('/auth.html'); // go to login page
         }, 1500);
         
     } catch (error) {
