@@ -822,7 +822,7 @@ main, .container, .practice-container, .flashcards-container, .results-container
         }
 
         /* Landscape mode */
-        @media (max-width: 900px) and (orientation: landscape) {
+         @media (max-width: 900px) and (orientation: landscape) {
             .calculator-modal-content {
                 width: 400px;
                 max-width: 80vw;
@@ -842,7 +842,7 @@ main, .container, .practice-container, .flashcards-container, .results-container
 <body>
     <header class="header">
         <nav class="nav-container">
-            <div class="logo">📚 JAMB Simulator 2026</div>
+            <div class="logo">JAMB Simulator 2026</div>
             <div class="user-info" id="userInfo"></div>
             <ul class="nav-menu">
                 <li><a href="/home.html">Cancel Exam</a></li>
@@ -910,5 +910,17 @@ main, .container, .practice-container, .flashcards-container, .results-container
     </div>
 
     <script src="js/exam.js"></script>
+    
+    <!-- Added beforeunload warning -->
+    <script>
+        window.addEventListener('beforeunload', function (e) {
+            // Only show warning if exam is in progress (not submitted and timer not expired)
+            if (typeof examState !== 'undefined' && examState.timeRemaining > 0 && examState.timeRemaining < 7200) {
+                e.preventDefault();
+                e.returnValue = 'You are still in the middle of an exam. Are you sure you want to leave? Your progress will be lost.';
+                return e.returnValue;
+            }
+        });
+    </script>
 </body>
 </html>

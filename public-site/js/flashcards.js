@@ -1,6 +1,8 @@
 const API_BASE = 'https://jamb-simulator-api.onrender.com';
 let flashcardState = { deck: null, currentIndex: 0, cards: [], results: { easy:0, medium:0, hard:0 }, spacedRepetition: {1:1,2:3,3:7,4:14,5:30} };
-document.addEventListener('DOMContentLoaded', () => { loadDecks(); loadStats(); loadSubjects(); document.getElementById('logoutBtn')?.addEventListener('click', () => { localStorage.clear(); window.location.href='/auth.html'; }); });
+
+document.addEventListener('DOMContentLoaded', () => {
+ loadDecks(); loadStats(); loadSubjects(); });
 async function loadSubjects() {
     try {
         const res = await fetch(`${API_BASE}/api/practice/subjects`);   // changed from /api/ai-questions/subjects

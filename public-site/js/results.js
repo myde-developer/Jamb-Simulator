@@ -8,21 +8,10 @@ let examResults = null;
 document.addEventListener('DOMContentLoaded', () => {
     loadResults();
     
-    const logoutBtn = document.getElementById('logoutBtn');
-    if (logoutBtn) logoutBtn.addEventListener('click', logout);
-    
     // Add share button listener if present
     const shareBtn = document.getElementById('shareScoreBtn');
     if (shareBtn) shareBtn.addEventListener('click', generateShareableCard);
 });
-
-function logout(e) {
-    if (e) e.preventDefault();
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    localStorage.removeItem('is_admin');
-    window.location.href = '/auth.html';
-}
 
 function loadResults() {
     // First try to get from localStorage

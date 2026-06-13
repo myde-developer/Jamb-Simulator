@@ -88,10 +88,6 @@ function updateSelectionDisplay() {
 
 function setupEventListeners() {
     document.getElementById('startExamBtn')?.addEventListener('click', startExam);
-    document.getElementById('logoutBtn')?.addEventListener('click', () => {
-        localStorage.clear();
-        window.location.href = '/auth.html';
-    });
 }
 
 function startExam() {
