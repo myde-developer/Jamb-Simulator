@@ -4,19 +4,16 @@ function updateAuthButtons() {
     const loginBtn = document.getElementById('loginBtn');
     const logoutBtn = document.getElementById('logoutBtn');
     const pastResultsBtn = document.getElementById('pastResultsBtn');
-    const navPastResults = document.getElementById('navPastResults'); // optional, for navigation menu
     
     if (loginBtn && logoutBtn) {
         if (token) {
             loginBtn.style.display = 'none';
             logoutBtn.style.display = 'inline-block';
             if (pastResultsBtn) pastResultsBtn.style.display = 'inline-block';
-            if (navPastResults) navPastResults.style.display = 'inline-block';
         } else {
             loginBtn.style.display = 'inline-block';
             logoutBtn.style.display = 'none';
             if (pastResultsBtn) pastResultsBtn.style.display = 'none';
-            if (navPastResults) navPastResults.style.display = 'none';
         }
     }
 }
