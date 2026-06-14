@@ -12,7 +12,7 @@ router.get('/history', auth, async (req, res) => {
                     es.total_questions, es.percentage,
                     (SELECT array_agg(s.name) 
                      FROM subjects s 
-                     WHERE s.id = ANY(es.subjects_selected)) as subject_names
+                     WHERE s.id = ANY(es.subjects_selected::int[])) as subject_names
              FROM exam_sessions es
              WHERE es.user_id = $1
              ORDER BY es.started_at DESC`,
@@ -24,6 +24,7 @@ router.get('/history', auth, async (req, res) => {
         res.status(500).json({ error: 'Failed to fetch exam history' });
     }
 });
+
 
 // Get full details of a specific exam
 router.get('/exam/:id', auth, async (req, res) => {
