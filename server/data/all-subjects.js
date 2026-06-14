@@ -6,7 +6,7 @@ const allSubjects = {
         name: 'Use of English',
         code: 'ENG',
         category: 'compulsory',
-        totalQuestions: 6,
+        totalQuestions: 60,
         duration: 60,
         topicDistribution: {
             'The Lekki Headmaster': 10,
@@ -25,142 +25,143 @@ const allSubjects = {
         ]
     },
 
-// ===== 2. Mathematics =====
-2: {
-    id: 2,
-    name: 'Mathematics',
-    code: 'MTH',
-    category: 'science',
-    totalQuestions: 40,
-    duration: 60,
-    topicDistribution: {
-        'Number Bases': 1,
-        'Fractions, Decimals, Approximations': 1,
-        'Indices, Logarithms and Surds': 2,
-        'Sets': 1,
-        'Binary Operations': 1,
-        'Matrices and Determinants': 2,
-        'Polynomials': 3,
-        'Variation': 1,
-        'Inequalities': 2,
-        'Progression': 2,
-        'Euclidean Geometry': 2,
-        'Mensuration': 3,
-        'Trigonometry': 3,
-        'Coordinate Geometry': 2,
-        'Loci': 1,
-        'Differentiation': 2,
-        'Application of Differentiation': 2,
-        'Integration': 2,
-        'Measures of Location': 1,
-        'Measures of Dispersion': 1,
-        'Permutation and Combination': 2,
-        'Probability': 3
+    // ===== 2. Mathematics =====
+    2: {
+        id: 2,
+        name: 'Mathematics',
+        code: 'MTH',
+        category: 'science',
+        totalQuestions: 40,
+        duration: 60,
+        topicDistribution: {
+            'Number Bases': 1,
+            'Fractions, Decimals, Approximations': 1,
+            'Indices, Logarithms and Surds': 2,
+            'Sets': 1,
+            'Binary Operations': 1,
+            'Matrices and Determinants': 2,
+            'Polynomials': 3,
+            'Variation': 1,
+            'Inequalities': 2,
+            'Progression': 2,
+            'Euclidean Geometry': 2,
+            'Mensuration': 3,
+            'Trigonometry': 3,
+            'Coordinate Geometry': 2,
+            'Loci': 1,
+            'Differentiation': 2,
+            'Application of Differentiation': 2,
+            'Integration': 2,
+            'Measures of Location': 1,
+            'Measures of Dispersion': 1,
+            'Permutation and Combination': 2,
+            'Probability': 3
+        },
+        topics: [
+            'Number Bases', 'Fractions, Decimals, Approximations', 'Indices, Logarithms and Surds',
+            'Sets', 'Binary Operations', 'Matrices and Determinants', 'Polynomials', 'Variation',
+            'Inequalities', 'Progression', 'Euclidean Geometry', 'Mensuration', 'Trigonometry',
+            'Coordinate Geometry', 'Loci', 'Differentiation', 'Application of Differentiation',
+            'Integration', 'Measures of Location', 'Measures of Dispersion', 'Permutation and Combination',
+            'Probability'
+        ]
     },
-    topics: [
-        'Number Bases', 'Fractions, Decimals, Approximations', 'Indices, Logarithms and Surds',
-        'Sets', 'Binary Operations', 'Matrices and Determinants', 'Polynomials', 'Variation',
-        'Inequalities', 'Progression', 'Euclidean Geometry', 'Mensuration', 'Trigonometry',
-        'Coordinate Geometry', 'Loci', 'Differentiation', 'Application of Differentiation',
-        'Integration', 'Measures of Location', 'Measures of Dispersion', 'Permutation and Combination',
-        'Probability'
-    ]
-},
 
-// ===== 3. Physics =====
-3: {
-    id: 3,
-    name: 'Physics',
-    code: 'PHY',
-    category: 'science',
-    totalQuestions: 40,
-    duration: 60,
-    topicDistribution: {
-        'Scalars and Vectors': 1,
-        'Motion': 6,
-        'Work, Energy and Power': 5,
-        'Elasticity': 2,
-        'Friction': 4,
-        'Simple Machines': 3,
-        'Pressure': 5,
-        'Heat Energy': 4,
-        'Waves': 4,
-        'Light': 5,
-        'Sound': 4,
-        'Gravitational Field': 2,
-        'Equilibrium of Forces': 1
+    // ===== 3. Physics =====
+    3: {
+        id: 3,
+        name: 'Physics',
+        code: 'PHY',
+        category: 'science',
+        totalQuestions: 40,
+        duration: 60,
+        topicDistribution: {
+            'Scalars and Vectors': 1,
+            'Motion': 6,
+            'Work, Energy and Power': 5,
+            'Elasticity': 2,
+            'Friction': 4,
+            'Simple Machines': 3,
+            'Pressure': 5,
+            'Heat Energy': 4,
+            'Waves': 4,
+            'Light': 5,
+            'Sound': 4,
+            'Gravitational Field': 2,
+            'Equilibrium of Forces': 1
+        },
+        topics: [
+            'Scalars and Vectors', 'Motion', 'Work, Energy and Power', 'Elasticity', 'Friction',
+            'Simple Machines', 'Pressure', 'Heat Energy', 'Waves', 'Light', 'Sound',
+            'Gravitational Field', 'Equilibrium of Forces'
+        ]
     },
-    topics: [
-        'Scalars and Vectors', 'Motion', 'Work, Energy and Power', 'Elasticity', 'Friction',
-        'Simple Machines', 'Pressure', 'Heat Energy', 'Waves', 'Light', 'Sound',
-        'Gravitational Field', 'Equilibrium of Forces'
-    ]
-},
 
+    // ===== 4. Chemistry =====
+    4: {
+        id: 4,
+        name: 'Chemistry',
+        code: 'CHM',
+        category: 'science',
+        totalQuestions: 40,
+        duration: 60,
+        topicDistribution: {
+            'Separation of Mixtures': 4,
+            'Chemical Combination': 4,
+            'Gas Laws': 5,
+            'Atomic Structure': 5,
+            'Water': 4,
+            'Solubility': 4,
+            'Acids and Bases': 3,
+            'Salts': 3,
+            'Oxidation and Reduction': 1,
+            'Electrolysis': 2,
+            'Organic Chemistry': 3,
+            'Environmental Pollution': 2
+        },
+        topics: [
+            'Separation of Mixtures', 'Chemical Combination', 'Gas Laws',
+            'Atomic Structure', 'Water', 'Solubility', 'Acids and Bases',
+            'Salts', 'Oxidation and Reduction', 'Electrolysis',
+            'Organic Chemistry', 'Environmental Pollution'
+        ]
+    },
 
-4: {
-    id: 4,
-    name: 'Chemistry',
-    code: 'CHM',
-    category: 'science',
-    totalQuestions: 40,
-    duration: 60,
-    topicDistribution: {
-        'Separation of Mixtures': 4,
-        'Chemical Combination': 4,
-        'Gas Laws': 5,
-        'Atomic Structure': 5,
-        'Water': 4,
-        'Solubility': 4,
-        'Acids and Bases': 3,
-        'Salts': 3,
-        'Oxidation and Reduction': 1,
-        'Electrolysis': 2,
-        'Organic Chemistry': 3,
-        'Environmental Pollution': 2
+    // ===== 5. Biology =====
+    5: {
+        id: 5,
+        name: 'Biology',
+        code: 'BIO',
+        category: 'science',
+        totalQuestions: 40,
+        duration: 60,
+        topicDistribution: {
+            'Living Organisms': 3,
+            'Classification': 2,
+            'Internal Structure of Plants': 2,
+            'Internal Structure of Mammals': 2,
+            'Nutrition': 3,
+            'Transport': 2,
+            'Respiration': 2,
+            'Excretion': 2,
+            'Support & Movement': 2,
+            'Reproduction': 3,
+            'Growth': 2,
+            'Coordination & Control': 3,
+            'Homeostasis': 2,
+            'Ecology': 4,
+            'Genetics': 3,
+            'Evolution': 2,
+            'Cell Biology': 1
+        },
+        topics: [
+            'Living Organisms', 'Classification', 'Internal Structure of Plants',
+            'Internal Structure of Mammals', 'Nutrition', 'Transport',
+            'Respiration', 'Excretion', 'Support & Movement', 'Reproduction',
+            'Growth', 'Coordination & Control', 'Homeostasis', 'Ecology',
+            'Genetics', 'Evolution', 'Cell Biology'
+        ]
     },
-    topics: [
-        'Separation of Mixtures', 'Chemical Combination', 'Gas Laws',
-        'Atomic Structure', 'Water', 'Solubility', 'Acids and Bases',
-        'Salts', 'Oxidation and Reduction', 'Electrolysis',
-        'Organic Chemistry', 'Environmental Pollution'
-    ]
-}
-// ===== 5. Biology =====
-5: {
-    id: 5,
-    name: 'Biology',
-    code: 'BIO',
-    category: 'science',
-    totalQuestions: 40,
-    duration: 60,
-    topicDistribution: {
-        'Living Organisms': 3,
-        'Classification': 2,
-        'Internal Structure of Plants': 2,
-        'Internal Structure of Mammals': 2,
-        'Nutrition': 3,
-        'Transport': 2,
-        'Respiration': 2,
-        'Excretion': 2,
-        'Support & Movement': 2,
-        'Reproduction': 3,
-        'Growth': 2,
-        'Coordination & Control': 3,
-        'Homeostasis': 2,
-        'Ecology': 4,
-        'Genetics': 3,
-        'Evolution': 2,
-        'Cell Biology': 1
-    },
-    topics: [
-        'Living Organisms', 'Classification', 'Internal Structure of Plants',
-        'Internal Structure of Mammals', 'Nutrition', 'Transport',
-        'Respiration', 'Excretion', 'Support & Movement', 'Reproduction',
-        'Growth', 'Coordination & Control', 'Homeostasis', 'Ecology',
-        'Genetics', 'Evolution', 'Cell Biology'
-    ]
-}
 
     // ===== 6. Agricultural Science =====
     6: {
