@@ -6,18 +6,8 @@ const allSubjects = {
         name: 'Use of English',
         code: 'ENG',
         category: 'compulsory',
-        totalQuestions: 60,
-     ===== 3. Physics =====
-    3: {
-        id: 3,
-        name: 'Physics',
-        code: 'PHY',
-        category: 'science',
-        totalQuestions: 40,
+        totalQuestions: 6,
         duration: 60,
-        topicDistribution: {
-            'Measurements & Units': 2,
-            'Scalars &    duration: 60,
         topicDistribution: {
             'The Lekki Headmaster': 10,
             'Comprehension': 10,
