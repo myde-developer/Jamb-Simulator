@@ -226,6 +226,23 @@ router.post('/exam/save', auth, async (req, res) => {
     }
 });
 
+// Get current user's exam history (simplified, no subject names)
+router.get('/user/my-exams', auth, async (req, res) => {
+    try {
+        const result = await db.query(
+            `SELECT id, started_at, completed_at, score, total_questions, percentage
+             FROM exam_sessions
+             WHERE user_id = $1
+             ORDER BY started_at DESC`,
+            [req.user.id]
+        );
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching user exams:', error);
+        res.status(500).json({ error: 'Failed to fetch exams' });
+    }
+});
+
 // Helper function to shuffle array
 function shuffleArray(array) {
     for (let i = array.length - 1; i > 0; i--) {

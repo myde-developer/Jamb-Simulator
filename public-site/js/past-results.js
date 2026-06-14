@@ -25,9 +25,9 @@ async function loadExamList() {
     container.innerHTML = '<div class="loading">Loading your past exams...</div>';
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE}/api/progress/history`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
+        const response = await fetch(`${API_BASE}/api/user/my-exams`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+});
         if (!response.ok) throw new Error('Failed to load exams');
         const exams = await response.json();
         if (!exams.length) {
