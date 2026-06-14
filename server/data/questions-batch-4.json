@@ -181,7 +181,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "Choose the word that is most OPPOSITE in meaning to the underlined word: The soldier was commended for his **brave** actions during the rescue mission.",
+    "question_text": "Choose the word that is most OPPOSITE in meaning to the underlined word: The soldier was commended for his <u>brave</u> actions during the rescue mission.",
     "option_a": "Courageous",
     "option_b": "Cowardly",
     "option_c": "Bold",
@@ -193,7 +193,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "Select the word that is most OPPOSITE in meaning to the underlined word: The archaeologists discovered an **ancient** manuscript in the cave.",
+    "question_text": "Select the word that is most OPPOSITE in meaning to the underlined word: The archaeologists discovered an <u>ancient</u> manuscript in the cave.",
     "option_a": "Old",
     "option_b": "Aged",
     "option_c": "Modern",
@@ -205,7 +205,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "Find the word that is most OPPOSITE in meaning to the underlined word: The billionaire was known for his **generous** donations to charity.",
+    "question_text": "Find the word that is most OPPOSITE in meaning to the underlined word: The billionaire was known for his <u>generous</u> donations to charity.",
     "option_a": "Kind",
     "option_b": "Stingy",
     "option_c": "Charitable",
@@ -217,7 +217,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "The word that is most OPPOSITE in meaning to the underlined word is: Despite the challenges, she remained **optimistic** about the future.",
+    "question_text": "The word that is most OPPOSITE in meaning to the underlined word is: Despite the challenges, she remained <u>optimistic</u> about the future.",
     "option_a": "Hopeful",
     "option_b": "Positive",
     "option_c": "Pessimistic",
@@ -229,7 +229,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "Choose the word that is most OPPOSITE in meaning to the underlined word: The flowers in the garden were **artificial**, not real.",
+    "question_text": "Choose the word that is most OPPOSITE in meaning to the underlined word: The flowers in the garden were <u>artificial</u>, not real.",
     "option_a": "Synthetic",
     "option_b": "Fake",
     "option_c": "Natural",
@@ -241,7 +241,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "Select the word that is most OPPOSITE in meaning to the underlined word: The company plans to **expand** its operations to three new countries.",
+    "question_text": "Select the word that is most OPPOSITE in meaning to the underlined word: The company plans to <u>expand</u> its operations to three new countries.",
     "option_a": "Grow",
     "option_b": "Increase",
     "option_c": "Contract",
@@ -253,7 +253,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "The word that is most OPPOSITE in meaning to the underlined word is: The singer became **famous** after releasing her debut album.",
+    "question_text": "The word that is most OPPOSITE in meaning to the underlined word is: The singer became <u>famous</u> after releasing her debut album.",
     "option_a": "Renowned",
     "option_b": "Unknown",
     "option_c": "Celebrated",
@@ -265,7 +265,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "Find the word that is most OPPOSITE in meaning to the underlined word: The driver was told to **accelerate** to merge safely onto the highway.",
+    "question_text": "Find the word that is most OPPOSITE in meaning to the underlined word: The driver was told to <u>accelerate</u> to merge safely onto the highway.",
     "option_a": "Speed up",
     "option_b": "Hasten",
     "option_c": "Decelerate",
@@ -277,7 +277,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "Choose the word that is most OPPOSITE in meaning to the underlined word: The damage to the building was **permanent** and could not be repaired.",
+    "question_text": "Choose the word that is most OPPOSITE in meaning to the underlined word: The damage to the building was <u>permanent</u> and could not be repaired.",
     "option_a": "Temporary",
     "option_b": "Everlasting",
     "option_c": "Constant",
@@ -289,7 +289,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "The word that is most OPPOSITE in meaning to the underlined word is: The new neighbors were very **friendly** and welcomed us warmly.",
+    "question_text": "The word that is most OPPOSITE in meaning to the underlined word is: The new neighbors were very <u>friendly</u> and welcomed us warmly.",
     "option_a": "Welcoming",
     "option_b": "Hostile",
     "option_c": "Kind",
@@ -301,7 +301,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "Select the word that is most OPPOSITE in meaning to the underlined word: The region is known for its **abundant** natural resources.",
+    "question_text": "Select the word that is most OPPOSITE in meaning to the underlined word: The region is known for its <u>abundant</u> natural resources.",
     "option_a": "Plentiful",
     "option_b": "Scarce",
     "option_c": "Ample",
@@ -313,7 +313,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "The word that is most OPPOSITE in meaning to the underlined word is: The **major** issue facing the committee was funding.",
+    "question_text": "The word that is most OPPOSITE in meaning to the underlined word is: The <u>major</u> issue facing the committee was funding.",
     "option_a": "Main",
     "option_b": "Important",
     "option_c": "Minor",
@@ -325,7 +325,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "Find the word that is most OPPOSITE in meaning to the underlined word: The team celebrated their **victory** with great enthusiasm.",
+    "question_text": "Find the word that is most OPPOSITE in meaning to the underlined word: The team celebrated their <u>victory</u> with great enthusiasm.",
     "option_a": "Triumph",
     "option_b": "Success",
     "option_c": "Defeat",
@@ -337,7 +337,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "Choose the word that is most OPPOSITE in meaning to the underlined word: The **native** population has lived in this region for thousands of years.",
+    "question_text": "Choose the word that is most OPPOSITE in meaning to the underlined word: The <u>native</u> population has lived in this region for thousands of years.",
     "option_a": "Indigenous",
     "option_b": "Local",
     "option_c": "Foreign",
@@ -349,7 +349,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "The word that is most OPPOSITE in meaning to the underlined word is: He came from a **rich** family and never wanted for anything.",
+    "question_text": "The word that is most OPPOSITE in meaning to the underlined word is: He came from a <u>rich</u> family and never wanted for anything.",
     "option_a": "Wealthy",
     "option_b": "Affluent",
     "option_c": "Poor",
@@ -361,7 +361,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "Select the word that is most OPPOSITE in meaning to the underlined word: The baker always sells **fresh** bread every morning.",
+    "question_text": "Select the word that is most OPPOSITE in meaning to the underlined word: The baker always sells <u>fresh</u> bread every morning.",
     "option_a": "New",
     "option_b": "Stale",
     "option_c": "Recent",
@@ -373,7 +373,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "The word that is most OPPOSITE in meaning to the underlined word is: The old man was considered **wise** by everyone in the community.",
+    "question_text": "The word that is most OPPOSITE in meaning to the underlined word is: The old man was considered <u>wise</u> by everyone in the community.",
     "option_a": "Intelligent",
     "option_b": "Foolish",
     "option_c": "Smart",
@@ -385,7 +385,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "Find the word that is most OPPOSITE in meaning to the underlined word: The university decided to **accept** all qualified applicants.",
+    "question_text": "Find the word that is most OPPOSITE in meaning to the underlined word: The university decided to <u>accept</u> all qualified applicants.",
     "option_a": "Receive",
     "option_b": "Refuse",
     "option_c": "Take",
@@ -397,7 +397,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "Choose the word that is most OPPOSITE in meaning to the underlined word: The package should **include** all the necessary documents.",
+    "question_text": "Choose the word that is most OPPOSITE in meaning to the underlined word: The package should <u>include</u> all the necessary documents.",
     "option_a": "Contain",
     "option_b": "Exclude",
     "option_c": "Incorporate",
@@ -409,7 +409,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "The word that is most OPPOSITE in meaning to the underlined word is: Parents are expected to **love** their children unconditionally.",
+    "question_text": "The word that is most OPPOSITE in meaning to the underlined word is: Parents are expected to <u>love</u> their children unconditionally.",
     "option_a": "Adore",
     "option_b": "Cherish",
     "option_c": "Hate",
@@ -421,7 +421,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "Select the word that is most OPPOSITE in meaning to the underlined word: The athlete was known for his **strong** physique and endurance.",
+    "question_text": "Select the word that is most OPPOSITE in meaning to the underlined word: The athlete was known for his <u>strong</u> physique and endurance.",
     "option_a": "Powerful",
     "option_b": "Weak",
     "option_c": "Sturdy",
@@ -433,7 +433,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "The word that is most OPPOSITE in meaning to the underlined word is: The glass was **full** to the brim with water.",
+    "question_text": "The word that is most OPPOSITE in meaning to the underlined word is: The glass was <u>full</u> to the brim with water.",
     "option_a": "Complete",
     "option_b": "Empty",
     "option_c": "Filled",
@@ -445,7 +445,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "Find the word that is most OPPOSITE in meaning to the underlined word: Please **open** the window to let in some fresh air.",
+    "question_text": "Find the word that is most OPPOSITE in meaning to the underlined word: Please <u>open</u> the window to let in some fresh air.",
     "option_a": "Ajar",
     "option_b": "Unlocked",
     "option_c": "Closed",
@@ -457,7 +457,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "Choose the word that is most OPPOSITE in meaning to the underlined word: The children were **happy** playing in the park all afternoon.",
+    "question_text": "Choose the word that is most OPPOSITE in meaning to the underlined word: The children were <u>happy</u> playing in the park all afternoon.",
     "option_a": "Joyful",
     "option_b": "Sad",
     "option_c": "Content",
@@ -469,7 +469,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "The word that is most OPPOSITE in meaning to the underlined word is: Nigeria **imports** a significant portion of its electronics.",
+    "question_text": "The word that is most OPPOSITE in meaning to the underlined word is: Nigeria <u>imports</u> a significant portion of its electronics.",
     "option_a": "Bring in",
     "option_b": "Export",
     "option_c": "Ship",
@@ -481,7 +481,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "Select the word that is most OPPOSITE in meaning to the underlined word: The temperature is expected to **rise** significantly tomorrow.",
+    "question_text": "Select the word that is most OPPOSITE in meaning to the underlined word: The temperature is expected to <u>rise</u> significantly tomorrow.",
     "option_a": "Ascend",
     "option_b": "Fall",
     "option_c": "Increase",
@@ -493,7 +493,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "The word that is most OPPOSITE in meaning to the underlined word is: The construction company will **build** fifty new houses in the estate.",
+    "question_text": "The word that is most OPPOSITE in meaning to the underlined word is: The construction company will <u>build</u> fifty new houses in the estate.",
     "option_a": "Construct",
     "option_b": "Demolish",
     "option_c": "Erect",
@@ -505,7 +505,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "Find the word that is most OPPOSITE in meaning to the underlined word: The army was ready to **defend** the nation's borders.",
+    "question_text": "Find the word that is most OPPOSITE in meaning to the underlined word: The army was ready to <u>defend</u> the nation's borders.",
     "option_a": "Protect",
     "option_b": "Guard",
     "option_c": "Attack",
@@ -517,7 +517,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "Choose the word that is most OPPOSITE in meaning to the underlined word: The company guarantees that their bottled water is **pure** and free from contaminants.",
+    "question_text": "Choose the word that is most OPPOSITE in meaning to the underlined word: The company guarantees that their bottled water is <u>pure</u> and free from contaminants.",
     "option_a": "Clean",
     "option_b": "Contaminated",
     "option_c": "Clear",
@@ -529,7 +529,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "The word that is most OPPOSITE in meaning to the underlined word is: Investors hope to **gain** from the rising stock market.",
+    "question_text": "The word that is most OPPOSITE in meaning to the underlined word is: Investors hope to <u>gain</u> from the rising stock market.",
     "option_a": "Acquire",
     "option_b": "Lose",
     "option_c": "Obtain",
@@ -541,7 +541,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "Choose the word that is nearest in meaning to the underlined word: The children were **happy** to see their grandparents after a long time.",
+    "question_text": "Choose the word that is nearest in meaning to the underlined word: The children were <u>happy</u> to see their grandparents after a long time.",
     "option_a": "Sad",
     "option_b": "Joyful",
     "option_c": "Angry",
@@ -553,7 +553,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "Find the word that is nearest in meaning to the underlined word: The elephant is a **big** animal compared to most land creatures.",
+    "question_text": "Find the word that is nearest in meaning to the underlined word: The elephant is a <u>big</u> animal compared to most land creatures.",
     "option_a": "Small",
     "option_b": "Tiny",
     "option_c": "Large",
@@ -565,7 +565,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "Select the word that is nearest in meaning to the underlined word: The cheetah is known for its **fast** running speed.",
+    "question_text": "Select the word that is nearest in meaning to the underlined word: The cheetah is known for its <u>fast</u> running speed.",
     "option_a": "Slow",
     "option_b": "Quick",
     "option_c": "Gradual",
@@ -577,7 +577,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "The word most similar in meaning to the underlined word is: She was an **intelligent** student who always scored high on examinations.",
+    "question_text": "The word most similar in meaning to the underlined word is: She was an <u>intelligent</u> student who always scored high on examinations.",
     "option_a": "Dull",
     "option_b": "Bright",
     "option_c": "Slow",
@@ -589,7 +589,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "Choose the word that is nearest in meaning to the underlined word: The customer became **angry** when his order was delayed.",
+    "question_text": "Choose the word that is nearest in meaning to the underlined word: The customer became <u>angry</u> when his order was delayed.",
     "option_a": "Pleased",
     "option_b": "Calm",
     "option_c": "Furious",
