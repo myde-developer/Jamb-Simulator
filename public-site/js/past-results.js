@@ -2,11 +2,15 @@ const API_BASE = 'https://jamb-simulator-api.onrender.com';
 let currentExamId = null;
 
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('🔵 past-results.html loaded');
     const token = localStorage.getItem('token');
+    console.log('🔐 Token exists?', !!token);
     if (!token) {
         showNotLoggedIn();
         return;
     }
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    console.log('👤 Current user:', user);
     loadExamList();
 });
 
@@ -21,15 +25,26 @@ function showNotLoggedIn() {
 }
 
 async function loadExamList() {
+    console.log('🔄 loadExamList() started');
     const container = document.getElementById('app');
     container.innerHTML = '<div class="loading">Loading your past exams...</div>';
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE}/api/user/my-exams`, {
-    headers: { 'Authorization': `Bearer ${token}` }
-});
-        if (!response.ok) throw new Error('Failed to load exams');
+        console.log('🔐 Using token:', token ? token.substring(0, 20) + '...' : 'none');
+        const url = `${API_BASE}/api/user/my-exams`;
+        console.log('📡 Fetching:', url);
+        const response = await fetch(url, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        console.log('📡 Response status:', response.status);
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('❌ Response error body:', errorText);
+            throw new Error(`HTTP ${response.status}: ${errorText}`);
+        }
         const exams = await response.json();
+        console.log('📋 Exams received:', exams);
+        console.log('📊 Number of exams:', exams.length);
         if (!exams.length) {
             container.innerHTML = `<div class="error"><p>You haven't taken any exams yet.</p><a href="select-subjects.html" class="view-btn" style="display:inline-block; margin-top:1rem;">Start an Exam</a></div>`;
             return;
@@ -44,10 +59,9 @@ async function loadExamList() {
                 <div class="exam-item">
                     <div>
                         <div class="exam-date">${date}</div>
-                        <div>Subjects: ${exam.subject_names ? exam.subject_names.join(', ') : 'JAMB Exam'}</div>
+                        <div>Score: ${score}/${total} (${percentage})</div>
                     </div>
                     <div>
-                        <span class="exam-score">${score}/${total} (${percentage})</span>
                         <button class="view-btn" onclick="viewExamDetails('${exam.id}')">View Details</button>
                     </div>
                 </div>
@@ -55,13 +69,15 @@ async function loadExamList() {
         });
         html += '</div>';
         container.innerHTML = html;
+        console.log('✅ Exam list rendered');
     } catch (error) {
-        console.error(error);
+        console.error('💥 Load error:', error);
         container.innerHTML = '<div class="error">Failed to load exam list. Please try again later.</div>';
     }
 }
 
 window.viewExamDetails = async function(examId) {
+    console.log('🔍 View details for exam:', examId);
     const container = document.getElementById('app');
     container.innerHTML = '<div class="loading">Loading exam details...</div>';
     currentExamId = examId;
@@ -70,8 +86,10 @@ window.viewExamDetails = async function(examId) {
         const response = await fetch(`${API_BASE}/api/progress/exam/${examId}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
+        console.log('📡 Details response status:', response.status);
         if (!response.ok) throw new Error('Failed to load exam details');
         const exam = await response.json();
+        console.log('📖 Exam details received');
         const date = new Date(exam.completed_at || exam.started_at).toLocaleString();
         const score = exam.score ? exam.score.toFixed(2) : 'N/A';
         const total = exam.total_questions || 180;
@@ -106,7 +124,7 @@ window.viewExamDetails = async function(examId) {
         `;
         container.innerHTML = html;
     } catch (error) {
-        console.error(error);
+        console.error('💥 Details error:', error);
         container.innerHTML = '<div class="error">Failed to load exam details. <button class="view-btn" onclick="loadExamList()">Back</button></div>';
     }
 };

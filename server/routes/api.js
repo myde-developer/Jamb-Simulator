@@ -228,6 +228,8 @@ router.post('/exam/save', auth, async (req, res) => {
 
 // Get current user's exam history (simplified, no subject names)
 router.get('/user/my-exams', auth, async (req, res) => {
+    console.log('🔥 /user/my-exams called');
+    console.log('User ID from token:', req.user.id);
     try {
         const result = await db.query(
             `SELECT id, started_at, completed_at, score, total_questions, percentage
@@ -236,9 +238,11 @@ router.get('/user/my-exams', auth, async (req, res) => {
              ORDER BY started_at DESC`,
             [req.user.id]
         );
+        console.log('Query result rows:', result.rows.length);
+        console.log('First row sample:', result.rows[0] || 'none');
         res.json(result.rows);
     } catch (error) {
-        console.error('Error fetching user exams:', error);
+        console.error('Error in /user/my-exams:', error);
         res.status(500).json({ error: 'Failed to fetch exams' });
     }
 });
