@@ -1,40 +1,25 @@
-// server/routes/practice.js – with automatic AI fallback
+// server/routes/practice.js
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/database');
-const { allSubjects } = require('../data/all-subjects');
 
-// Helper: Generate AI questions for a subject/topic/difficulty
+// Helper: Generate AI questions with robust JSON cleaning
 async function generateAIQuestions(subjectName, topic, difficulty, countNeeded) {
     const apiKey = process.env.GROQ_API_KEY;
-    if (!apiKey) {
-        throw new Error('GROQ_API_KEY not set');
-    }
-    
-    let prompt = `Generate ${countNeeded} multiple-choice practice questions for the JAMB ${subjectName} exam.`;
+    if (!apiKey) throw new Error('GROQ_API_KEY not set');
+
+    let prompt = `Generate ${countNeeded} multiple-choice practice questions for JAMB ${subjectName} exam.`;
     if (topic && topic !== 'all') prompt += ` Topic: ${topic}.`;
-    if (difficulty && difficulty !== 'all') prompt += ` Difficulty level: ${difficulty}.`;
-    
+    if (difficulty && difficulty !== 'all') prompt += ` Difficulty: ${difficulty}.`;
+
     prompt += `
-Each question must be in this EXACT JSON format:
+Each question must be in this JSON format:
 {
-    "question": "The question text",
-    "options": {
-        "A": "Option A",
-        "B": "Option B",
-        "C": "Option C",
-        "D": "Option D"
-    },
+    "question": "text",
+    "options": { "A": "opt1", "B": "opt2", "C": "opt3", "D": "opt4" },
     "correct_answer": "A/B/C/D",
-    "explanation": "Brief explanation of why this is correct (2-3 sentences)"
+    "explanation": "explanation (2-3 sentences)"
 }
-
-Requirements:
-- Questions should be similar to actual JAMB exam style.
-- Distractors should be plausible but clearly incorrect.
-- Focus on high-yield topics that frequently appear in JAMB.
-- Each explanation should teach the concept.
-
 Return ONLY a valid JSON array of ${countNeeded} questions. No extra text.`;
 
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -50,37 +35,44 @@ Return ONLY a valid JSON array of ${countNeeded} questions. No extra text.`;
             max_tokens: 4096
         })
     });
-    
-    if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Groq API error ${response.status}: ${errorText}`);
-    }
-    
+
+    if (!response.ok) throw new Error(`Groq API error: ${response.status}`);
     const data = await response.json();
-    const generatedText = data.choices[0].message.content;
-    
-    let questions = [];
-    const jsonMatch = generatedText.match(/\[\s*\{[\s\S]*\}\s*\]/);
-    if (jsonMatch) {
-        questions = JSON.parse(jsonMatch[0]);
-    } else {
-        questions = JSON.parse(generatedText);
+    let generatedText = data.choices[0].message.content;
+
+    // 1. Extract JSON array using regex (first match)
+    let jsonMatch = generatedText.match(/\[\s*\{[\s\S]*\}\s*\]/);
+    if (!jsonMatch) throw new Error('No JSON array found in AI response');
+    let jsonString = jsonMatch[0];
+
+    // 2. Clean common JSON issues
+    jsonString = jsonString
+        .replace(/\\/g, '\\\\')   // escape backslashes
+        .replace(/[\u0000-\u001F]+/g, ' ') // remove control chars
+        .replace(/,(\s*[}\]])/g, '$1');    // remove trailing commas
+
+    let questions;
+    try {
+        questions = JSON.parse(jsonString);
+    } catch (parseError) {
+        console.error('JSON parse failed after cleaning:', jsonString);
+        throw new Error('Invalid JSON from AI');
     }
-    
+
     if (!Array.isArray(questions) || questions.length === 0) {
         throw new Error('No valid questions generated');
     }
-    
-    // Format to match database question structure
+
+    // Format to frontend expected structure
     return questions.slice(0, countNeeded).map((q, idx) => ({
         id: `ai_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 6)}`,
         question_text: q.question,
-        option_a: q.options.A,
-        option_b: q.options.B,
-        option_c: q.options.C,
-        option_d: q.options.D,
+        option_a: q.options?.A || 'Option A',
+        option_b: q.options?.B || 'Option B',
+        option_c: q.options?.C || 'Option C',
+        option_d: q.options?.D || 'Option D',
         correct_answer: q.correct_answer,
-        explanation: q.explanation,
+        explanation: q.explanation || 'No explanation available.',
         subject: subjectName,
         topic: topic || 'General',
         difficulty: difficulty || 'medium',
@@ -88,50 +80,37 @@ Return ONLY a valid JSON array of ${countNeeded} questions. No extra text.`;
     }));
 }
 
-// GET /api/practice/subjects 
+// GET /api/practice/subjects
 router.get('/subjects', async (req, res) => {
     try {
         const result = await pool.query('SELECT id, name, code FROM subjects ORDER BY name');
         res.json({ subjects: result.rows });
     } catch (error) {
-        console.error('Error fetching subjects:', error);
+        console.error(error);
         res.status(500).json({ error: 'Failed to fetch subjects' });
     }
 });
 
-// GET /api/practice/topics/:subjectId 
+// GET /api/practice/topics/:subjectId
 router.get('/topics/:subjectId', async (req, res) => {
     try {
         const subjectId = parseInt(req.params.subjectId);
-        const subject = allSubjects[subjectId];
-        
-        if (!subject) {
-            return res.json({ topics: [] });
-        }
-        
-        // Return the topics array from your curated list
-        const topics = subject.topics || [];
-        res.json({ topics });
-        
+        const result = await pool.query(
+            `SELECT DISTINCT topic FROM questions WHERE subject_id = $1 AND topic IS NOT NULL ORDER BY topic`,
+            [subjectId]
+        );
+        res.json({ topics: result.rows.map(row => row.topic) });
     } catch (error) {
-        console.error('Error fetching static topics:', error);
+        console.error(error);
         res.json({ topics: [] });
     }
 });
 
-// POST /api/practice/questions – public, with AI fallback
+// POST /api/practice/questions – returns DB questions (no AI fallback)
 router.post('/questions', async (req, res) => {
     try {
         const { subject_id, topic, difficulty, count = 10 } = req.body;
-        
-        // 1. Get subject name
-        const subjectRes = await pool.query('SELECT name FROM subjects WHERE id = $1', [subject_id]);
-        if (subjectRes.rows.length === 0) {
-            return res.status(400).json({ error: 'Invalid subject' });
-        }
-        const subjectName = subjectRes.rows[0].name;
-        
-        // 2. Fetch available DB questions
+
         let query = `
             SELECT q.*, s.name as subject_name 
             FROM questions q
@@ -140,7 +119,7 @@ router.post('/questions', async (req, res) => {
         `;
         const params = [subject_id];
         let paramIndex = 2;
-        
+
         if (topic && topic !== 'all') {
             query += ` AND q.topic = $${paramIndex}`;
             params.push(topic);
@@ -153,9 +132,9 @@ router.post('/questions', async (req, res) => {
         }
         query += ` ORDER BY RANDOM() LIMIT $${paramIndex}`;
         params.push(count);
-        
-        const dbResult = await pool.query(query, params);
-        let dbQuestions = dbResult.rows.map(row => ({
+
+        const result = await pool.query(query, params);
+        const questions = result.rows.map(row => ({
             id: row.id,
             question_text: row.question_text,
             option_a: row.option_a,
@@ -169,58 +148,24 @@ router.post('/questions', async (req, res) => {
             difficulty: row.difficulty,
             is_ai_generated: false
         }));
-        
-        // 3. If not enough, generate AI questions for the shortfall
-        let finalQuestions = [...dbQuestions];
-        const remaining = count - dbQuestions.length;
-        if (remaining > 0) {
-            console.log(`⚠️ Only ${dbQuestions.length} DB questions found. Generating ${remaining} AI questions...`);
-            try {
-                const aiQuestions = await generateAIQuestions(subjectName, topic, difficulty, remaining);
-                finalQuestions.push(...aiQuestions);
-            } catch (aiError) {
-                console.error('AI generation failed:', aiError);
-                // Fallback: return whatever DB questions we have, even if fewer
-            }
-        }
-        
-        // 4. Shuffle the final set (mix DB and AI)
-        for (let i = finalQuestions.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [finalQuestions[i], finalQuestions[j]] = [finalQuestions[j], finalQuestions[i]];
-        }
-        
-        res.json(finalQuestions);
-        
+
+        res.json(questions);
     } catch (error) {
-        console.error('Error in practice/questions:', error);
-        res.status(500).json({ error: 'Failed to fetch/generate questions' });
+        console.error('Error fetching practice questions:', error);
+        res.status(500).json({ error: 'Failed to fetch questions' });
     }
 });
 
-// Optional: Keep the explicit AI generation endpoint if needed
+// POST /api/practice/generate – dedicated AI endpoint (optional, called explicitly)
 router.post('/generate', async (req, res) => {
     try {
-        const { subject, topic, count, difficulty } = req.body;
-        if (!subject || !count) {
-            return res.status(400).json({ error: 'Subject and count are required' });
-        }
+        const { subject, topic, count = 10, difficulty = 'medium' } = req.body;
+        if (!subject) return res.status(400).json({ error: 'Subject is required' });
+
         const aiQuestions = await generateAIQuestions(subject, topic, difficulty, count);
-        // Format for frontend (matches existing AI response structure)
-        const questions = aiQuestions.map(q => ({
-            question: q.question_text,
-            options: {
-                A: q.option_a,
-                B: q.option_b,
-                C: q.option_c,
-                D: q.option_d
-            },
-            correct_answer: q.correct_answer,
-            explanation: q.explanation
-        }));
-        res.json({ success: true, count: questions.length, questions });
+        res.json({ success: true, count: aiQuestions.length, questions: aiQuestions });
     } catch (error) {
-        console.error('❌ AI generation error:', error.message);
+        console.error('AI generation error:', error.message);
         res.status(500).json({ error: 'Failed to generate questions', details: error.message });
     }
 });

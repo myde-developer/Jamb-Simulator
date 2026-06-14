@@ -530,6 +530,55 @@ function showToast(message) {
     setTimeout(() => toast.classList.remove('show'), 3000);
 }
 
+document.getElementById('saveResultsBtn')?.addEventListener('click', saveResultsToAccount);
+
+async function saveResultsToAccount() {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        alert('You need to be logged in to save results.');
+        window.location.href = '/auth.html';
+        return;
+    }
+
+    const examResults = JSON.parse(localStorage.getItem('lastExamResults'));
+    if (!examResults) {
+        alert('No exam results found. Please take an exam first.');
+        return;
+    }
+
+    // Prepare the data exactly as the backend expects
+    const examData = {
+        examId: examResults.examId || ('exam_' + Date.now()),
+        subjects: examResults.subjects,
+        subjectQuestions: examResults.subjectQuestions,
+        answers: examResults.answers,
+        scores: examResults.scores,
+        date: examResults.date
+    };
+
+    try {
+        const response = await fetch(`${API_BASE}/api/exam/save`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ examData })
+        });
+
+        if (response.ok) {
+            alert('✅ Results saved to your account! You can now view them in Past Results.');
+            // Optionally, redirect to past results or refresh
+        } else {
+            const error = await response.json();
+            alert('❌ Failed to save: ' + (error.error || 'Unknown error'));
+        }
+    } catch (err) {
+        console.error(err);
+        alert('Network error. Please try again.');
+    }
+}
+
 // ============ SHAREABLE SCORE CARD ============
 async function generateShareableCard() {
     const { scores, subjects, date } = examResults;
