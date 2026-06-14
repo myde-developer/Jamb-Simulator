@@ -10,11 +10,11 @@ router.get('/history', auth, async (req, res) => {
         const result = await db.query(
             `SELECT es.id, es.started_at, es.completed_at, es.score, 
                     es.total_questions, es.percentage,
-                    (SELECT array_agg(s.name) 
-                     FROM subjects s 
-                     WHERE s.id = ANY(es.subjects_selected::int[])) as subject_names
+                    array_agg(s.name) as subject_names
              FROM exam_sessions es
+             LEFT JOIN subjects s ON s.id = ANY(es.subjects_selected)
              WHERE es.user_id = $1
+             GROUP BY es.id
              ORDER BY es.started_at DESC`,
             [req.user.id]
         );
@@ -24,6 +24,8 @@ router.get('/history', auth, async (req, res) => {
         res.status(500).json({ error: 'Failed to fetch exam history' });
     }
 });
+
+
 
 
 // Get full details of a specific exam
