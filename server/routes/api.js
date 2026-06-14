@@ -152,48 +152,60 @@ router.post('/exam/questions', async (req, res) => {
     }
 });
 
-// Save exam results after user login (authenticated)
 router.post('/exam/save', auth, async (req, res) => {
     const client = await db.pool.connect();
     try {
         const { examData } = req.body;
         const userId = req.user.id;
 
+        // Generate a new unique examId (ignore the one from frontend)
+        const examId = `EXAM_${Date.now()}_${Math.random().toString(36).substr(2, 8)}_${userId}`;
+
+        // Check if exam already exists for this user (optional but safe)
+        const existing = await client.query(
+            `SELECT id FROM exam_sessions WHERE id = $1 AND user_id = $2`,
+            [examData.examId, userId]
+        );
+        if (existing.rows.length > 0) {
+            // Already saved, return success without inserting duplicate
+            return res.json({ success: true, message: 'Exam already saved', sessionId: examData.examId });
+        }
+
         await client.query('BEGIN');
 
-        // Insert exam session
         const subjectsSelected = examData.subjects.map(s => s.id);
+        const totalQuestions = Object.values(examData.subjectQuestions).reduce((sum, arr) => sum + arr.length, 0);
+
         const sessionResult = await client.query(
             `INSERT INTO exam_sessions 
              (id, user_id, subjects_selected, started_at, completed_at, score, total_questions, percentage)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
              RETURNING id`,
             [
-                examData.examId,
+                examId,   // use new unique ID
                 userId,
                 subjectsSelected,
                 examData.date,
                 new Date().toISOString(),
                 examData.scores.total,
-                Object.values(examData.subjectQuestions).reduce((sum, arr) => sum + arr.length, 0),
+                totalQuestions,
                 examData.scores.percentage
             ]
         );
 
         const sessionId = sessionResult.rows[0].id;
 
-        // Insert each answer
+        // Insert answers
         for (const [questionId, answer] of Object.entries(examData.answers)) {
             let correctAnswer = null;
-            let isCorrect = false;
             for (const subject in examData.subjectQuestions) {
                 const q = examData.subjectQuestions[subject].find(q => q.id == questionId);
                 if (q) {
                     correctAnswer = q.correct_answer;
-                    isCorrect = (answer === correctAnswer);
                     break;
                 }
             }
+            const isCorrect = (answer === correctAnswer);
 
             await client.query(
                 `INSERT INTO user_answers 
@@ -205,7 +217,6 @@ router.post('/exam/save', auth, async (req, res) => {
 
         await client.query('COMMIT');
         res.json({ success: true, sessionId });
-
     } catch (error) {
         await client.query('ROLLBACK');
         console.error('Error saving exam:', error);
