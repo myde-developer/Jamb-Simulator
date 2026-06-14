@@ -25,53 +25,39 @@ function showNotLoggedIn() {
 }
 
 async function loadExamList() {
-    console.log('🔄 loadExamList() started');
     const container = document.getElementById('app');
     container.innerHTML = '<div class="loading">Loading your past exams...</div>';
     try {
         const token = localStorage.getItem('token');
-        console.log('🔐 Using token:', token ? token.substring(0, 20) + '...' : 'none');
-        const url = `${API_BASE}/api/user/my-exams`;
-        console.log('📡 Fetching:', url);
-        const response = await fetch(url, {
+        const response = await fetch(`${API_BASE}/api/user/my-exams`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        console.log('📡 Response status:', response.status);
         if (!response.ok) {
-            const errorText = await response.text();
-            console.error('❌ Response error body:', errorText);
-            throw new Error(`HTTP ${response.status}: ${errorText}`);
+            throw new Error(`HTTP ${response.status}`);
         }
         const exams = await response.json();
-        console.log('📋 Exams received:', exams);
-        console.log('📊 Number of exams:', exams.length);
         if (!exams.length) {
-            container.innerHTML = `<div class="error"><p>You haven't taken any exams yet.</p><a href="select-subjects.html" class="view-btn" style="display:inline-block; margin-top:1rem;">Start an Exam</a></div>`;
+            container.innerHTML = `<div class="error"><p>You haven't taken any exams yet.</p><a href="select-subjects.html" class="view-btn">Start an Exam</a></div>`;
             return;
         }
-        let html = '<h1 style="margin-bottom:1.5rem;">My Past Exams</h1><div class="exam-list">';
+        let html = '<h1>My Past Exams</h1><div class="exam-list">';
         exams.forEach(exam => {
             const date = new Date(exam.completed_at || exam.started_at).toLocaleDateString();
             const score = exam.score ? exam.score.toFixed(2) : 'N/A';
             const total = exam.total_questions || 180;
             const percentage = exam.percentage ? exam.percentage + '%' : 'N/A';
             html += `
-                <div class="exam-item">
-                    <div>
-                        <div class="exam-date">${date}</div>
-                        <div>Score: ${score}/${total} (${percentage})</div>
-                    </div>
-                    <div>
-                        <button class="view-btn" onclick="viewExamDetails('${exam.id}')">View Details</button>
-                    </div>
+                <div class="exam-card">
+                    <div class="exam-date">${date}</div>
+                    <div class="exam-score">${score}/${total} (${percentage})</div>
+                    <button class="view-btn" onclick="viewExamDetails('${exam.id}')">View Details</button>
                 </div>
             `;
         });
         html += '</div>';
         container.innerHTML = html;
-        console.log('✅ Exam list rendered');
     } catch (error) {
-        console.error('💥 Load error:', error);
+        console.error(error);
         container.innerHTML = '<div class="error">Failed to load exam list. Please try again later.</div>';
     }
 }
