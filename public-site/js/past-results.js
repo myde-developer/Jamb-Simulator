@@ -23,7 +23,6 @@ function showNotLoggedIn() {
 async function loadExamList() {
     const container = document.getElementById('app');
     container.innerHTML = '<div class="loading">Loading your past exams...</div>';
-
     try {
         const token = localStorage.getItem('token');
         const response = await fetch(`${API_BASE}/api/progress/history`, {
@@ -31,12 +30,10 @@ async function loadExamList() {
         });
         if (!response.ok) throw new Error('Failed to load exams');
         const exams = await response.json();
-
         if (!exams.length) {
             container.innerHTML = `<div class="error"><p>You haven't taken any exams yet.</p><a href="select-subjects.html" class="view-btn" style="display:inline-block; margin-top:1rem;">Start an Exam</a></div>`;
             return;
         }
-
         let html = '<h1 style="margin-bottom:1.5rem;">My Past Exams</h1><div class="exam-list">';
         exams.forEach(exam => {
             const date = new Date(exam.completed_at || exam.started_at).toLocaleDateString();
@@ -68,7 +65,6 @@ window.viewExamDetails = async function(examId) {
     const container = document.getElementById('app');
     container.innerHTML = '<div class="loading">Loading exam details...</div>';
     currentExamId = examId;
-
     try {
         const token = localStorage.getItem('token');
         const response = await fetch(`${API_BASE}/api/progress/exam/${examId}`, {
@@ -76,12 +72,10 @@ window.viewExamDetails = async function(examId) {
         });
         if (!response.ok) throw new Error('Failed to load exam details');
         const exam = await response.json();
-
         const date = new Date(exam.completed_at || exam.started_at).toLocaleString();
         const score = exam.score ? exam.score.toFixed(2) : 'N/A';
         const total = exam.total_questions || 180;
         const percentage = exam.percentage ? exam.percentage + '%' : 'N/A';
-
         let answersHtml = '';
         if (exam.answers && exam.answers.length) {
             exam.answers.forEach((ans, idx) => {
@@ -98,7 +92,6 @@ window.viewExamDetails = async function(examId) {
         } else {
             answersHtml = '<p>No answer details available.</p>';
         }
-
         const html = `
             <div class="detail-card">
                 <div class="detail-header">

@@ -1,4 +1,4 @@
-// server/routes/progress.js
+
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
@@ -25,13 +25,12 @@ router.get('/history', auth, async (req, res) => {
     }
 });
 
-// Get full details of a specific exam (for the authenticated user)
+// Get full details of a specific exam
 router.get('/exam/:id', auth, async (req, res) => {
     try {
         const examId = req.params.id;
         const userId = req.user.id;
 
-        // Verify exam belongs to this user
         const examCheck = await db.query(
             `SELECT id FROM exam_sessions WHERE id = $1 AND user_id = $2`,
             [examId, userId]
@@ -75,7 +74,7 @@ router.get('/exam/:id', auth, async (req, res) => {
     }
 });
 
-// Get subject statistics (original – kept as is)
+// Get subject statistics 
 router.get('/stats/subjects', auth, async (req, res) => {
     try {
         const result = await db.query(

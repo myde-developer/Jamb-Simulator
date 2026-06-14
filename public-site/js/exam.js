@@ -581,11 +581,24 @@ function submitExam() {
     
     const token = localStorage.getItem('token');
     if (token) {
+        // Already logged in – save to localStorage and backend
         localStorage.setItem('lastExamResults', JSON.stringify(examData));
+        // Save to database (async, don't block redirect)
+        fetch(`${API_BASE}/api/exam/save`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ examData })
+        })
+        .then(res => { if (res.ok) console.log('✅ Exam saved to database'); })
+        .catch(err => console.error('Save error:', err));
         window.location.href = '/results.html';
         return;
     }
     
+    // Not logged in – store pending
     sessionStorage.setItem('pendingExamResults', JSON.stringify(examData));
     sessionStorage.setItem('redirectAfterAuth', 'results');
     window.location.href = '/auth.html';
