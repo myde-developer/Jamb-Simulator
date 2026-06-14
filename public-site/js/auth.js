@@ -87,10 +87,10 @@ async function handleAuth(e) {
             const pendingExam = sessionStorage.getItem('pendingExamResults');
             
             if (redirectToResults && pendingExam) {
-    // Save exam results to backend first
     const examData = JSON.parse(pendingExam);
+    // Save exam to backend using the new token
     try {
-        const saveResponse = await fetch(`${API_BASE}/api/exam/save`, {
+        await fetch(`${API_BASE}/api/exam/save`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -98,13 +98,9 @@ async function handleAuth(e) {
             },
             body: JSON.stringify({ examData })
         });
-        if (!saveResponse.ok) {
-            console.warn('Failed to save exam to backend, but continuing anyway');
-        }
     } catch (saveError) {
         console.error('Error saving exam:', saveError);
     }
-    
     // Move to localStorage and redirect
     localStorage.setItem('lastExamResults', pendingExam);
     sessionStorage.removeItem('pendingExamResults');

@@ -5,32 +5,208 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JAMB Simulator - My Past Results</title>
     <link rel="manifest" href="/manifest.json">
-    <link rel="stylesheet" href="global.css">
     <style>
-        .container { max-width: 1000px; margin: 2rem auto; padding: 0 1.5rem; }
-        .exam-list { background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .exam-item { display: flex; justify-content: space-between; align-items: center; padding: 1rem; border-bottom: 1px solid #e2e8f0; }
-        .exam-item:last-child { border-bottom: none; }
-        .exam-date { font-weight: 500; color: #1a1a2e; }
-        .exam-score { font-weight: 600; color: #2d6a4f; }
-        .view-btn { background: #667eea; color: white; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; }
-        .detail-card { background: white; border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .detail-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; }
-        .back-btn { background: #e2e8f0; color: #4a5568; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; }
-        .answers-list { margin-top: 1.5rem; }
-        .answer-item { border: 1px solid #e2e8f0; border-radius: 12px; padding: 1rem; margin-bottom: 1rem; }
-        .answer-item.correct { border-left: 4px solid #2d6a4f; }
-        .answer-item.incorrect { border-left: 4px solid #c92a2a; }
-        .question-text { font-weight: 500; margin-bottom: 0.5rem; }
-        .user-answer { font-size: 0.9rem; color: #4a5568; margin-top: 0.5rem; }
-        .correct-badge { color: #2d6a4f; font-weight: 600; }
-        .wrong-badge { color: #c92a2a; font-weight: 600; }
-        .explanation { background: #f8f9fa; padding: 0.75rem; border-radius: 8px; margin-top: 0.75rem; font-size: 0.85rem; }
-        .loading { text-align: center; padding: 3rem; }
-        .error { color: #c92a2a; text-align: center; padding: 2rem; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f7fb;
+            color: #1a1a2e;
+            line-height: 1.5;
+        }
+
+        .header {
+            background: white;
+            border-bottom: 1px solid #e1e5eb;
+            padding: 0.75rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .logo {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #1a1a2e;
+        }
+
+        .nav-menu {
+            display: flex;
+            list-style: none;
+            gap: 0.25rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .nav-menu a {
+            color: #4a5568;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+
+        .nav-menu a:hover,
+        .nav-menu a.active {
+            background: #f0f0f5;
+            color: #1a1a2e;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 2rem auto;
+            padding: 0 1.5rem;
+        }
+
+        .exam-list {
+            background: white;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .exam-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .exam-item:last-child {
+            border-bottom: none;
+        }
+
+        .exam-date {
+            font-weight: 500;
+            color: #1a1a2e;
+        }
+
+        .exam-score {
+            font-weight: 600;
+            color: #2d6a4f;
+        }
+
+        .view-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .detail-card {
+            background: white;
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .detail-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .back-btn {
+            background: #e2e8f0;
+            color: #4a5568;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .answers-list {
+            margin-top: 1.5rem;
+        }
+
+        .answer-item {
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .answer-item.correct {
+            border-left: 4px solid #2d6a4f;
+        }
+
+        .answer-item.incorrect {
+            border-left: 4px solid #c92a2a;
+        }
+
+        .question-text {
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+
+        .user-answer {
+            font-size: 0.9rem;
+            color: #4a5568;
+            margin-top: 0.5rem;
+        }
+
+        .correct-badge {
+            color: #2d6a4f;
+            font-weight: 600;
+        }
+
+        .wrong-badge {
+            color: #c92a2a;
+            font-weight: 600;
+        }
+
+        .explanation {
+            background: #f8f9fa;
+            padding: 0.75rem;
+            border-radius: 8px;
+            margin-top: 0.75rem;
+            font-size: 0.85rem;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 3rem;
+        }
+
+        .error {
+            color: #c92a2a;
+            text-align: center;
+            padding: 2rem;
+        }
+
         @media (max-width: 640px) {
-            .exam-item { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
-            .detail-header { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+            .exam-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+            .detail-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
         }
     </style>
 </head>
@@ -40,14 +216,7 @@
             <div class="logo">JAMB Simulator 2026</div>
             <ul class="nav-menu">
                 <li><a href="home.html">Home</a></li>
-                <li><a href="practice.html">Practice</a></li>
-                <li><a href="flashcards.html">Flashcards</a></li>
-                <li><a href="past-results.html" class="active">Past Results</a></li>
-                <li><a href="achievements.html">Achievements</a></li>
-                <li><a href="planner.html">Planner</a></li>
-                <li><a href="#" id="loginBtn" style="display: none;">Login</a></li>
-                <li><a href="#" id="logoutBtn" style="display: none;">Logout</a></li>
-            </ul>
+ </ul>
         </nav>
     </header>
     <div class="container" id="app">
