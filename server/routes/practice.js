@@ -2,14 +2,12 @@
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/database');
-const { allSubjects } = require('../data/all-subjects'); // for static topics
+// allSubjects is only used for the exam's English distribution – not for practice topics
+// const { allSubjects } = require('../data/all-subjects'); // optional, not used for practice
 
-// Helper: Convert plain-text matrices to LaTeX
+// Helper: Convert plain-text matrices to LaTeX (for AI‑generated questions)
 function convertMatrixToLatexInText(text) {
     if (!text || typeof text !== 'string') return text;
-    // Matches [[ ... , ... ], [ ... , ... ]] (2x2 matrix)
-    // Handles optional spaces, multiple rows? Here we assume up to 2 rows.
-    // For JAMB level, 2x2 is most common.
     return text.replace(/\[\[([^\]]+)\],\s*\[([^\]]+)\]\]/g, (match, row1, row2) => {
         const cleanRow1 = row1.split(',').map(s => s.trim()).join(' & ');
         const cleanRow2 = row2.split(',').map(s => s.trim()).join(' & ');
@@ -17,7 +15,7 @@ function convertMatrixToLatexInText(text) {
     });
 }
 
-// Helper: Generate AI questions with robust JSON cleaning and matrix conversion
+// Helper: Generate AI questions using GROQ with matrix conversion
 async function generateAIQuestions(subjectName, topic, difficulty, countNeeded) {
     const apiKey = process.env.GROQ_API_KEY;
     if (!apiKey) throw new Error('GROQ_API_KEY not set');
@@ -49,7 +47,6 @@ Return ONLY a valid JSON array of ${countNeeded} questions. No extra text.`;
             max_tokens: 4096
         })
     });
-
     if (!response.ok) throw new Error(`Groq API error: ${response.status}`);
     const data = await response.json();
     let generatedText = data.choices[0].message.content;
@@ -58,8 +55,6 @@ Return ONLY a valid JSON array of ${countNeeded} questions. No extra text.`;
     let jsonMatch = generatedText.match(/\[\s*\{[\s\S]*\}\s*\]/);
     if (!jsonMatch) throw new Error('No JSON array found in AI response');
     let jsonString = jsonMatch[0];
-
-    // Clean JSON
     jsonString = jsonString
         .replace(/\\/g, '\\\\')
         .replace(/[\u0000-\u001F]+/g, ' ')
@@ -72,28 +67,16 @@ Return ONLY a valid JSON array of ${countNeeded} questions. No extra text.`;
         console.error('JSON parse failed after cleaning:', jsonString);
         throw new Error('Invalid JSON from AI');
     }
+    if (!Array.isArray(questions) || questions.length === 0) throw new Error('No valid questions generated');
 
-    if (!Array.isArray(questions) || questions.length === 0) {
-        throw new Error('No valid questions generated');
-    }
-
-    // Format to frontend structure and convert matrices to LaTeX
+    // Format and convert matrices
     return questions.slice(0, countNeeded).map((q, idx) => {
-        // Convert question text
-        let questionText = q.question || 'No question provided';
-        questionText = convertMatrixToLatexInText(questionText);
-        
-        // Convert each option
-        const options = q.options || {};
-        const optA = convertMatrixToLatexInText(options.A || 'Option A');
-        const optB = convertMatrixToLatexInText(options.B || 'Option B');
-        const optC = convertMatrixToLatexInText(options.C || 'Option C');
-        const optD = convertMatrixToLatexInText(options.D || 'Option D');
-        
-        // Convert explanation (optional)
-        let explanation = q.explanation || 'No explanation available.';
-        explanation = convertMatrixToLatexInText(explanation);
-        
+        let questionText = convertMatrixToLatexInText(q.question || 'No question provided');
+        let optA = convertMatrixToLatexInText(q.options?.A || 'Option A');
+        let optB = convertMatrixToLatexInText(q.options?.B || 'Option B');
+        let optC = convertMatrixToLatexInText(q.options?.C || 'Option C');
+        let optD = convertMatrixToLatexInText(q.options?.D || 'Option D');
+        let explanation = convertMatrixToLatexInText(q.explanation || 'No explanation available.');
         return {
             id: `ai_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 6)}`,
             question_text: questionText,
@@ -111,34 +94,37 @@ Return ONLY a valid JSON array of ${countNeeded} questions. No extra text.`;
     });
 }
 
-// ========== Existing routes (subjects, topics, questions, generate) ==========
-// GET /api/practice/subjects
+// ========== PUBLIC ROUTES ==========
+
+// GET /api/practice/subjects – from database (fast)
 router.get('/subjects', async (req, res) => {
     try {
         const result = await pool.query('SELECT id, name, code FROM subjects ORDER BY name');
         res.json({ subjects: result.rows });
     } catch (error) {
-        console.error(error);
+        console.error('Subjects error:', error);
         res.status(500).json({ error: 'Failed to fetch subjects' });
     }
 });
 
-// GET /api/practice/topics/:subjectId – from static all-subjects.js
+// GET /api/practice/topics/:subjectId – from database (distinct topics from questions)
 router.get('/topics/:subjectId', async (req, res) => {
     try {
         const subjectId = parseInt(req.params.subjectId);
-        const subject = allSubjects[subjectId];
-        if (!subject) {
-            return res.json({ topics: [] });
-        }
-        res.json({ topics: subject.topics || [] });
+        // This query is fast with an index on (subject_id, topic)
+        const result = await pool.query(
+            `SELECT DISTINCT topic FROM questions WHERE subject_id = $1 AND topic IS NOT NULL ORDER BY topic`,
+            [subjectId]
+        );
+        const topics = result.rows.map(row => row.topic);
+        res.json({ topics });
     } catch (error) {
-        console.error(error);
+        console.error('Topics error:', error);
         res.json({ topics: [] });
     }
 });
 
-// POST /api/practice/questions – DB + AI fallback (with matrix conversion)
+// POST /api/practice/questions – database + AI fallback (with matrix conversion)
 router.post('/questions', async (req, res) => {
     try {
         const { subject_id, topic, difficulty, count = 10 } = req.body;
@@ -149,7 +135,7 @@ router.post('/questions', async (req, res) => {
         }
         const subjectName = subjectRes.rows[0].name;
 
-        // Fetch from database
+        // Build query for database questions
         let query = `
             SELECT q.*, s.name as subject_name 
             FROM questions q
@@ -187,6 +173,7 @@ router.post('/questions', async (req, res) => {
             is_ai_generated: false
         }));
 
+        // If not enough, generate AI questions for the shortfall
         let finalQuestions = [...dbQuestions];
         const remaining = count - dbQuestions.length;
         if (remaining > 0) {
@@ -196,11 +183,11 @@ router.post('/questions', async (req, res) => {
                 finalQuestions.push(...aiQuestions);
             } catch (aiError) {
                 console.error('AI generation failed:', aiError.message);
-                // Fallback: return whatever DB questions we have
+                // fallback – return whatever DB questions we have
             }
         }
 
-        // Shuffle
+        // Shuffle final set
         for (let i = finalQuestions.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [finalQuestions[i], finalQuestions[j]] = [finalQuestions[j], finalQuestions[i]];
@@ -208,12 +195,12 @@ router.post('/questions', async (req, res) => {
 
         res.json(finalQuestions);
     } catch (error) {
-        console.error('Error in practice/questions:', error);
+        console.error('Practice questions error:', error);
         res.status(500).json({ error: 'Failed to fetch/generate questions' });
     }
 });
 
-// POST /api/practice/generate – dedicated AI endpoint (with matrix conversion)
+// POST /api/practice/generate – dedicated AI endpoint (optional)
 router.post('/generate', async (req, res) => {
     try {
         const { subject, topic, count = 10, difficulty = 'medium' } = req.body;

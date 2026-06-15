@@ -94,7 +94,6 @@ function displayHeader(results) {
             <div class="score-number">${results.scores.total}</div>
             <div style="font-size: 0.75rem;">/400</div>
         </div>
-        <div class="score-percentage">${results.scores.percentage}% Overall</div>
     `;
 }
 
@@ -120,14 +119,13 @@ function displaySubjectBreakdown(results) {
     subjects.forEach(subject => {
         const subjectName = subject.name;
         const data = results.scores.subjectScores[subjectName] || { correct: 0, total: 0 };
-        const percentage = data.total > 0 ? (data.correct / data.total) * 100 : 0;
         const jambScore = subjectName === 'Use of English' ? (data.correct * 1.67).toFixed(2) : (data.correct * 2.5).toFixed(2);
         
         html += `
             <div class="subject-row">
                 <div class="subject-name">${subjectName}</div>
-                <div class="subject-score-bar"><div class="subject-score-fill" style="width: ${percentage}%"></div></div>
-                <div class="subject-stats">${data.correct}/${data.total} (${percentage.toFixed(1)}%)<br><span style="color: #2d6a4f;">Score: ${jambScore}/100</span></div>
+                <div class="subject-score-bar"><div class="subject-score-fill" style="width: ${(data.correct / data.total) * 100}%"></div></div>
+                <div class="subject-stats">${data.correct}/${data.total}<br><span style="color: #2d6a4f;">Score: ${jambScore}/100</span></div>
             </div>
         `;
     });
@@ -135,7 +133,7 @@ function displaySubjectBreakdown(results) {
     html += `
         <div class="subject-row" style="border-top: 2px solid #1a1a2e; margin-top: 1rem; padding-top: 1rem;">
             <div class="subject-name" style="font-weight: 700;">TOTAL</div>
-            <div class="subject-score-bar"><div class="subject-score-fill" style="width: ${results.scores.percentage}%"></div></div>
+            <div class="subject-score-bar"><div class="subject-score-fill" style="width: ${(results.scores.total / 400) * 100}%"></div></div>
             <div class="subject-stats"><strong style="font-size: 1.1rem;">${results.scores.total}/400</strong></div>
         </div>
     `;

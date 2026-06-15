@@ -614,35 +614,29 @@ function submitExam() {
 function calculateJAMBScores() {
     let englishCorrect = 0, englishTotal = 0, otherCorrect = 0, otherTotal = 0;
     const subjectScores = {};
-    
+
     Object.keys(examState.subjectQuestions).forEach(subject => {
         subjectScores[subject] = { correct: 0, total: examState.subjectQuestions[subject].length };
-        
         examState.subjectQuestions[subject].forEach(q => {
-            const correctAnswer = q.correct_answer || q.correctAnswer;
-            const isCorrect = examState.answers[q.id] === correctAnswer;
-            
-            if (isCorrect) {
+            if (examState.answers[q.id] === q.correct_answer) {
                 subjectScores[subject].correct++;
                 if (subject === 'Use of English') englishCorrect++;
                 else otherCorrect++;
             }
         });
-        
         if (subject === 'Use of English') englishTotal = examState.subjectQuestions[subject].length;
         else otherTotal += examState.subjectQuestions[subject].length;
     });
-    
+
     const englishScore = englishCorrect * 1.67;
     const otherScore = otherCorrect * 2.5;
     const totalScore = englishScore + otherScore;
-    
+
     return {
         subjectScores,
         english: { correct: englishCorrect, total: englishTotal, score: englishScore },
         other: { correct: otherCorrect, total: otherTotal, score: otherScore },
-        total: Math.round(totalScore * 100) / 100,
-        percentage: Math.round((totalScore / 400) * 100)
+        total: Math.round(totalScore * 100) / 100
     };
 }
 
