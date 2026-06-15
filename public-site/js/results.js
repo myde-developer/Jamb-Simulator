@@ -13,36 +13,72 @@ document.addEventListener('DOMContentLoaded', () => {
     if (shareBtn) shareBtn.addEventListener('click', generateShareableCard);
 });
 
-function loadResults() {
-    // First try to get from localStorage
-    examResults = JSON.parse(localStorage.getItem('lastExamResults'));
-    
-    // Fallback: if not found, check sessionStorage (in case move failed)
-    if (!examResults) {
-        const pending = sessionStorage.getItem('pendingExamResults');
-        if (pending) {
-            console.log('Results found in sessionStorage, moving to localStorage');
-            examResults = JSON.parse(pending);
-            localStorage.setItem('lastExamResults', pending);
-            sessionStorage.removeItem('pendingExamResults');
-            sessionStorage.removeItem('redirectAfterAuth');
-        }
-    }
-    
-    if (!examResults) {
-        console.log('No exam results found. Redirecting.');
-        const token = localStorage.getItem('token');
-        if (token) {
+async function loadResults() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const examId = urlParams.get('id');
+
+    if (examId) {
+        // Fetch a past exam from the backend
+        await loadPastExam(examId);
+    } else {
+        // Load the most recent exam from localStorage (normal flow)
+        examResults = JSON.parse(localStorage.getItem('lastExamResults'));
+        if (!examResults) {
             window.location.href = '/home.html';
-        } else {
-            window.location.href = '/auth.html';
+            return;
         }
+        displayResults(examResults);
+    }
+}
+
+async function loadPastExam(examId) {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location.href = '/auth.html';
         return;
     }
-    
-    console.log('Displaying results');
-    displayResults(examResults);
+
+    try {
+        const response = await fetch(`${API_BASE}/api/exam/${examId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) throw new Error('Failed to load exam');
+        const data = await response.json();
+
+        // Transform backend response to match the `examResults` format expected by displayResults
+        examResults = {
+            scores: {
+                total: data.score,
+                percentage: data.percentage,
+                subjectScores: {}
+            },
+            subjects: data.subjects.map(name => ({ name: name })),
+            date: data.date,
+            subjectQuestions: {},  // not needed for display, but keep for compatibility
+            answers: {}
+        };
+
+        // Build subjectScores from answers array
+        if (data.answers && data.answers.length) {
+            data.answers.forEach(ans => {
+                const subj = ans.subject;
+                if (!examResults.scores.subjectScores[subj]) {
+                    examResults.scores.subjectScores[subj] = { correct: 0, total: 0 };
+                }
+                examResults.scores.subjectScores[subj].total++;
+                if (ans.is_correct) examResults.scores.subjectScores[subj].correct++;
+                // Also store individual answers for review mode if needed
+                examResults.answers[ans.question_id] = ans.user_answer;
+            });
+        }
+
+        displayResults(examResults);
+    } catch (error) {
+        console.error(error);
+        document.getElementById('resultsHeader').innerHTML = '<div class="error">Failed to load exam details. <a href="past-results.html">Back to Past Results</a></div>';
+    }
 }
+
 function displayResults(results) {
     displayHeader(results);
     displaySummaryCards(results);
@@ -119,6 +155,9 @@ function toggleReview() {
 function loadReviewQuestions() {
     const data = examResults;
     const container = document.getElementById('reviewQuestions');
+if (window.MathJax) {
+    MathJax.typesetPromise().catch(err => console.log('MathJax error:', err));
+}
     let allQuestions = [];
     
     Object.keys(data.subjectQuestions).forEach(subject => {

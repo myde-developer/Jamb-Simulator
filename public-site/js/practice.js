@@ -92,6 +92,9 @@ function renderQuestion() {
     document.getElementById('feedbackBox').classList.remove('show');
     document.getElementById('checkBtn').disabled = !!saved;
     document.getElementById('nextBtn').disabled = true;
+if (window.MathJax) {
+    MathJax.typesetPromise().catch(err => console.log('MathJax error:', err));
+}
 }
 function selectOption(qid, letter) {
     if(practiceState.checked) return;

@@ -3,7 +3,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const auth = require('../middleware/auth');
-const { allSubjects } = require('../data/all-subjects');
+const { allSubjects } = require('../data/all-subjects'); // only used for English
 
 function shuffleArray(array) {
     for (let i = array.length - 1; i > 0; i--) {
@@ -20,11 +20,11 @@ router.post('/exam/questions', async (req, res) => {
         let allQuestions = [];
 
         for (const subject of subjects) {
-            let subjectQuestions = [];
             const targetCount = subject.name === 'Use of English' ? 60 : 40;
+            let subjectQuestions = [];
 
+            // ---------- ENGLISH: use static distribution from all-subjects.js ----------
             if (subject.name === 'Use of English') {
-                // English: static topic distribution from all-subjects.js
                 const subjectData = allSubjects[subject.id];
                 if (!subjectData || !subjectData.topicDistribution) {
                     console.log(`⚠️ No topic distribution for ${subject.name}, skipping`);
@@ -35,6 +35,7 @@ router.post('/exam/questions', async (req, res) => {
 
                 console.log(`📚 Fetching English questions by static topics...`);
                 for (const t of topicDistribution) {
+                    // 1. Exact match
                     let result = await db.query(
                         `SELECT q.*, s.name as subject_name 
                          FROM questions q
@@ -44,6 +45,7 @@ router.post('/exam/questions', async (req, res) => {
                          LIMIT $3`,
                         [subject.id, t.topic, t.count]
                     );
+                    // 2. Case‑insensitive partial match
                     if (result.rows.length < t.count) {
                         const remaining = t.count - result.rows.length;
                         const additional = await db.query(
@@ -58,6 +60,7 @@ router.post('/exam/questions', async (req, res) => {
                         );
                         result.rows = [...result.rows, ...additional.rows];
                     }
+                    // 3. Any random question from subject
                     if (result.rows.length < t.count) {
                         const remaining = t.count - result.rows.length;
                         const random = await db.query(
@@ -88,8 +91,10 @@ router.post('/exam/questions', async (req, res) => {
                     subjectQuestions.push(...formatted);
                     console.log(`   ✅ ${t.topic}: loaded ${formatted.length} questions`);
                 }
-            } else {
-                // Other subjects: dynamic topics from database
+            } 
+            // ---------- OTHER SUBJECTS: dynamic topics from database ----------
+            else {
+                // Get all distinct topics for this subject
                 const topicsResult = await db.query(
                     `SELECT DISTINCT topic FROM questions WHERE subject_id = $1 AND topic IS NOT NULL ORDER BY topic`,
                     [subject.id]
@@ -97,8 +102,20 @@ router.post('/exam/questions', async (req, res) => {
                 const topics = topicsResult.rows.map(row => row.topic);
                 console.log(`📚 Subject ${subject.name} has ${topics.length} distinct topics`);
 
+                if (topics.length === 0) {
+                    console.log(`⚠️ No topics found for ${subject.name}, skipping`);
+                    continue;
+                }
+
+                // Determine how many to take from each topic (2 if possible, otherwise 1)
+                let perTopic = 2;
+                if (topics.length * 2 > targetCount) {
+                    perTopic = 1;
+                }
+                console.log(`   Taking ${perTopic} question(s) from each topic`);
+
                 const selectedIds = new Set();
-                // First pass: take 2 from each topic
+                // First pass: take perTopic from each topic
                 for (const topic of topics) {
                     const result = await db.query(
                         `SELECT q.*, s.name as subject_name 
@@ -107,7 +124,7 @@ router.post('/exam/questions', async (req, res) => {
                          WHERE q.subject_id = $1 AND q.topic = $2
                          ORDER BY RANDOM()
                          LIMIT $3`,
-                        [subject.id, topic, 2]
+                        [subject.id, topic, perTopic]
                     );
                     const formatted = result.rows.map(q => ({
                         id: q.id,
@@ -124,16 +141,15 @@ router.post('/exam/questions', async (req, res) => {
                     }));
                     subjectQuestions.push(...formatted);
                     formatted.forEach(q => selectedIds.add(q.id));
-                    console.log(`   ✅ ${topic}: took ${formatted.length} questions (first pass)`);
                 }
 
-                // Second pass: add extra questions evenly (one at a time) until target reached
-                let neededRemaining = targetCount - subjectQuestions.length;
-                if (neededRemaining > 0 && topics.length > 0) {
-                    console.log(`   Need ${neededRemaining} more questions, distributing evenly...`);
-                    let topicIndex = 0;
-                    while (neededRemaining > 0 && topicIndex < topics.length * 10) {
-                        const topic = topics[topicIndex % topics.length];
+                // Second pass: add extra questions evenly (round‑robin) until target reached
+                let needed = targetCount - subjectQuestions.length;
+                if (needed > 0 && topics.length > 0) {
+                    console.log(`   Need ${needed} more questions, distributing evenly...`);
+                    let idx = 0;
+                    while (needed > 0 && idx < topics.length * 10) {
+                        const topic = topics[idx % topics.length];
                         const extraResult = await db.query(
                             `SELECT q.*, s.name as subject_name 
                              FROM questions q
@@ -141,41 +157,45 @@ router.post('/exam/questions', async (req, res) => {
                              WHERE q.subject_id = $1 AND q.topic = $2
                              AND q.id NOT IN (${selectedIds.size ? Array.from(selectedIds).join(',') : '0'})
                              ORDER BY RANDOM()
-                             LIMIT $3`,
-                            [subject.id, topic, 1]
+                             LIMIT 1`,
+                            [subject.id, topic]
                         );
                         if (extraResult.rows.length > 0) {
+                            const q = extraResult.rows[0];
                             const extra = {
-                                id: extraResult.rows[0].id,
-                                subject: extraResult.rows[0].subject_name,
-                                question_text: extraResult.rows[0].question_text,
-                                option_a: extraResult.rows[0].option_a,
-                                option_b: extraResult.rows[0].option_b,
-                                option_c: extraResult.rows[0].option_c,
-                                option_d: extraResult.rows[0].option_d,
-                                correct_answer: extraResult.rows[0].correct_answer,
-                                explanation: extraResult.rows[0].explanation || '',
-                                topic: extraResult.rows[0].topic,
-                                difficulty: extraResult.rows[0].difficulty
+                                id: q.id,
+                                subject: q.subject_name,
+                                question_text: q.question_text,
+                                option_a: q.option_a,
+                                option_b: q.option_b,
+                                option_c: q.option_c,
+                                option_d: q.option_d,
+                                correct_answer: q.correct_answer,
+                                explanation: q.explanation || '',
+                                topic: q.topic,
+                                difficulty: q.difficulty
                             };
                             subjectQuestions.push(extra);
                             selectedIds.add(extra.id);
-                            neededRemaining--;
+                            needed--;
                             console.log(`      +1 extra from ${topic}`);
                         }
-                        topicIndex++;
-                        if (topicIndex > topics.length * 5 && neededRemaining > 0) {
+                        idx++;
+                        if (idx > topics.length * 5 && needed > 0) {
                             console.warn(`   No more questions available for ${subject.name}, stopping.`);
                             break;
                         }
                     }
                 }
+
                 if (subjectQuestions.length < targetCount) {
                     console.warn(`⚠️ Only ${subjectQuestions.length} questions available for ${subject.name} (expected ${targetCount})`);
                 }
             }
+
             allQuestions.push(...subjectQuestions);
         }
+
         allQuestions = shuffleArray(allQuestions);
         console.log(`✅ Total questions loaded for exam: ${allQuestions.length}`);
         res.json(allQuestions);
@@ -195,13 +215,12 @@ router.post('/exam/save', auth, async (req, res) => {
         // Generate a completely new unique exam ID (ignore frontend ID to avoid duplicates)
         const examId = `EXAM_${Date.now()}_${Math.random().toString(36).substr(2, 12)}_${userId}`;
 
-        // Check if this session already exists (should not, but safety)
+        // Safety check – should not exist
         const existing = await client.query(
             `SELECT id FROM exam_sessions WHERE id = $1 AND user_id = $2`,
             [examId, userId]
         );
         if (existing.rows.length > 0) {
-            // Already saved (unlikely), just return success
             return res.json({ success: true, message: 'Exam already saved', sessionId: examId });
         }
 
@@ -260,7 +279,6 @@ router.post('/exam/save', auth, async (req, res) => {
 // ========== GET /api/user/exams – get current user's exam history (with subject names) ==========
 router.get('/user/exams', auth, async (req, res) => {
     try {
-        // First get the basic exam data
         const exams = await db.query(
             `SELECT id, started_at, completed_at, score, total_questions, percentage, subjects_selected
              FROM exam_sessions
@@ -269,7 +287,7 @@ router.get('/user/exams', auth, async (req, res) => {
             [req.user.id]
         );
 
-        // For each exam, fetch subject names from the subjects table using the IDs in subjects_selected
+        // Build result with subject names
         const results = [];
         for (const exam of exams.rows) {
             let subjectNames = [];
@@ -294,6 +312,69 @@ router.get('/user/exams', auth, async (req, res) => {
     } catch (error) {
         console.error('Error fetching user exams:', error);
         res.status(500).json({ error: 'Failed to fetch exams' });
+    }
+});
+
+// GET /api/exam/:id – fetch a single exam by ID (for viewing past results)
+router.get('/exam/:id', auth, async (req, res) => {
+    try {
+        const examId = req.params.id;
+        const userId = req.user.id;
+
+        // Verify exam belongs to this user
+        const check = await db.query(
+            `SELECT id FROM exam_sessions WHERE id = $1 AND user_id = $2`,
+            [examId, userId]
+        );
+        if (check.rows.length === 0) {
+            return res.status(404).json({ error: 'Exam not found' });
+        }
+
+        // Fetch exam with answers and subject names
+        const result = await db.query(
+            `SELECT es.*, 
+                    (SELECT array_agg(s.name) FROM subjects s WHERE s.id = ANY(es.subjects_selected)) as subject_names,
+                    json_agg(json_build_object(
+                        'question_id', q.id,
+                        'question_text', q.question_text,
+                        'option_a', q.option_a,
+                        'option_b', q.option_b,
+                        'option_c', q.option_c,
+                        'option_d', q.option_d,
+                        'user_answer', ua.selected_answer,
+                        'correct_answer', q.correct_answer,
+                        'is_correct', ua.is_correct,
+                        'explanation', q.explanation,
+                        'subject', s.name
+                    ) ORDER BY q.id) as answers
+             FROM exam_sessions es
+             LEFT JOIN user_answers ua ON ua.session_id = es.id
+             LEFT JOIN questions q ON q.id = ua.question_id
+             LEFT JOIN subjects s ON s.id = q.subject_id
+             WHERE es.id = $1
+             GROUP BY es.id`,
+            [examId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Exam data not found' });
+        }
+
+        // Format the response to match what `results.js` expects
+        const exam = result.rows[0];
+        const responseData = {
+            id: exam.id,
+            date: exam.completed_at || exam.started_at,
+            score: exam.score,
+            total_questions: exam.total_questions,
+            percentage: exam.percentage,
+            subjects: exam.subject_names || [],
+            answers: exam.answers || []
+        };
+        res.json(responseData);
+    } catch (error) {
+        console.error('Error fetching exam:', error);
+        res.status(500).json({ error: 'Failed to fetch exam details' });
     }
 });
 

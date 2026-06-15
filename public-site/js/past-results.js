@@ -49,43 +49,6 @@ async function loadExamList() {
     }
 }
 
-window.viewExamDetails = async function(examId) {
-    const container = document.getElementById('app');
-    container.innerHTML = '<div class="loading">Loading exam details...</div>';
-    try {
-        const token = localStorage.getItem('token');
-        // You need an endpoint to fetch a single exam with answers. We'll create it if missing.
-        const response = await fetch(`${API_BASE}/api/progress/exam/${examId}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (!response.ok) throw new Error('Failed to load details');
-        const exam = await response.json();
-        // Render details (same as before)
-        const date = new Date(exam.completed_at || exam.started_at).toLocaleString();
-        const score = exam.score ? exam.score.toFixed(2) : 'N/A';
-        const total = exam.total_questions || 180;
-        const percentage = exam.percentage ? exam.percentage + '%' : 'N/A';
-        let answersHtml = '<ul>';
-        if (exam.answers && exam.answers.length) {
-            exam.answers.forEach((ans, idx) => {
-                answersHtml += `<li><strong>Q${idx+1}:</strong> ${ans.question_text}<br>Your answer: ${ans.user_answer || 'Not answered'} (${ans.is_correct ? '✓' : '✗'})<br>Correct: ${ans.correct_answer}<br>${ans.explanation || ''}</li>`;
-            });
-        } else {
-            answersHtml = '<p>No answer details.</p>';
-        }
-        answersHtml += '</ul>';
-        container.innerHTML = `
-            <div class="detail-card">
-                <button onclick="loadExamList()">← Back to list</button>
-                <h2>Exam Details</h2>
-                <p>Date: ${date}</p>
-                <p>Score: ${score}/${total} (${percentage})</p>
-                <h3>Answers</h3>
-                ${answersHtml}
-            </div>
-        `;
-    } catch (error) {
-        console.error(error);
-        container.innerHTML = '<div class="error">Failed to load details. <button onclick="loadExamList()">Back</button></div>';
-    }
+window.viewExamDetails = function(examId) {
+    window.location.href = `/results.html?id=${examId}`;
 };

@@ -128,6 +128,9 @@ function renderSubjectQuestion(subjectName) {
     const subjectQuestions = examState.subjectQuestions[subjectName];
     if (!subjectQuestions || subjectQuestions.length === 0) return;
     
+if (window.MathJax) {
+    MathJax.typesetPromise().catch(err => console.log('MathJax error:', err));
+}
     const currentIndex = examState.subjectIndices[subjectName];
     const question = subjectQuestions[currentIndex];
     renderQuestion(question, subjectName, currentIndex + 1, subjectQuestions.length);
@@ -277,6 +280,10 @@ function renderQuestion(question, subjectName, questionNumber, totalQuestions) {
             `).join('')}
         </div>
     `;
+
+if (window.MathJax) {
+    MathJax.typesetPromise().catch(err => console.log('MathJax error:', err));
+}
     
     updateNavButtons(subjectName);
     updateProgress();

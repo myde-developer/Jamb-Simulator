@@ -2,9 +2,22 @@
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/database');
-const { allSubjects } = require('../data/all-subjects'); // ✅ static topics
+const { allSubjects } = require('../data/all-subjects'); // for static topics
 
-// Helper: Generate AI questions with robust JSON cleaning
+// Helper: Convert plain-text matrices to LaTeX
+function convertMatrixToLatexInText(text) {
+    if (!text || typeof text !== 'string') return text;
+    // Matches [[ ... , ... ], [ ... , ... ]] (2x2 matrix)
+    // Handles optional spaces, multiple rows? Here we assume up to 2 rows.
+    // For JAMB level, 2x2 is most common.
+    return text.replace(/\[\[([^\]]+)\],\s*\[([^\]]+)\]\]/g, (match, row1, row2) => {
+        const cleanRow1 = row1.split(',').map(s => s.trim()).join(' & ');
+        const cleanRow2 = row2.split(',').map(s => s.trim()).join(' & ');
+        return `\\(\\begin{bmatrix} ${cleanRow1} \\\\ ${cleanRow2} \\end{bmatrix}\\)`;
+    });
+}
+
+// Helper: Generate AI questions with robust JSON cleaning and matrix conversion
 async function generateAIQuestions(subjectName, topic, difficulty, countNeeded) {
     const apiKey = process.env.GROQ_API_KEY;
     if (!apiKey) throw new Error('GROQ_API_KEY not set');
@@ -46,7 +59,7 @@ Return ONLY a valid JSON array of ${countNeeded} questions. No extra text.`;
     if (!jsonMatch) throw new Error('No JSON array found in AI response');
     let jsonString = jsonMatch[0];
 
-    // Clean common JSON issues
+    // Clean JSON
     jsonString = jsonString
         .replace(/\\/g, '\\\\')
         .replace(/[\u0000-\u001F]+/g, ' ')
@@ -64,24 +77,42 @@ Return ONLY a valid JSON array of ${countNeeded} questions. No extra text.`;
         throw new Error('No valid questions generated');
     }
 
-    // Format to frontend expected structure
-    return questions.slice(0, countNeeded).map((q, idx) => ({
-        id: `ai_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 6)}`,
-        question_text: q.question,
-        option_a: q.options?.A || 'Option A',
-        option_b: q.options?.B || 'Option B',
-        option_c: q.options?.C || 'Option C',
-        option_d: q.options?.D || 'Option D',
-        correct_answer: q.correct_answer,
-        explanation: q.explanation || 'No explanation available.',
-        subject: subjectName,
-        topic: topic || 'General',
-        difficulty: difficulty || 'medium',
-        is_ai_generated: true
-    }));
+    // Format to frontend structure and convert matrices to LaTeX
+    return questions.slice(0, countNeeded).map((q, idx) => {
+        // Convert question text
+        let questionText = q.question || 'No question provided';
+        questionText = convertMatrixToLatexInText(questionText);
+        
+        // Convert each option
+        const options = q.options || {};
+        const optA = convertMatrixToLatexInText(options.A || 'Option A');
+        const optB = convertMatrixToLatexInText(options.B || 'Option B');
+        const optC = convertMatrixToLatexInText(options.C || 'Option C');
+        const optD = convertMatrixToLatexInText(options.D || 'Option D');
+        
+        // Convert explanation (optional)
+        let explanation = q.explanation || 'No explanation available.';
+        explanation = convertMatrixToLatexInText(explanation);
+        
+        return {
+            id: `ai_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 6)}`,
+            question_text: questionText,
+            option_a: optA,
+            option_b: optB,
+            option_c: optC,
+            option_d: optD,
+            correct_answer: q.correct_answer || 'A',
+            explanation: explanation,
+            subject: subjectName,
+            topic: topic || 'General',
+            difficulty: difficulty || 'medium',
+            is_ai_generated: true
+        };
+    });
 }
 
-// GET /api/practice/subjects – from database (unchanged)
+// ========== Existing routes (subjects, topics, questions, generate) ==========
+// GET /api/practice/subjects
 router.get('/subjects', async (req, res) => {
     try {
         const result = await pool.query('SELECT id, name, code FROM subjects ORDER BY name');
@@ -96,31 +127,29 @@ router.get('/subjects', async (req, res) => {
 router.get('/topics/:subjectId', async (req, res) => {
     try {
         const subjectId = parseInt(req.params.subjectId);
-        const result = await pool.query(
-            `SELECT DISTINCT topic FROM questions WHERE subject_id = $1 AND topic IS NOT NULL ORDER BY topic`,
-            [subjectId]
-        );
-        const topics = result.rows.map(row => row.topic);
-        res.json({ topics });
+        const subject = allSubjects[subjectId];
+        if (!subject) {
+            return res.json({ topics: [] });
+        }
+        res.json({ topics: subject.topics || [] });
     } catch (error) {
         console.error(error);
         res.json({ topics: [] });
     }
 });
 
-// POST /api/practice/questions – with AI fallback
+// POST /api/practice/questions – DB + AI fallback (with matrix conversion)
 router.post('/questions', async (req, res) => {
     try {
         const { subject_id, topic, difficulty, count = 10 } = req.body;
 
-        // 1. Get subject name
         const subjectRes = await pool.query('SELECT name FROM subjects WHERE id = $1', [subject_id]);
         if (subjectRes.rows.length === 0) {
             return res.status(400).json({ error: 'Invalid subject' });
         }
         const subjectName = subjectRes.rows[0].name;
 
-        // 2. Fetch from database
+        // Fetch from database
         let query = `
             SELECT q.*, s.name as subject_name 
             FROM questions q
@@ -129,7 +158,6 @@ router.post('/questions', async (req, res) => {
         `;
         const params = [subject_id];
         let paramIndex = 2;
-
         if (topic && topic !== 'all') {
             query += ` AND q.topic = $${paramIndex}`;
             params.push(topic);
@@ -159,7 +187,6 @@ router.post('/questions', async (req, res) => {
             is_ai_generated: false
         }));
 
-        // 3. If not enough DB questions, generate AI for the shortfall
         let finalQuestions = [...dbQuestions];
         const remaining = count - dbQuestions.length;
         if (remaining > 0) {
@@ -173,7 +200,7 @@ router.post('/questions', async (req, res) => {
             }
         }
 
-        // 4. Shuffle
+        // Shuffle
         for (let i = finalQuestions.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [finalQuestions[i], finalQuestions[j]] = [finalQuestions[j], finalQuestions[i]];
@@ -186,7 +213,7 @@ router.post('/questions', async (req, res) => {
     }
 });
 
-// POST /api/practice/generate – dedicated AI endpoint (optional)
+// POST /api/practice/generate – dedicated AI endpoint (with matrix conversion)
 router.post('/generate', async (req, res) => {
     try {
         const { subject, topic, count = 10, difficulty = 'medium' } = req.body;
