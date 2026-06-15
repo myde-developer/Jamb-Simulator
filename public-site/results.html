@@ -57,10 +57,10 @@
         .toast.show { opacity: 1; }
         @media (max-width: 768px) {
             .summary-cards { grid-template-columns: repeat(2, 1fr); }
-            .subject-row { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
-            .subject-name { width: 100%; }
-            .subject-score-bar { width: 100%; margin: 0.5rem 0; }
-            .subject-stats { width: 100%; text-align: left; }
+            .subject-row {display: flex; flex-direction: column; align-items: center; text-align: center; }
+            .subject-name { margin-bottom: 0.25rem; font-weight: 600; }
+            .subject-stats { text-align: center; }
+            .subject-row:last-child { border-top: 2px solid #1a1a2e; margin-top: 1rem; padding-top: 1rem; }
             .action-buttons { flex-direction: column; }
         }
     </style>

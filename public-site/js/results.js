@@ -1,4 +1,4 @@
-// client/js/results.js
+// js/results.js – final version
 const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://localhost:5000'
     : 'https://jamb-simulator-api.onrender.com';
@@ -7,21 +7,31 @@ let examResults = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     loadResults();
-    
-    // Add share button listener if present
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) logoutBtn.addEventListener('click', logout);
     const shareBtn = document.getElementById('shareScoreBtn');
     if (shareBtn) shareBtn.addEventListener('click', generateShareableCard);
 });
 
+function logout(e) {
+    if (e) e.preventDefault();
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('is_admin');
+    window.location.href = '/auth.html';
+}
+
+// ========== LOAD RESULTS ==========
 async function loadResults() {
     const urlParams = new URLSearchParams(window.location.search);
     const examId = urlParams.get('id');
+    const isAdmin = urlParams.get('admin') === 'true';
 
     if (examId) {
-        // Fetch a past exam from the backend
-        await loadPastExam(examId);
+        // Load a specific exam from the server (past results or admin view)
+        await loadPastExam(examId, isAdmin);
     } else {
-        // Load the most recent exam from localStorage (normal flow)
+        // Load the most recent exam from localStorage (new exam flow)
         examResults = JSON.parse(localStorage.getItem('lastExamResults'));
         if (!examResults) {
             window.location.href = '/home.html';
@@ -31,7 +41,7 @@ async function loadResults() {
     }
 }
 
-async function loadPastExam(examId) {
+async function loadPastExam(examId, isAdmin) {
     const token = localStorage.getItem('token');
     if (!token) {
         window.location.href = '/auth.html';
@@ -45,16 +55,15 @@ async function loadPastExam(examId) {
         if (!response.ok) throw new Error('Failed to load exam');
         const data = await response.json();
 
-        // Transform backend response to match the `examResults` format expected by displayResults
+        // Transform backend response to match the structure expected by displayResults
         examResults = {
             scores: {
                 total: data.score,
-                percentage: data.percentage,
                 subjectScores: {}
             },
             subjects: data.subjects.map(name => ({ name: name })),
-            date: data.date,
-            subjectQuestions: {},  // not needed for display, but keep for compatibility
+            date: data.completed_at || data.started_at,
+            subjectQuestions: {},  // not used for display, but kept for compatibility
             answers: {}
         };
 
@@ -67,18 +76,30 @@ async function loadPastExam(examId) {
                 }
                 examResults.scores.subjectScores[subj].total++;
                 if (ans.is_correct) examResults.scores.subjectScores[subj].correct++;
-                // Also store individual answers for review mode if needed
+                // Store individual answers for review mode
                 examResults.answers[ans.question_id] = ans.user_answer;
             });
         }
 
         displayResults(examResults);
+
+        // Add a back button for admin panel
+        if (isAdmin) {
+            const container = document.querySelector('.container');
+            const backBtn = document.createElement('button');
+            backBtn.textContent = '← Back to Admin Panel';
+            backBtn.className = 'action-btn home-btn';
+            backBtn.style.marginBottom = '1rem';
+            backBtn.onclick = () => window.location.href = '/admin.html';
+            container.prepend(backBtn);
+        }
     } catch (error) {
-        console.error(error);
+        console.error('Error loading past exam:', error);
         document.getElementById('resultsHeader').innerHTML = '<div class="error">Failed to load exam details. <a href="past-results.html">Back to Past Results</a></div>';
     }
 }
 
+// ========== DISPLAY RESULTS (no percentages, no bars) ==========
 function displayResults(results) {
     displayHeader(results);
     displaySummaryCards(results);
@@ -138,6 +159,7 @@ function displaySubjectBreakdown(results) {
     breakdown.innerHTML = html;
 }
 
+// ========== REVIEW ANSWERS ==========
 function toggleReview() {
     const reviewSection = document.getElementById('reviewSection');
     const isHidden = reviewSection.style.display === 'none' || !reviewSection.style.display;
@@ -151,9 +173,6 @@ function toggleReview() {
 function loadReviewQuestions() {
     const data = examResults;
     const container = document.getElementById('reviewQuestions');
-if (window.MathJax) {
-    MathJax.typesetPromise().catch(err => console.log('MathJax error:', err));
-}
     let allQuestions = [];
     
     Object.keys(data.subjectQuestions).forEach(subject => {
@@ -204,27 +223,20 @@ function filterQuestions(filter) {
         else if (filter === 'incorrect') q.style.display = !isCorrect ? 'block' : 'none';
     });
 }
-// ============ PDF GENERATION - FIXED VERSION ============
 
+// ========== PDF EXPORT ==========
 async function exportAsPDF() {
     if (!examResults) {
         showToast('No results to export');
         return;
     }
-    
     showToast('📄 Generating PDF...');
-    
     try {
-        // Check if html2pdf is loaded
         if (typeof html2pdf === 'undefined') {
             showToast('Loading PDF library...');
             await loadHtml2PdfLibrary();
         }
-        
-        // Create a complete HTML document for the PDF
         const pdfHtml = generatePDFHTML(examResults);
-        
-        // Create a temporary container for PDF generation
         const tempContainer = document.createElement('div');
         tempContainer.style.position = 'fixed';
         tempContainer.style.left = '-9999px';
@@ -234,67 +246,39 @@ async function exportAsPDF() {
         tempContainer.style.padding = '20px';
         tempContainer.innerHTML = pdfHtml;
         document.body.appendChild(tempContainer);
-        
-        // Wait for content to render
         await new Promise(resolve => setTimeout(resolve, 300));
-        
-        // PDF options
         const opt = {
             margin: [0.5, 0.5, 0.5, 0.5],
             filename: `JAMB_Results_${getDateString()}.pdf`,
             image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { 
-                scale: 2, 
-                logging: false,
-                backgroundColor: '#ffffff',
-                letterRendering: true,
-                useCORS: true
-            },
-            jsPDF: { 
-                unit: 'in', 
-                format: 'a4', 
-                orientation: 'portrait' 
-            }
+            html2canvas: { scale: 2, logging: false, backgroundColor: '#ffffff', letterRendering: true, useCORS: true },
+            jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
         };
-        
-        // Generate and download PDF
         await html2pdf().set(opt).from(tempContainer).save();
-        
-        // Clean up
         document.body.removeChild(tempContainer);
         showToast('✅ PDF downloaded successfully!');
-        
     } catch (error) {
-        console.error('PDF generation error:', error);
+        console.error(error);
         showToast('❌ Failed to generate PDF: ' + error.message);
-        
-        // Try fallback method
         tryFallbackPDF();
     }
 }
 
 async function loadHtml2PdfLibrary() {
     return new Promise((resolve, reject) => {
-        // Check if already loaded
         if (typeof html2pdf !== 'undefined') {
             resolve();
             return;
         }
-        
-        // Load html2pdf bundle
         const script = document.createElement('script');
         script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
-        script.onload = () => {
-            // Wait a bit for initialization
-            setTimeout(resolve, 200);
-        };
+        script.onload = () => setTimeout(resolve, 200);
         script.onerror = () => reject(new Error('Failed to load PDF library'));
         document.head.appendChild(script);
     });
 }
 
 function tryFallbackPDF() {
-    // Fallback: Open print dialog
     const printWindow = window.open('', '_blank');
     if (printWindow) {
         const pdfHtml = generatePDFHTML(examResults);
@@ -315,235 +299,41 @@ function getDateString() {
 function generatePDFHTML(results) {
     const totalCorrect = Object.values(results.scores.subjectScores).reduce((sum, s) => sum + (s.correct || 0), 0);
     const totalQuestions = Object.values(results.subjectQuestions).reduce((sum, q) => sum + (q.length || 0), 0);
-    
-    // Build subject rows
     let subjectRows = '';
     if (results.subjects && results.subjects.length > 0) {
         results.subjects.forEach(subject => {
             const subjectName = subject.name || subject;
             const data = results.scores.subjectScores[subjectName] || { correct: 0, total: 0 };
-            const percentage = data.total > 0 ? (data.correct / data.total) * 100 : 0;
-            const jambScore = subjectName === 'Use of English' 
-                ? (data.correct * 1.67).toFixed(2) 
-                : (data.correct * 2.5).toFixed(2);
-            
+            const jambScore = subjectName === 'Use of English' ? (data.correct * 1.67).toFixed(2) : (data.correct * 2.5).toFixed(2);
             subjectRows += `
                 <tr style="border-bottom: 1px solid #e1e5eb;">
                     <td style="padding: 12px 8px;">${escapeHtml(subjectName)}</td>
                     <td style="padding: 12px 8px; text-align: center;">${data.correct}/${data.total}</td>
-                    <td style="padding: 12px 8px; text-align: center;">${percentage.toFixed(1)}%</td>
                     <td style="padding: 12px 8px; text-align: center;">${jambScore}</td>
                 </tr>
             `;
         });
     } else {
-        subjectRows = `
-            <tr>
-                <td colspan="4" style="padding: 20px; text-align: center;">No subject data available</td>
-            </tr>
-        `;
+        subjectRows = `<tr><td colspan="3" style="padding: 20px; text-align: center;">No subject data available</td></tr>`;
     }
-    
-    const totalPercentage = results.scores.percentage || ((totalCorrect / totalQuestions) * 100).toFixed(1);
     const totalScore = results.scores.total || 0;
-    
     return `<!DOCTYPE html>
     <html>
-    <head>
-        <meta charset="UTF-8">
-        <title>JAMB Exam Results</title>
-        <style>
-            * {
-                margin: 0;
-                padding: 0;
-                box-sizing: border-box;
-            }
-            body {
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
-                padding: 40px;
-                color: #1a1a2e;
-                line-height: 1.5;
-                background: white;
-            }
-            .container {
-                max-width: 800px;
-                margin: 0 auto;
-            }
-            .header {
-                text-align: center;
-                margin-bottom: 30px;
-                border-bottom: 2px solid #1a1a2e;
-                padding-bottom: 20px;
-            }
-            .header h1 {
-                font-size: 24px;
-                margin-bottom: 5px;
-                color: #1a1a2e;
-            }
-            .header p {
-                font-size: 12px;
-                color: #718096;
-            }
-            .score-section {
-                text-align: center;
-                margin-bottom: 30px;
-            }
-            .score-circle {
-                display: inline-block;
-                background: #1a1a2e;
-                color: white;
-                width: 120px;
-                height: 120px;
-                border-radius: 50%;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-                margin: 0 auto;
-            }
-            .score-number {
-                font-size: 32px;
-                font-weight: bold;
-            }
-            .score-total {
-                font-size: 12px;
-            }
-            .score-percentage {
-                margin-top: 15px;
-                font-size: 18px;
-                font-weight: 500;
-                color: #2d6a4f;
-            }
-            .stats-grid {
-                display: grid;
-                grid-template-columns: repeat(3, 1fr);
-                gap: 15px;
-                margin-bottom: 30px;
-            }
-            .stat-box {
-                background: #f8f9fa;
-                padding: 15px;
-                text-align: center;
-                border-radius: 8px;
-            }
-            .stat-number {
-                font-size: 24px;
-                font-weight: bold;
-                color: #1a1a2e;
-            }
-            .stat-label {
-                font-size: 11px;
-                color: #718096;
-                margin-top: 5px;
-            }
-            h2 {
-                font-size: 16px;
-                margin-bottom: 15px;
-                color: #1a1a2e;
-            }
-            .subject-table {
-                width: 100%;
-                border-collapse: collapse;
-                margin-bottom: 30px;
-                border: 1px solid #e1e5eb;
-            }
-            .subject-table th {
-                background: #f8f9fa;
-                padding: 12px 8px;
-                text-align: left;
-                border-bottom: 2px solid #e1e5eb;
-                font-size: 13px;
-                font-weight: 600;
-            }
-            .subject-table td {
-                padding: 10px 8px;
-                font-size: 13px;
-            }
-            .total-row {
-                border-top: 2px solid #1a1a2e;
-                background: #f8f9fa;
-                font-weight: bold;
-            }
-            .total-row td {
-                font-weight: bold;
-            }
-            .footer {
-                text-align: center;
-                margin-top: 30px;
-                padding-top: 20px;
-                border-top: 1px solid #e1e5eb;
-                font-size: 10px;
-                color: #718096;
-            }
-            @media print {
-                body {
-                    padding: 0;
-                }
-                .stats-grid {
-                    break-inside: avoid;
-                }
-                .subject-table {
-                    break-inside: avoid;
-                }
-            }
-        </style>
-    </head>
+    <head><meta charset="UTF-8"><title>JAMB Exam Results</title><style>
+        body{font-family:sans-serif;padding:40px;background:white;}
+        .score-circle{text-align:center;margin:20px 0;background:#1a1a2e;color:white;width:120px;height:120px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;margin:0 auto;}
+        table{width:100%;border-collapse:collapse;margin:20px 0;}
+        th,td{border:1px solid #ccc;padding:8px;text-align:left;}
+        th{background:#f8f9fa;}
+        .footer{text-align:center;margin-top:30px;font-size:12px;color:#718096;}
+    </style></head>
     <body>
-        <div class="container">
-            <div class="header">
-                <h1>JAMB UTME 2026 Mock Exam</h1>
-                <p>${escapeHtml(new Date(results.date).toLocaleString())}</p>
-            </div>
-            
-            <div class="score-section">
-                <div class="score-circle">
-                    <div class="score-number">${totalScore}</div>
-                    <div class="score-total">/400</div>
-                </div>
-                <div class="score-percentage">${totalPercentage}% Overall</div>
-            </div>
-            
-            <div class="stats-grid">
-                <div class="stat-box">
-                    <div class="stat-number">${totalQuestions}</div>
-                    <div class="stat-label">Total Questions</div>
-                </div>
-                <div class="stat-box">
-                    <div class="stat-number" style="color: #2d6a4f;">${totalCorrect}</div>
-                    <div class="stat-label">Correct Answers</div>
-                </div>
-                <div class="stat-box">
-                    <div class="stat-number" style="color: #c92a2a;">${totalQuestions - totalCorrect}</div>
-                    <div class="stat-label">Incorrect Answers</div>
-                </div>
-            </div>
-            
-            <h2>Performance by Subject</h2>
-            <table class="subject-table">
-                <thead>
-                    <tr>
-                        <th>Subject</th>
-                        <th style="text-align: center;">Score</th>
-                        <th style="text-align: center;">Accuracy</th>
-                        <th style="text-align: center;">JAMB Score</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${subjectRows}
-                    <tr class="total-row">
-                        <td style="font-weight: bold;">TOTAL</td>
-                        <td style="text-align: center; font-weight: bold;">${totalCorrect}/${totalQuestions}</td>
-                        <td style="text-align: center; font-weight: bold;">${totalPercentage}%</td>
-                        <td style="text-align: center; font-weight: bold;">${totalScore}/400</td>
-                    </tr>
-                </tbody>
-            </table>
-            
-            <div class="footer">
-                <p>Generated by JAMB Simulator 2026</p>
-                <p>Keep practicing to improve your score!</p>
-            </div>
-        </div>
+        <h1 style="text-align:center;">JAMB UTME 2026 Mock Exam</h1>
+        <p style="text-align:center;">${escapeHtml(new Date(results.date).toLocaleString())}</p>
+        <div class="score-circle"><div style="font-size:32px;font-weight:bold;">${totalScore}</div><div>/400</div></div>
+        <h2>Performance by Subject</h2>
+        <table><thead><tr><th>Subject</th><th style="text-align:center;">Score</th><th style="text-align:center;">JAMB Score</th></tr></thead><tbody>${subjectRows}</tbody></table>
+        <div class="footer"><p>Generated by JAMB Simulator 2026</p><p>Keep practicing!</p></div>
     </body>
     </html>`;
 }
@@ -565,56 +355,7 @@ function showToast(message) {
     setTimeout(() => toast.classList.remove('show'), 3000);
 }
 
-document.getElementById('saveResultsBtn')?.addEventListener('click', saveResultsToAccount);
-
-async function saveResultsToAccount() {
-    const token = localStorage.getItem('token');
-    if (!token) {
-        alert('You need to be logged in to save results.');
-        window.location.href = '/auth.html';
-        return;
-    }
-
-    const examResults = JSON.parse(localStorage.getItem('lastExamResults'));
-    if (!examResults) {
-        alert('No exam results found. Please take an exam first.');
-        return;
-    }
-
-    // Prepare the data exactly as the backend expects
-    const examData = {
-        examId: examResults.examId || ('exam_' + Date.now()),
-        subjects: examResults.subjects,
-        subjectQuestions: examResults.subjectQuestions,
-        answers: examResults.answers,
-        scores: examResults.scores,
-        date: examResults.date
-    };
-
-    try {
-        const response = await fetch(`${API_BASE}/api/exam/save`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ examData })
-        });
-
-        if (response.ok) {
-            alert('✅ Results saved to your account! You can now view them in Past Results.');
-            // Optionally, redirect to past results or refresh
-        } else {
-            const error = await response.json();
-            alert('❌ Failed to save: ' + (error.error || 'Unknown error'));
-        }
-    } catch (err) {
-        console.error(err);
-        alert('Network error. Please try again.');
-    }
-}
-
-// ============ SHAREABLE SCORE CARD ============
+// ========== SHAREABLE SCORE CARD ==========
 async function generateShareableCard() {
     const { scores, subjects, date } = examResults;
     const canvas = document.createElement('canvas');
@@ -632,12 +373,10 @@ async function generateShareableCard() {
     ctx.fillStyle = 'white';
     ctx.font = '24px "Segoe UI"';
     ctx.fillText(`Total Score: ${scores.total} / 400`, 50, 160);
-    ctx.font = '20px "Segoe UI"';
-    ctx.fillText(`Percentage: ${scores.percentage}%`, 50, 210);
     ctx.fillStyle = '#ccc';
     ctx.font = '18px monospace';
-    ctx.fillText(new Date(date).toLocaleDateString(), 50, 270);
-    let y = 330;
+    ctx.fillText(new Date(date).toLocaleDateString(), 50, 220);
+    let y = 280;
     ctx.font = '18px "Segoe UI"';
     subjects.forEach(sub => {
         const data = scores.subjectScores[sub.name];
@@ -662,11 +401,12 @@ async function generateShareableCard() {
     }
 }
 
+// ========== UTILITIES ==========
 function goHome() {
     window.location.href = '/home.html';
 }
 
-// Global functions
+// Make global functions available
 window.toggleReview = toggleReview;
 window.filterQuestions = filterQuestions;
 window.goHome = goHome;

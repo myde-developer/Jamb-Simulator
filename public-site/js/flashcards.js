@@ -141,8 +141,8 @@ function renderFlashcard() {
     if(!card) return;
     document.getElementById('progressSubject').innerText = flashcardState.deck.subject;
     document.getElementById('progressCount').innerText = `${flashcardState.currentIndex+1}/${flashcardState.cards.length}`;
-    document.getElementById('questionText').innerText = card.question_text;
-    document.getElementById('answerText').innerText = card.back_text;
+    document.getElementById('questionText').innerHTML = card.question_text;
+document.getElementById('answerText').innerHTML = card.back_text;
     document.getElementById('answerText').classList.remove('show');
 }
 function flipCard() { document.getElementById('answerText').classList.toggle('show'); }

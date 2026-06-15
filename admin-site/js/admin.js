@@ -203,75 +203,36 @@ function displayUsers() {
     panel.innerHTML = html;
 }
 
-// ============================================
-// EXAMS TAB
-// ============================================
+// ========== EXAMS TAB ==========
 async function loadExams() {
     showLoading('Loading exams...');
-    
     try {
         const token = localStorage.getItem('token');
         const response = await fetch(`${API_BASE}/api/admin/exams`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        
-        if (!response.ok) {
-            throw new Error(`Failed to load exams: ${response.status}`);
-        }
-        
+        if (!response.ok) throw new Error(`Failed to load exams: ${response.status}`);
         examsData = await response.json();
-        
         if (examsData.length === 0) {
             document.getElementById('adminPanel').innerHTML = '<p class="no-data">No exam history found</p>';
             return;
         }
-        
         displayExams();
-        
     } catch (error) {
         console.error('Error loading exams:', error);
-        // Use sample data for testing UI
+        // Fallback to sample data (for testing)
         loadSampleExams();
     }
 }
 
-// Sample data for testing UI
-function loadSampleExams() {
-    examsData = [
-        {
-            id: 1,
-            user_name: "John Doe",
-            subjects: ["Mathematics", "Physics"],
-            score: 85,
-            total_questions: 180,
-            percentage: 47,
-            started_at: new Date().toISOString(),
-            completed_at: new Date().toISOString()
-        },
-        {
-            id: 2,
-            user_name: "Jane Smith",
-            subjects: ["English", "Biology"],
-            score: 120,
-            total_questions: 180,
-            percentage: 67,
-            started_at: new Date(Date.now() - 86400000).toISOString(),
-            completed_at: new Date(Date.now() - 86400000).toISOString()
-        }
-    ];
-    displayExams();
-}
-
 function displayExams() {
     const panel = document.getElementById('adminPanel');
-    
     let html = `
         <div class="search-bar">
             <input type="text" id="examSearch" placeholder="Search by user or subject...">
             <button onclick="searchExams()">Search</button>
             <button class="export-btn" onclick="exportData('exams')">📥 Export CSV</button>
         </div>
-        
         <div class="table-responsive">
             <table>
                 <thead>
@@ -281,48 +242,49 @@ function displayExams() {
                         <th>Subjects</th>
                         <th>Score</th>
                         <th>Percentage</th>
-                        <th>Time Spent</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
     `;
-    
     const start = (currentPage - 1) * 10;
-    const end = start + 10;
-    const paginatedExams = examsData.slice(start, end);
-    
-    paginatedExams.forEach(exam => {
-        const percentage = exam.percentage || ((exam.score / exam.total_questions) * 100).toFixed(1);
-        const percentageClass = percentage >= 70 ? 'score-high' : 
-                               percentage >= 50 ? 'score-medium' : 'score-low';
-        
+    const paginatedExams = examsData.slice(start, start + 10);
+    for (const exam of paginatedExams) {
+        const date = new Date(exam.completed_at || exam.started_at).toLocaleString();
+        const user = exam.user_name || 'Unknown';
+        const subjects = exam.subjects ? exam.subjects.join(', ') : 'JAMB Exam';
+        const score = exam.score || 0;
+        const total = exam.total_questions || 180;
+        const percentage = exam.percentage ? exam.percentage.toFixed(1) : ((score / total) * 100).toFixed(1);
+        const percentClass = percentage >= 70 ? 'score-high' : (percentage >= 50 ? 'score-medium' : 'score-low');
         html += `
             <tr>
-                <td>${new Date(exam.completed_at || exam.started_at).toLocaleString()}</td>
-                <td><strong>${exam.user_name || 'Unknown'}</strong></td>
-                <td>${exam.subjects?.join(', ') || 'JAMB Exam'}</td>
-                <td>${exam.score || 0}/${exam.total_questions || 180}</td>
-                <td class="${percentageClass}">${percentage}%</td>
-                <td>${calculateTimeSpent(exam.started_at, exam.completed_at)}</td>
+                <td>${date}</td>
+                <td><strong>${escapeHtml(user)}</strong></td>
+                <td>${escapeHtml(subjects)}</td>
+                <td>${score}/${total}</td>
+                <td class="${percentClass}">${percentage}%</td>
                 <td>
-                    <button onclick="viewExamDetails(${exam.id})" class="action-btn" title="View Details">👁️</button>
+                    <button class="action-btn" onclick="viewExamDetails('${exam.id}')">👁️ View</button>
                 </td>
             </tr>
         `;
-    });
-    
+    }
     html += `
                 </tbody>
             </table>
         </div>
-        <div class="pagination">
-            ${generatePagination(examsData.length, 10)}
-        </div>
+        <div class="pagination">${generatePagination(examsData.length, 10)}</div>
     `;
-    
     panel.innerHTML = html;
 }
+
+// View exam details (reuses the same endpoint as public results)
+window.viewExamDetails = async function(examId) {
+    // Store the exam ID in sessionStorage and redirect to results page
+    sessionStorage.setItem('adminViewExamId', examId);
+    window.open(`/results.html?admin=true&id=${examId}`, '_blank');
+};
 
 // ============================================
 // SUBJECT PERFORMANCE TAB
