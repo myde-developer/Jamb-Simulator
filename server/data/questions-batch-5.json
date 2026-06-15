@@ -1,7 +1,7 @@
 [
   {
     "subject_id": 1,
-    "question_text": "In describing the sunset over the coastal town, the travel writer noted that the view was absolutely **beautiful**. Which of the following words is the closest in meaning to the underlined word as used in this context?",
+    "question_text": "In describing the sunset over the coastal town, the travel writer noted that the view was absolutely <u>beautiful</u>. Which of the following words is the closest in meaning to the underlined word as used in this context?",
     "option_a": "Ugly",
     "option_b": "Attractive",
     "option_c": "Plain",
@@ -13,7 +13,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "The mathematics examination was described by students as extremely **difficult**, requiring hours of preparation. Which word is the nearest in meaning to the underlined word?",
+    "question_text": "The mathematics examination was described by students as extremely <u>difficult</u>, requiring hours of preparation. Which word is the nearest in meaning to the underlined word?",
     "option_a": "Easy",
     "option_b": "Simple",
     "option_c": "Hard",
@@ -25,7 +25,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "The librarian requested that all students maintain a **quiet** atmosphere in the reading room. Which word is most similar in meaning to the underlined word?",
+    "question_text": "The librarian requested that all students maintain a <u>quiet</u> atmosphere in the reading room. Which word is most similar in meaning to the underlined word?",
     "option_a": "Noisy",
     "option_b": "Loud",
     "option_c": "Silent",
@@ -37,7 +37,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "The businessman was known to be extremely **rich**, owning properties across three continents. Choose the option that is nearest in meaning to the underlined word.",
+    "question_text": "The businessman was known to be extremely <u>rich</u>, owning properties across three continents. Choose the option that is nearest in meaning to the underlined word.",
     "option_a": "Poor",
     "option_b": "Wealthy",
     "option_c": "Broke",
@@ -49,7 +49,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "The harmattan wind brought a **cold** breeze that made everyone reach for their sweaters. Which word is the closest in meaning to the underlined word?",
+    "question_text": "The harmattan wind brought a <u>cold</u> breeze that made everyone reach for their sweaters. Which word is the closest in meaning to the underlined word?",
     "option_a": "Hot",
     "option_b": "Warm",
     "option_c": "Chilly",
@@ -61,7 +61,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "The graduation ceremony will **begin** promptly at 10 o'clock, so all guests are advised to arrive early. Choose the word that is nearest in meaning to the underlined word.",
+    "question_text": "The graduation ceremony will <u>begin</u> promptly at 10 o'clock, so all guests are advised to arrive early. Choose the word that is nearest in meaning to the underlined word.",
     "option_a": "Start",
     "option_b": "End",
     "option_c": "Finish",
@@ -73,7 +73,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "The firefighters were praised for their **courageous** rescue of the family trapped in the burning building. Which word is most similar in meaning to the underlined word?",
+    "question_text": "The firefighters were praised for their <u>courageous</u> rescue of the family trapped in the burning building. Which word is most similar in meaning to the underlined word?",
     "option_a": "Brave",
     "option_b": "Cowardly",
     "option_c": "Fearful",
@@ -85,7 +85,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "The archaeologists uncovered an **ancient** burial site dating back over two thousand years. Choose the option that is nearest in meaning to the underlined word.",
+    "question_text": "The archaeologists uncovered an <u>ancient</u> burial site dating back over two thousand years. Choose the option that is nearest in meaning to the underlined word.",
     "option_a": "Modern",
     "option_b": "Old",
     "option_c": "New",
@@ -97,7 +97,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "The philanthropist was admired for her **generous** donations to various educational institutions. Which word is the closest in meaning to the underlined word?",
+    "question_text": "The philanthropist was admired for her <u>generous</u> donations to various educational institutions. Which word is the closest in meaning to the underlined word?",
     "option_a": "Stingy",
     "option_b": "Kind",
     "option_c": "Mean",
@@ -109,7 +109,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "The musician became **famous** after his debut album sold millions of copies worldwide. Choose the word that is nearest in meaning to the underlined word.",
+    "question_text": "The musician became <u>famous</u> after his debut album sold millions of copies worldwide. Choose the word that is nearest in meaning to the underlined word.",
     "option_a": "Unknown",
     "option_b": "Renowned",
     "option_c": "Obscure",
@@ -121,7 +121,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "The scientist's calculations were remarkably **accurate**, leading to a successful rocket launch. Which word is most similar in meaning to the underlined word?",
+    "question_text": "The scientist's calculations were remarkably <u>accurate</u>, leading to a successful rocket launch. Which word is most similar in meaning to the underlined word?",
     "option_a": "Wrong",
     "option_b": "Correct",
     "option_c": "False",
@@ -133,7 +133,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "The soldier was honored for his **brave** actions during the armed conflict. Choose the option that is nearest in meaning to the underlined word.",
+    "question_text": "The soldier was honored for his <u>brave</u> actions during the armed conflict. Choose the option that is nearest in meaning to the underlined word.",
     "option_a": "Cowardly",
     "option_b": "Fearless",
     "option_c": "Timid",
@@ -145,7 +145,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "The chef prepared a **delicious** meal that left all the guests asking for more. Which word is the closest in meaning to the underlined word?",
+    "question_text": "The chef prepared a <u>delicious</u> meal that left all the guests asking for more. Which word is the closest in meaning to the underlined word?",
     "option_a": "Tasty",
     "option_b": "Bland",
     "option_c": "Unappetizing",
@@ -157,7 +157,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "The river water was so **clean** that you could see the fish swimming at the bottom. Choose the word that is nearest in meaning to the underlined word.",
+    "question_text": "The river water was so <u>clean</u> that you could see the fish swimming at the bottom. Choose the word that is nearest in meaning to the underlined word.",
     "option_a": "Dirty",
     "option_b": "Filthy",
     "option_c": "Pure",
@@ -169,7 +169,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "The president's speech addressed several **important** issues affecting the nation's economy. Which word is most similar in meaning to the underlined word?",
+    "question_text": "The president's speech addressed several <u>important</u> issues affecting the nation's economy. Which word is most similar in meaning to the underlined word?",
     "option_a": "Trivial",
     "option_b": "Significant",
     "option_c": "Minor",
@@ -181,7 +181,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "The manager complained that some employees were **lazy** and needed constant supervision. Choose the option that is nearest in meaning to the underlined word.",
+    "question_text": "The manager complained that some employees were <u>lazy</u> and needed constant supervision. Choose the option that is nearest in meaning to the underlined word.",
     "option_a": "Industrious",
     "option_b": "Idle",
     "option_c": "Active",
@@ -193,7 +193,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "The old king was known for his **wise** judgments that brought peace to the kingdom. Which word is the closest in meaning to the underlined word?",
+    "question_text": "The old king was known for his <u>wise</u> judgments that brought peace to the kingdom. Which word is the closest in meaning to the underlined word?",
     "option_a": "Foolish",
     "option_b": "Intelligent",
     "option_c": "Silly",
@@ -205,7 +205,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "The athlete possessed a **strong** physique that allowed him to compete at the highest level. Choose the word that is nearest in meaning to the underlined word.",
+    "question_text": "The athlete possessed a <u>strong</u> physique that allowed him to compete at the highest level. Choose the word that is nearest in meaning to the underlined word.",
     "option_a": "Weak",
     "option_b": "Powerful",
     "option_c": "Frail",
@@ -217,7 +217,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "The children's **happiness** was evident as they played together in the park. Which word is most similar in meaning to the underlined word?",
+    "question_text": "The children's <u>happiness</u> was evident as they played together in the park. Which word is most similar in meaning to the underlined word?",
     "option_a": "Sadness",
     "option_b": "Joy",
     "option_c": "Sorrow",
@@ -229,7 +229,7 @@
   },
   {
     "subject_id": 1,
-    "question_text": "The emergency services responded with **quick** action, saving many lives. Choose the option that is nearest in meaning to the underlined word.",
+    "question_text": "The emergency services responded with <u>quick</u> action, saving many lives. Choose the option that is nearest in meaning to the underlined word.",
     "option_a": "Slow",
     "option_b": "Rapid",
     "option_c": "Leisurely",

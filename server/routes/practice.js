@@ -96,12 +96,12 @@ router.get('/subjects', async (req, res) => {
 router.get('/topics/:subjectId', async (req, res) => {
     try {
         const subjectId = parseInt(req.params.subjectId);
-        const subject = allSubjects[subjectId];
-        if (!subject) {
-            return res.json({ topics: [] });
-        }
-        // Return the static topics array from all-subjects.js
-        res.json({ topics: subject.topics || [] });
+        const result = await pool.query(
+            `SELECT DISTINCT topic FROM questions WHERE subject_id = $1 AND topic IS NOT NULL ORDER BY topic`,
+            [subjectId]
+        );
+        const topics = result.rows.map(row => row.topic);
+        res.json({ topics });
     } catch (error) {
         console.error(error);
         res.json({ topics: [] });

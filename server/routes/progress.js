@@ -25,9 +25,6 @@ router.get('/history', auth, async (req, res) => {
     }
 });
 
-
-
-
 // Get full details of a specific exam
 router.get('/exam/:id', auth, async (req, res) => {
     try {
