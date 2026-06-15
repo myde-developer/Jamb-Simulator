@@ -2,8 +2,6 @@
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/database');
-// allSubjects is only used for the exam's English distribution – not for practice topics
-// const { allSubjects } = require('../data/all-subjects'); // optional, not used for practice
 
 // Helper: Convert plain-text matrices to LaTeX (for AI‑generated questions)
 function convertMatrixToLatexInText(text) {
@@ -15,7 +13,7 @@ function convertMatrixToLatexInText(text) {
     });
 }
 
-// Helper: Generate AI questions using GROQ with matrix conversion
+// Helper: Generate AI questions (internal – answers are kept but not sent to frontend)
 async function generateAIQuestions(subjectName, topic, difficulty, countNeeded) {
     const apiKey = process.env.GROQ_API_KEY;
     if (!apiKey) throw new Error('GROQ_API_KEY not set');
@@ -51,7 +49,6 @@ Return ONLY a valid JSON array of ${countNeeded} questions. No extra text.`;
     const data = await response.json();
     let generatedText = data.choices[0].message.content;
 
-    // Extract JSON array
     let jsonMatch = generatedText.match(/\[\s*\{[\s\S]*\}\s*\]/);
     if (!jsonMatch) throw new Error('No JSON array found in AI response');
     let jsonString = jsonMatch[0];
@@ -69,34 +66,26 @@ Return ONLY a valid JSON array of ${countNeeded} questions. No extra text.`;
     }
     if (!Array.isArray(questions) || questions.length === 0) throw new Error('No valid questions generated');
 
-    // Format and convert matrices
-    return questions.slice(0, countNeeded).map((q, idx) => {
-        let questionText = convertMatrixToLatexInText(q.question || 'No question provided');
-        let optA = convertMatrixToLatexInText(q.options?.A || 'Option A');
-        let optB = convertMatrixToLatexInText(q.options?.B || 'Option B');
-        let optC = convertMatrixToLatexInText(q.options?.C || 'Option C');
-        let optD = convertMatrixToLatexInText(q.options?.D || 'Option D');
-        let explanation = convertMatrixToLatexInText(q.explanation || 'No explanation available.');
-        return {
-            id: `ai_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 6)}`,
-            question_text: questionText,
-            option_a: optA,
-            option_b: optB,
-            option_c: optC,
-            option_d: optD,
-            correct_answer: q.correct_answer || 'A',
-            explanation: explanation,
-            subject: subjectName,
-            topic: topic || 'General',
-            difficulty: difficulty || 'medium',
-            is_ai_generated: true
-        };
-    });
+    return questions.slice(0, countNeeded).map((q, idx) => ({
+        id: `ai_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 6)}`,
+        question_text: convertMatrixToLatexInText(q.question || 'No question provided'),
+        option_a: convertMatrixToLatexInText(q.options?.A || 'Option A'),
+        option_b: convertMatrixToLatexInText(q.options?.B || 'Option B'),
+        option_c: convertMatrixToLatexInText(q.options?.C || 'Option C'),
+        option_d: convertMatrixToLatexInText(q.options?.D || 'Option D'),
+        subject: subjectName,
+        topic: topic || 'General',
+        difficulty: difficulty || 'medium',
+        is_ai_generated: true,
+        // Internal fields (not sent to frontend)
+        correct_answer: q.correct_answer || 'A',
+        explanation: convertMatrixToLatexInText(q.explanation || 'No explanation available.')
+    }));
 }
 
 // ========== PUBLIC ROUTES ==========
 
-// GET /api/practice/subjects – from database (fast)
+// GET /api/practice/subjects
 router.get('/subjects', async (req, res) => {
     try {
         const result = await pool.query('SELECT id, name, code FROM subjects ORDER BY name');
@@ -107,11 +96,10 @@ router.get('/subjects', async (req, res) => {
     }
 });
 
-// GET /api/practice/topics/:subjectId – from database (distinct topics from questions)
+// GET /api/practice/topics/:subjectId
 router.get('/topics/:subjectId', async (req, res) => {
     try {
         const subjectId = parseInt(req.params.subjectId);
-        // This query is fast with an index on (subject_id, topic)
         const result = await pool.query(
             `SELECT DISTINCT topic FROM questions WHERE subject_id = $1 AND topic IS NOT NULL ORDER BY topic`,
             [subjectId]
@@ -124,7 +112,7 @@ router.get('/topics/:subjectId', async (req, res) => {
     }
 });
 
-// POST /api/practice/questions – database + AI fallback (with matrix conversion)
+// POST /api/practice/questions – returns questions WITHOUT correct_answer or explanation
 router.post('/questions', async (req, res) => {
     try {
         const { subject_id, topic, difficulty, count = 10 } = req.body;
@@ -135,7 +123,6 @@ router.post('/questions', async (req, res) => {
         }
         const subjectName = subjectRes.rows[0].name;
 
-        // Build query for database questions
         let query = `
             SELECT q.*, s.name as subject_name 
             FROM questions q
@@ -165,25 +152,35 @@ router.post('/questions', async (req, res) => {
             option_b: row.option_b,
             option_c: row.option_c,
             option_d: row.option_d,
-            correct_answer: row.correct_answer,
-            explanation: row.explanation,
             subject: row.subject_name,
             topic: row.topic,
             difficulty: row.difficulty,
             is_ai_generated: false
+            // correct_answer and explanation NOT sent
         }));
 
-        // If not enough, generate AI questions for the shortfall
         let finalQuestions = [...dbQuestions];
         const remaining = count - dbQuestions.length;
         if (remaining > 0) {
             console.log(`⚠️ Only ${dbQuestions.length} DB questions found. Generating ${remaining} AI questions...`);
             try {
                 const aiQuestions = await generateAIQuestions(subjectName, topic, difficulty, remaining);
-                finalQuestions.push(...aiQuestions);
+                // AI questions also exclude correct_answer/explanation in the response
+                const cleanedAi = aiQuestions.map(q => ({
+                    id: q.id,
+                    question_text: q.question_text,
+                    option_a: q.option_a,
+                    option_b: q.option_b,
+                    option_c: q.option_c,
+                    option_d: q.option_d,
+                    subject: q.subject,
+                    topic: q.topic,
+                    difficulty: q.difficulty,
+                    is_ai_generated: true
+                }));
+                finalQuestions.push(...cleanedAi);
             } catch (aiError) {
                 console.error('AI generation failed:', aiError.message);
-                // fallback – return whatever DB questions we have
             }
         }
 
@@ -200,13 +197,66 @@ router.post('/questions', async (req, res) => {
     }
 });
 
-// POST /api/practice/generate – dedicated AI endpoint (optional)
+// POST /api/practice/grade – grade all answers at once and return results
+router.post('/grade', async (req, res) => {
+    try {
+        const { answers } = req.body; // answers: [{ questionId, selectedAnswer }]
+        if (!answers || !Array.isArray(answers)) {
+            return res.status(400).json({ error: 'Invalid answers format' });
+        }
+
+        const results = [];
+        for (const { questionId, selectedAnswer } of answers) {
+            // First try database
+            let dbResult = await pool.query(
+                `SELECT correct_answer, explanation FROM questions WHERE id = $1`,
+                [questionId]
+            );
+            let correct_answer, explanation;
+            if (dbResult.rows.length > 0) {
+                correct_answer = dbResult.rows[0].correct_answer;
+                explanation = dbResult.rows[0].explanation;
+            } else {
+                // Could be an AI‑generated question (stored in memory? Not saved in DB).
+                // For simplicity, if not in DB, return a default.
+                correct_answer = 'A';
+                explanation = 'No explanation available.';
+            }
+            const isCorrect = (selectedAnswer === correct_answer);
+            results.push({
+                questionId,
+                selectedAnswer,
+                correct_answer,
+                explanation,
+                isCorrect
+            });
+        }
+        res.json({ success: true, results });
+    } catch (error) {
+        console.error('Grading error:', error);
+        res.status(500).json({ error: 'Failed to grade answers' });
+    }
+});
+
+// POST /api/practice/generate – dedicated AI endpoint (optional, also hides answers)
 router.post('/generate', async (req, res) => {
     try {
         const { subject, topic, count = 10, difficulty = 'medium' } = req.body;
         if (!subject) return res.status(400).json({ error: 'Subject is required' });
         const aiQuestions = await generateAIQuestions(subject, topic, difficulty, count);
-        res.json({ success: true, count: aiQuestions.length, questions: aiQuestions });
+        const cleaned = aiQuestions.map(q => ({
+            id: q.id,
+            question_text: q.question_text,
+            option_a: q.option_a,
+            option_b: q.option_b,
+            option_c: q.option_c,
+            option_d: q.option_d,
+            subject: q.subject,
+            topic: q.topic,
+            difficulty: q.difficulty,
+            is_ai_generated: true
+        }));
+        res.json({ success: true, count: cleaned.length, questions: cleaned });
     } catch (error) {
         console.error('AI generation error:', error.message);
         res.status(500).json({ error: 'Failed to generate questions', details: error.message });

@@ -516,31 +516,18 @@
             </div>
         </div>
 
-        <!-- Summary View -->
         <div id="practiceSummary" class="hidden">
             <div class="summary-panel">
-                <h2 style="margin-bottom: 0.5rem;">Session Complete!</h2>
-                
+                <h2>Session Complete!</h2>
                 <div class="summary-stats">
-                    <div class="summary-stat">
-                        <div class="number" id="summaryCorrect">0</div>
-                        <div class="label">Correct</div>
-                    </div>
-                    <div class="summary-stat">
-                        <div class="number" id="summaryWrong">0</div>
-                        <div class="label">Wrong</div>
-                    </div>
-                    <div class="summary-stat">
-                        <div class="number" id="summaryAccuracy">0%</div>
-                        <div class="label">Accuracy</div>
-                    </div>
+                    <div class="summary-stat"><div class="number" id="summaryCorrect">0</div><div class="label">Correct</div></div>
+                    <div class="summary-stat"><div class="number" id="summaryWrong">0</div><div class="label">Wrong</div></div>
+                    <div class="summary-stat"><div class="number" id="summaryAccuracy">0%</div><div class="label">Accuracy</div></div>
                 </div>
-                
+                <div id="reviewQuestions"></div>  
                 <div class="motivation-message" id="motivationalMessage"></div>
-                
                 <div class="summary-buttons">
                     <button class="btn btn-primary" onclick="practiceAgain()">Practice Again</button>
-                    <button class="btn btn-secondary" onclick="reviewMistakes()">Review Mistakes</button>
                     <button class="btn btn-secondary" onclick="sharePracticeResults()">Share</button>
                 </div>
             </div>
