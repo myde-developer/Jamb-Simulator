@@ -9,7 +9,13 @@ let usersData = [];
 let examsData = [];
 let questionsData = [];
 let currentQuestionPage = 1;
-let currentSubjectFilter = 'all'; // 'all' or subject_id (1-5)
+letMake sure viewExamDetails is globally accessible
+// Replace with your actual public site URL
+const PUBLIC_SITE_URL = 'https://jamb-simulator-znjr.onrender.com'; 
+
+window.viewExamDetails = function(examId) {
+    window.open(`${PUBLIC_SITE_URL}/results.html?admin=true&id=${examId}`, '_blank');
+}; currentSubjectFilter = 'all'; // 'all' or subject_id (1-5)
 
 document.addEventListener('DOMContentLoaded', () => {
     if (!checkAdminAuth()) return;
@@ -274,12 +280,8 @@ function displayExams() {
     panel.innerHTML = html;
 }
 
-// Make sure viewExamDetails is globally accessible
-// Replace with your actual public site URL
-const PUBLIC_SITE_URL = 'https://jamb-simulator-znjr.onrender.com'; 
-
-window.viewExamDetails = function(examId) {
-    window.open(`${PUBLIC_SITE_URL}/results.html?admin=true&id=${examId}`, '_blank');
+window.viewExamDetails = async function(examId) {
+    window.open(`/results.html?admin=true&id=${examId}`, '_blank');
 };
 
 // ============================================
