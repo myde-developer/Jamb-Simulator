@@ -124,7 +124,6 @@ function displaySubjectBreakdown(results) {
         html += `
             <div class="subject-row">
                 <div class="subject-name">${subjectName}</div>
-                <div class="subject-score-bar"><div class="subject-score-fill" style="width: ${(data.correct / data.total) * 100}%"></div></div>
                 <div class="subject-stats">${data.correct}/${data.total}<br><span style="color: #2d6a4f;">Score: ${jambScore}/100</span></div>
             </div>
         `;
@@ -133,7 +132,6 @@ function displaySubjectBreakdown(results) {
     html += `
         <div class="subject-row" style="border-top: 2px solid #1a1a2e; margin-top: 1rem; padding-top: 1rem;">
             <div class="subject-name" style="font-weight: 700;">TOTAL</div>
-            <div class="subject-score-bar"><div class="subject-score-fill" style="width: ${(results.scores.total / 400) * 100}%"></div></div>
             <div class="subject-stats"><strong style="font-size: 1.1rem;">${results.scores.total}/400</strong></div>
         </div>
     `;
