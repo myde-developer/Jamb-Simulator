@@ -354,7 +354,7 @@
     "option_b": "Wages and Salaries",
     "option_c": "Government Investment",
     "option_d": "Net Exports",
-    "option_all": "B",
+    "correct_answer": "B",
     "explanation": "The income method sums up all factor payments: Wages, Rent, Interest, and Profit.",
     "topic": "National Income",
     "difficulty": "medium"
