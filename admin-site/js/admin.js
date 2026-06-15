@@ -270,20 +270,16 @@ function displayExams() {
             </tr>
         `;
     }
-    html += `
-                </tbody>
-            </table>
-        </div>
-        <div class="pagination">${generatePagination(examsData.length, 10)}</div>
-    `;
+    html += `</tbody></table></div><div class="pagination">${generatePagination(examsData.length, 10)}</div>`;
     panel.innerHTML = html;
 }
 
-// View exam details (reuses the same endpoint as public results)
-window.viewExamDetails = async function(examId) {
-    // Store the exam ID in sessionStorage and redirect to results page
-    sessionStorage.setItem('adminViewExamId', examId);
-    window.open(`/results.html?admin=true&id=${examId}`, '_blank');
+// Make sure viewExamDetails is globally accessible
+// Replace with your actual public site URL
+const PUBLIC_SITE_URL = 'https://jamb-simulator-znjr.onrender.com'; 
+
+window.viewExamDetails = function(examId) {
+    window.open(`${PUBLIC_SITE_URL}/results.html?admin=true&id=${examId}`, '_blank');
 };
 
 // ============================================
