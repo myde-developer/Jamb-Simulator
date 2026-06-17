@@ -129,25 +129,22 @@ function selectOption(qid, letter) {
     document.getElementById('checkBtn').disabled = false;
 }
 
-// ========== CHECK ANSWER =========
-
-
+// ========== CHECK ANSWER =====
 async function checkAnswer() {
     if (practiceState.checked) return;
 
-    // Identify current question object & active option DOM components
     const currentQuestion = practiceState.questions[practiceState.currentIndex];
     const selectedOptionElement = document.querySelector('.practice-option.selected');
 
     if (!selectedOptionElement) {
-        alert('Please select an option before checking!');
+        alert('Please pick an option first before checking your answer!');
         return;
     }
 
     const selectedLetter = selectedOptionElement.getAttribute('data-letter');
 
     try {
-        // ⚡ Post question metadata verification on-demand to the newly exposed secure check endpoint
+        // Send a POST request to the backend with just the question ID and selection
         const response = await fetch(`${API_BASE}/api/practice/check`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -158,9 +155,8 @@ async function checkAnswer() {
         });
 
         const data = await response.json();
-        if (!data.success) throw new Error(data.error || 'Failed validation query response parsing');
+        if (!data.success) throw new Error(data.error || 'Server validation failed');
 
-        // Log states to local UI application context tracking schemas
         practiceState.checked = true;
         practiceState.answers[practiceState.currentIndex] = selectedLetter;
 
@@ -172,13 +168,13 @@ async function checkAnswer() {
             practiceState.streak = 0;
         }
 
-        // Highlight option layouts
+        // Color code option selections on screen immediately
         const optionsContainer = document.getElementById('optionsContainer');
         const optionRows = optionsContainer.getElementsByClassName('practice-option');
 
         for (let row of optionRows) {
             const letter = row.getAttribute('data-letter');
-            row.style.pointerEvents = 'none'; // Lock selections after submission
+            row.style.pointerEvents = 'none'; // Lock selections so they can't change it
 
             if (letter === data.correct_answer) {
                 row.classList.add('correct');
@@ -187,7 +183,7 @@ async function checkAnswer() {
             }
         }
 
-        // Render explanation panel
+        // Show the explanations banner dynamically
         const feedbackBox = document.getElementById('feedbackBox');
         const feedbackMessage = document.getElementById('feedbackMessage');
         const explanationText = document.getElementById('explanation');
@@ -195,27 +191,27 @@ async function checkAnswer() {
         feedbackBox.classList.add('show');
         if (data.isCorrect) {
             feedbackMessage.className = 'feedback-correct';
-            feedbackMessage.innerText = 'Correct Answer!';
+            feedbackMessage.innerText = 'Correct Choice!';
         } else {
             feedbackMessage.className = 'feedback-wrong';
-            feedbackMessage.innerText = `Incorrect choice. The correct answer is Option ${data.correct_answer}`;
+            feedbackMessage.innerText = `Incorrect. The right answer is Option ${data.correct_answer}`;
         }
 
-        // Using innerHTML allows processing complex text layouts containing subscripts or formulas safely
+        // Set the explanation text via innerHTML to allow formulas
         explanationText.innerHTML = data.explanation || 'No explanation available.';
 
-        // Re-compile formulas instantly using MathJax layout engine
+        // Render MathJax if formulas are found in the text
         if (window.MathJax && typeof MathJax.typesetPromise === 'function') {
             MathJax.typesetPromise();
         }
 
-        // Standardize dynamic tracking UI buttons
+        // Update control button states
         document.getElementById('checkBtn').disabled = true;
         document.getElementById('nextBtn').disabled = false;
 
     } catch (err) {
-        console.error('Error verifying choice response status:', err);
-        alert('Could not grade answer options at this moment.');
+        console.error('Error handling immediate feedback sequence:', err);
+        alert('Could not verify answer choice at this time.');
     }
 }
 
