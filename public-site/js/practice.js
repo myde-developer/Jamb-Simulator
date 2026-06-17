@@ -150,14 +150,12 @@ function selectOption(qid, letter) {
     document.getElementById('checkBtn').disabled = false;
 }
 
-// ========== CHECK ANSWER (UPDATED) ==========
+// ========== CHECK ANSWER ==========
 async function checkAnswer() {
     const q = practiceState.questions[practiceState.currentIndex];
     const selected = practiceState.answers[q.id];
     if (!selected) return alert('Select an answer');
     practiceState.checked = true;
-
-    // Disable button while checking
     document.getElementById('checkBtn').disabled = true;
 
     try {
@@ -168,12 +166,13 @@ async function checkAnswer() {
         });
         const data = await res.json();
         const isCorrect = data.isCorrect;
+        const correctAnswer = data.correctAnswer;
         const explanation = data.explanation || 'No explanation available.';
 
         // Visual feedback
         document.querySelectorAll('.practice-option').forEach(opt => {
             const letter = opt.querySelector('.option-letter')?.innerText;
-            if (letter === selected && isCorrect) opt.classList.add('correct');
+            if (letter === correctAnswer) opt.classList.add('correct');
             else if (letter === selected && !isCorrect) opt.classList.add('wrong');
         });
 
@@ -189,10 +188,9 @@ async function checkAnswer() {
         const fb = document.getElementById('feedbackBox');
         document.getElementById('feedbackMessage').innerHTML = isCorrect
             ? '<div class="feedback-correct">✓ Correct!</div>'
-            : '<div class="feedback-wrong">✗ Wrong.</div>';
+            : `<div class="feedback-wrong">✗ Wrong. Correct answer is ${correctAnswer}.</div>`;
         document.getElementById('explanation').innerText = explanation;
         fb.classList.add('show');
-
         document.getElementById('nextBtn').disabled = false;
         document.getElementById('streakCount').innerText = practiceState.streak;
     } catch (err) {

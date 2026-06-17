@@ -3,7 +3,7 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/database');
 
-// Helper: Convert plain-text matrices to LaTeX (for AI‑generated questions)
+// Helper: Convert plain-text matrices to LaTeX
 function convertMatrixToLatexInText(text) {
     if (!text || typeof text !== 'string') return text;
     return text.replace(/\[\[([^\]]+)\],\s*\[([^\]]+)\]\]/g, (match, row1, row2) => {
@@ -13,7 +13,7 @@ function convertMatrixToLatexInText(text) {
     });
 }
 
-// Helper: Generate AI questions using GROQ with matrix conversion
+// Helper: Generate AI questions (internal, keeps correct_answer for check endpoint)
 async function generateAIQuestions(subjectName, topic, difficulty, countNeeded) {
     const apiKey = process.env.GROQ_API_KEY;
     if (!apiKey) throw new Error('GROQ_API_KEY not set');
@@ -66,7 +66,7 @@ Return ONLY a valid JSON array of ${countNeeded} questions. No extra text.`;
     }
     if (!Array.isArray(questions) || questions.length === 0) throw new Error('No valid questions generated');
 
-    // Keep correct_answer and explanation internally, but they will NOT be sent to frontend
+    // Store correct_answer and explanation internally (not sent to frontend)
     return questions.slice(0, countNeeded).map((q, idx) => ({
         id: `ai_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 6)}`,
         question_text: convertMatrixToLatexInText(q.question || 'No question provided'),
@@ -74,8 +74,8 @@ Return ONLY a valid JSON array of ${countNeeded} questions. No extra text.`;
         option_b: convertMatrixToLatexInText(q.options?.B || 'Option B'),
         option_c: convertMatrixToLatexInText(q.options?.C || 'Option C'),
         option_d: convertMatrixToLatexInText(q.options?.D || 'Option D'),
-        _correct_answer: q.correct_answer || 'A',
-        _explanation: convertMatrixToLatexInText(q.explanation || 'No explanation available.'),
+        correct_answer: q.correct_answer || 'A',
+        explanation: convertMatrixToLatexInText(q.explanation || 'No explanation available.'),
         subject: subjectName,
         topic: topic || 'General',
         difficulty: difficulty || 'medium',
@@ -112,7 +112,7 @@ router.get('/topics/:subjectId', async (req, res) => {
     }
 });
 
-// POST /api/practice/questions – returns questions WITHOUT correct_answer or explanation
+// POST /api/practice/questions – returns questions WITHOUT correct_answer/explanation, but with matrix conversion
 router.post('/questions', async (req, res) => {
     try {
         const { subject_id, topic, difficulty, count = 10 } = req.body;
@@ -147,11 +147,11 @@ router.post('/questions', async (req, res) => {
         const dbResult = await pool.query(query, params);
         let dbQuestions = dbResult.rows.map(row => ({
             id: row.id,
-            question_text: row.question_text,
-            option_a: row.option_a,
-            option_b: row.option_b,
-            option_c: row.option_c,
-            option_d: row.option_d,
+            question_text: convertMatrixToLatexInText(row.question_text),
+            option_a: convertMatrixToLatexInText(row.option_a),
+            option_b: convertMatrixToLatexInText(row.option_b),
+            option_c: convertMatrixToLatexInText(row.option_c),
+            option_d: convertMatrixToLatexInText(row.option_d),
             subject: row.subject_name,
             topic: row.topic,
             difficulty: row.difficulty,
@@ -164,6 +164,7 @@ router.post('/questions', async (req, res) => {
             console.log(`⚠️ Only ${dbQuestions.length} DB questions found. Generating ${remaining} AI questions...`);
             try {
                 const aiQuestions = await generateAIQuestions(subjectName, topic, difficulty, remaining);
+                // AI questions already have matrix conversion; strip correct_answer/explanation before sending
                 const cleanedAi = aiQuestions.map(q => ({
                     id: q.id,
                     question_text: q.question_text,
@@ -194,7 +195,7 @@ router.post('/questions', async (req, res) => {
     }
 });
 
-// POST /api/practice/check – validate a single answer
+// POST /api/practice/check – returns isCorrect, correctAnswer (letter), and explanation
 router.post('/check', async (req, res) => {
     try {
         const { questionId, selectedAnswer } = req.body;
@@ -214,6 +215,7 @@ router.post('/check', async (req, res) => {
 
         res.json({
             isCorrect,
+            correctAnswer: correct_answer,   // now included
             explanation: explanation || 'No explanation available.'
         });
     } catch (error) {
