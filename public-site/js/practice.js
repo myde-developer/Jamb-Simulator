@@ -130,60 +130,92 @@ function selectOption(qid, letter) {
 }
 
 // ========== CHECK ANSWER =========
+
+
 async function checkAnswer() {
-    const q = practiceState.questions[practiceState.currentIndex];
-    const selected = practiceState.answers[q.id];
-    if (!selected) return alert('Select an answer');
-    practiceState.checked = true;
-    document.getElementById('checkBtn').disabled = true;
+    if (practiceState.checked) return;
+
+    // Identify current question object & active option DOM components
+    const currentQuestion = practiceState.questions[practiceState.currentIndex];
+    const selectedOptionElement = document.querySelector('.practice-option.selected');
+
+    if (!selectedOptionElement) {
+        alert('Please select an option before checking!');
+        return;
+    }
+
+    const selectedLetter = selectedOptionElement.getAttribute('data-letter');
 
     try {
+        // ⚡ Post question metadata verification on-demand to the newly exposed secure check endpoint
         const response = await fetch(`${API_BASE}/api/practice/check`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ questionId: q.id, selectedAnswer: selected })
+            body: JSON.stringify({
+                questionId: currentQuestion.id,
+                selectedAnswer: selectedLetter
+            })
         });
+
         const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Check failed');
+        if (!data.success) throw new Error(data.error || 'Failed validation query response parsing');
 
-        const { isCorrect, correct_answer, explanation } = data;
+        // Log states to local UI application context tracking schemas
+        practiceState.checked = true;
+        practiceState.answers[practiceState.currentIndex] = selectedLetter;
 
-        // Visual feedback on options
-        document.querySelectorAll('.practice-option').forEach(opt => {
-            const letter = opt.querySelector('.option-letter')?.innerText;
-            if (letter === correct_answer) {
-                opt.classList.add('correct');
-            } else if (letter === selected && !isCorrect) {
-                opt.classList.add('wrong');
-            }
-        });
-
-        // Update results
-        if (isCorrect) {
+        if (data.isCorrect) {
             practiceState.results.correct++;
             practiceState.streak++;
         } else {
             practiceState.results.wrong++;
             practiceState.streak = 0;
-            // Show encouragement from motivation.js
-            showEncouragement();
         }
 
-        // Show feedback
-        const fb = document.getElementById('feedbackBox');
-        document.getElementById('feedbackMessage').innerHTML = isCorrect
-            ? `<div class="feedback-correct">✓ Correct! The correct answer is ${correct_answer}.</div>`
-            : `<div class="feedback-wrong">✗ Wrong. The correct answer is ${correct_answer}.</div>`;
-        document.getElementById('explanation').innerText = explanation || 'No explanation available.';
-        fb.classList.add('show');
+        // Highlight option layouts
+        const optionsContainer = document.getElementById('optionsContainer');
+        const optionRows = optionsContainer.getElementsByClassName('practice-option');
+
+        for (let row of optionRows) {
+            const letter = row.getAttribute('data-letter');
+            row.style.pointerEvents = 'none'; // Lock selections after submission
+
+            if (letter === data.correct_answer) {
+                row.classList.add('correct');
+            } else if (letter === selectedLetter && !data.isCorrect) {
+                row.classList.add('wrong');
+            }
+        }
+
+        // Render explanation panel
+        const feedbackBox = document.getElementById('feedbackBox');
+        const feedbackMessage = document.getElementById('feedbackMessage');
+        const explanationText = document.getElementById('explanation');
+
+        feedbackBox.classList.add('show');
+        if (data.isCorrect) {
+            feedbackMessage.className = 'feedback-correct';
+            feedbackMessage.innerText = 'Correct Answer!';
+        } else {
+            feedbackMessage.className = 'feedback-wrong';
+            feedbackMessage.innerText = `Incorrect choice. The correct answer is Option ${data.correct_answer}`;
+        }
+
+        // Using innerHTML allows processing complex text layouts containing subscripts or formulas safely
+        explanationText.innerHTML = data.explanation || 'No explanation available.';
+
+        // Re-compile formulas instantly using MathJax layout engine
+        if (window.MathJax && typeof MathJax.typesetPromise === 'function') {
+            MathJax.typesetPromise();
+        }
+
+        // Standardize dynamic tracking UI buttons
+        document.getElementById('checkBtn').disabled = true;
         document.getElementById('nextBtn').disabled = false;
-        document.getElementById('streakCount').innerText = practiceState.streak;
 
     } catch (err) {
-        console.error(err);
-        alert('Failed to check answer. Please try again.');
-        practiceState.checked = false;
-        document.getElementById('checkBtn').disabled = false;
+        console.error('Error verifying choice response status:', err);
+        alert('Could not grade answer options at this moment.');
     }
 }
 

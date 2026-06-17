@@ -664,104 +664,125 @@ function searchExams() {
     examsData = originalExams;
 }
 
-// Function to fetch and display exams for a specific user
+==============================
 async function viewUserDetails(userId) {
-    showLoading('Loading user exam history...');
+    if (!userId) return;
+    
+    const modal = document.getElementById('userModal');
+    const detailsContainer = document.getElementById('userDetailsContent');
+    
+    if (!modal || !detailsContainer) return;
+    
+    // Open modal with a clean loading animation state
+    modal.style.display = 'flex';
+    detailsContainer.innerHTML = `
+        <div class="loading-spinner-container" style="text-align: center; padding: 2rem;">
+            <div class="spinner" style="border: 4px solid rgba(0,0,0,0.1); width: 36px; height: 36px; border-radius: 50%; border-left-color: #09f; animation: spin 1s linear infinite; margin: 0 auto 10px;"></div>
+            <p>Gathering profile records and exam logs...</p>
+        </div>
+    `;
     
     try {
         const token = localStorage.getItem('token');
         
-        // 1. Fetch user profile details to display their name/email
-        const userResponse = await fetch(`${API_BASE}/api/admin/users/${userId}`, {
+        // 1. Fetch Basic Profile Data
+        const profileRes = await fetch(`${API_BASE}/api/admin/users/${userId}`, {
+            method: 'GET',
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        if (!userResponse.ok) throw new Error('Failed to load user details');
-        const user = await userResponse.json();
-
-        // 2. Fetch the exam history for this user
-        const examsResponse = await fetch(`${API_BASE}/api/admin/users/${userId}/exams`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (!examsResponse.ok) throw new Error('Failed to load user exams');
-        const exams = await examsResponse.json();
-
-        // 3. Render user details and their personal exam table
-        const panel = document.getElementById('adminPanel');
+        const profileData = await profileRes.json();
         
-        let html = `
-            <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <button onclick="loadUsers()" class="tab-btn" style="padding: 8px 20px; margin-bottom: 10px;">← Back to Users</button>
-                    <h2>Exam History for ${user.full_name || 'N/A'}</h2>
-                    <p style="color: #64748b;">Email: ${user.email} | Total Exams Taken: ${exams.length}</p>
-                </div>
-            </div>
-        `;
+        if (!profileRes.ok) throw new Error(profileData.error || 'Failed to fetch user profile');
 
-        if (exams.length === 0) {
-            html += `<p class="no-data">This user hasn't taken any exams yet.</p>`;
-            panel.innerHTML = html;
-            return;
-        }
+        // 2. Fetch Dedicated Exam History Records
+        const examsRes = await fetch(`${API_BASE}/api/admin/users/${userId}/exams`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const examsData = await examsRes.json();
 
-        html += `
-            <div class="table-responsive">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Date Completed</th>
-                            <th>Subjects</th>
-                            <th>Score</th>
-                            <th>Percentage</th>
-                            <th>Status</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-        `;
+        // 3. Render integrated data elements cleanly into the UI Layout
+        const joinDate = new Date(profileData.created_at).toLocaleDateString('en-NG', {
+            dateStyle: 'medium'
+        });
 
-        exams.forEach(exam => {
-            const date = new Date(exam.completed_at || exam.started_at).toLocaleString();
-            const subjects = exam.subjects ? exam.subjects.join(', ') : 'JAMB Exam';
-            const score = exam.score || 0;
-            const total = exam.total_questions || 180;
-            const percentage = exam.percentage ? exam.percentage.toFixed(1) : ((score / total) * 100).toFixed(1);
-            const percentClass = percentage >= 70 ? 'score-high' : (percentage >= 50 ? 'score-medium' : 'score-low');
-            
-            html += `
+        // Map out history data table records natively
+        let historyRowsHtml = '';
+        if (Array.isArray(examsData) && examsData.length > 0) {
+            examsData.forEach((exam, index) => {
+                const examDate = new Date(exam.started_at).toLocaleDateString('en-NG', {
+                    dateStyle: 'short',
+                    timeStyle: 'short'
+                });
+                
+                // Extract subject names string safely from the array string wrapper returned by the backend
+                const subjectsList = Array.isArray(exam.subjects) ? exam.subjects.join(', ') : 'JAMB Mock Exam';
+                const accuracyClass = exam.percentage >= 75 ? 'badge-success' : exam.percentage >= 50 ? 'badge-warning' : 'badge-danger';
+
+                historyRowsHtml += `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td><strong title="${subjectsList}">${subjectsList}</strong></td>
+                        <td>${exam.score_text || (exam.score + '/' + exam.total_questions)}</td>
+                        <td><span class="badge ${accuracyClass}">${Math.round(exam.percentage)}%</span></td>
+                        <td>${examDate}</td>
+                        <td>
+                            <button class="action-btn btn-view-small" onclick="viewExamDetails(${exam.id})" style="padding: 2px 8px; font-size: 0.8rem;">
+                                Details
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+        } else {
+            historyRowsHtml = `
                 <tr>
-                    <td>${date}</td>
-                    <td><strong>${subjects}</strong></td>
-                    <td>${score}/${total}</td>
-                    <td class="${percentClass}">${percentage}%</td>
-                    <td><span class="badge ${exam.status === 'completed' ? 'badge-admin' : 'badge-user'}">${exam.status}</span></td>
-                    <td>
-                        <button class="action-btn" onclick="viewExamDetails('${exam.id}')">👁️ View script</button>
+                    <td colspan="6" style="text-align: center; color: #7f8c8d; padding: 20px;">
+                        This user hasn't attempted any mock exam sessions yet.
                     </td>
                 </tr>
             `;
-        });
+        }
 
-        html += `
+        // Apply HTML directly to modal content element
+        detailsContainer.innerHTML = `
+            <div class="user-profile-header" style="border-bottom: 1px solid #eee; padding-bottom: 15px; margin-bottom: 20px;">
+                <h3>${profileData.full_name || 'N/A'}</h3>
+                <p style="color: #666; margin: 4px 0;"><strong>Email:</strong> ${profileData.email}</p>
+                <p style="color: #666; margin: 4px 0;"><strong>Registered On:</strong> ${joinDate}</p>
+                <p style="color: #666; margin: 4px 0;"><strong>Role:</strong> ${profileData.is_admin ? '<span class="badge admin-badge" style="background:#e74c3c; color:white; padding:2px 6px; border-radius:4px; font-size:0.75rem;">Admin</span>' : 'Standard Student'}</p>
+            </div>
+            
+            <h4>Exam Performance History (${Array.isArray(examsData) ? examsData.length : 0})</h4>
+            <div class="table-responsive" style="max-height: 350px; overflow-y: auto; margin-top: 10px; border: 1px solid #eee; border-radius: 6px;">
+                <table class="admin-table" style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: #f8f9fa; text-align: left;">
+                            <th style="padding: 10px;">#</th>
+                            <th style="padding: 10px;">Subjects Combination</th>
+                            <th style="padding: 10px;">Score</th>
+                            <th style="padding: 10px;">Average</th>
+                            <th style="padding: 10px;">Date Taken</th>
+                            <th style="padding: 10px;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${historyRowsHtml}
                     </tbody>
                 </table>
             </div>
         `;
 
-        panel.innerHTML = html;
-
     } catch (error) {
-        console.error('Error loading user history:', error);
-        document.getElementById('adminPanel').innerHTML = `
-            <div class="error-message">
-                <p>❌ Failed to load user's exam records.</p>
-                <p style="font-size: 0.9rem; color: #666;">${error.message}</p>
-                <button onclick="loadUsers()">Return to Users</button>
+        console.error('Error rendering detail layouts:', error);
+        detailsContainer.innerHTML = `
+            <div class="error-msg" style="color: #e74c3c; text-align: center; padding: 20px;">
+                <p>❌ Failed to load complete logs for this student.</p>
+                <small>${error.message}</small>
             </div>
         `;
     }
 }
-
 
 async function viewExamDetails(examId) {
     try {
