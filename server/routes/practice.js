@@ -3,17 +3,6 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/database');
 
-// In-memory cache to temporarily store AI questions' hidden details safely on the server
-const aiMemoryCache = new Map();
-
-// Clean up memory cache every 30 minutes to prevent RAM usage build-up
-setInterval(() => {
-    const expiryTime = Date.now() - (2 * 60 * 60 * 1000); // 2 hours lifetime
-    for (const [id, data] of aiMemoryCache.entries()) {
-        if (data.timestamp < expiryTime) aiMemoryCache.delete(id);
-    }
-}, 30 * 60 * 1000);
-
 // Helper: Convert plain-text matrices to LaTeX (for AI‑generated questions)
 function convertMatrixToLatexInText(text) {
     if (!text || typeof text !== 'string') return text;
@@ -24,7 +13,7 @@ function convertMatrixToLatexInText(text) {
     });
 }
 
-// Helper: Generate AI questions (answers are cached here, not sent to user)
+// Helper: Generate AI questions using GROQ with matrix conversion
 async function generateAIQuestions(subjectName, topic, difficulty, countNeeded) {
     const apiKey = process.env.GROQ_API_KEY;
     if (!apiKey) throw new Error('GROQ_API_KEY not set');
@@ -62,9 +51,22 @@ Return ONLY a valid JSON array of ${countNeeded} questions. No extra text.`;
 
     let jsonMatch = generatedText.match(/\[\s*\{[\s\S]*\}\s*\]/);
     if (!jsonMatch) throw new Error('No JSON array found in AI response');
-    
-    let questions = JSON.parse(jsonMatch[0]);
+    let jsonString = jsonMatch[0];
+    jsonString = jsonString
+        .replace(/\\/g, '\\\\')
+        .replace(/[\u0000-\u001F]+/g, ' ')
+        .replace(/,(\s*[}\]])/g, '$1');
 
+    let questions;
+    try {
+        questions = JSON.parse(jsonString);
+    } catch (parseError) {
+        console.error('JSON parse failed after cleaning:', jsonString);
+        throw new Error('Invalid JSON from AI');
+    }
+    if (!Array.isArray(questions) || questions.length === 0) throw new Error('No valid questions generated');
+
+    // Keep correct_answer and explanation internally, but they will NOT be sent to frontend
     return questions.slice(0, countNeeded).map((q, idx) => ({
         id: `ai_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 6)}`,
         question_text: convertMatrixToLatexInText(q.question || 'No question provided'),
@@ -72,47 +74,63 @@ Return ONLY a valid JSON array of ${countNeeded} questions. No extra text.`;
         option_b: convertMatrixToLatexInText(q.options?.B || 'Option B'),
         option_c: convertMatrixToLatexInText(q.options?.C || 'Option C'),
         option_d: convertMatrixToLatexInText(q.options?.D || 'Option D'),
+        _correct_answer: q.correct_answer || 'A',
+        _explanation: convertMatrixToLatexInText(q.explanation || 'No explanation available.'),
         subject: subjectName,
         topic: topic || 'General',
         difficulty: difficulty || 'medium',
-        is_ai_generated: true,
-        // Kept hidden internally
-        correct_answer: (q.correct_answer || 'A').trim().toUpperCase(),
-        explanation: convertMatrixToLatexInText(q.explanation || 'No explanation available.')
+        is_ai_generated: true
     }));
 }
 
 // ========== PUBLIC ROUTES ==========
 
+// GET /api/practice/subjects
 router.get('/subjects', async (req, res) => {
     try {
         const result = await pool.query('SELECT id, name, code FROM subjects ORDER BY name');
         res.json({ subjects: result.rows });
-    } catch (error) { res.status(500).json({ error: 'Failed to fetch subjects' }); }
+    } catch (error) {
+        console.error('Subjects error:', error);
+        res.status(500).json({ error: 'Failed to fetch subjects' });
+    }
 });
 
+// GET /api/practice/topics/:subjectId
 router.get('/topics/:subjectId', async (req, res) => {
     try {
         const subjectId = parseInt(req.params.subjectId);
-        const result = await pool.query(`SELECT DISTINCT topic FROM questions WHERE subject_id = $1 AND topic IS NOT NULL`, [subjectId]);
-        res.json({ topics: result.rows.map(row => row.topic) });
-    } catch (error) { res.json({ topics: [] }); }
+        const result = await pool.query(
+            `SELECT DISTINCT topic FROM questions WHERE subject_id = $1 AND topic IS NOT NULL ORDER BY topic`,
+            [subjectId]
+        );
+        const topics = result.rows.map(row => row.topic);
+        res.json({ topics });
+    } catch (error) {
+        console.error('Topics error:', error);
+        res.json({ topics: [] });
+    }
 });
 
-// 1. LOAD QUESTIONS (Without answers or explanations)
+// POST /api/practice/questions – returns questions WITHOUT correct_answer or explanation
 router.post('/questions', async (req, res) => {
     try {
         const { subject_id, topic, difficulty, count = 10 } = req.body;
 
         const subjectRes = await pool.query('SELECT name FROM subjects WHERE id = $1', [subject_id]);
-        if (subjectRes.rows.length === 0) return res.status(400).json({ error: 'Invalid subject' });
+        if (subjectRes.rows.length === 0) {
+            return res.status(400).json({ error: 'Invalid subject' });
+        }
         const subjectName = subjectRes.rows[0].name;
 
-        let query = `SELECT q.id, q.question_text, q.option_a, q.option_b, q.option_c, q.option_d, q.topic, q.difficulty 
-                     FROM questions q WHERE q.subject_id = $1`;
+        let query = `
+            SELECT q.*, s.name as subject_name 
+            FROM questions q
+            JOIN subjects s ON q.subject_id = s.id
+            WHERE q.subject_id = $1
+        `;
         const params = [subject_id];
         let paramIndex = 2;
-
         if (topic && topic !== 'all') {
             query += ` AND q.topic = $${paramIndex}`;
             params.push(topic);
@@ -127,75 +145,106 @@ router.post('/questions', async (req, res) => {
         params.push(count);
 
         const dbResult = await pool.query(query, params);
-        let finalQuestions = dbResult.rows.map(row => ({
-            id: String(row.id),
+        let dbQuestions = dbResult.rows.map(row => ({
+            id: row.id,
             question_text: row.question_text,
             option_a: row.option_a,
             option_b: row.option_b,
             option_c: row.option_c,
             option_d: row.option_d,
+            subject: row.subject_name,
+            topic: row.topic,
+            difficulty: row.difficulty,
             is_ai_generated: false
         }));
 
-        const remaining = count - finalQuestions.length;
+        let finalQuestions = [...dbQuestions];
+        const remaining = count - dbQuestions.length;
         if (remaining > 0) {
+            console.log(`⚠️ Only ${dbQuestions.length} DB questions found. Generating ${remaining} AI questions...`);
             try {
                 const aiQuestions = await generateAIQuestions(subjectName, topic, difficulty, remaining);
-                aiQuestions.forEach(q => {
-                    // Save the secret answer parts to server memory
-                    aiMemoryCache.set(q.id, {
-                        correct_answer: q.correct_answer,
-                        explanation: q.explanation,
-                        timestamp: Date.now()
-                    });
-                    // Strip answer values before returning to user
-                    finalQuestions.push({
-                        id: q.id,
-                        question_text: q.question_text,
-                        option_a: q.option_a,
-                        option_b: q.option_b,
-                        option_c: q.option_c,
-                        option_d: q.option_d,
-                        is_ai_generated: true
-                    });
-                });
-            } catch (err) { console.error('AI fallback failed:', err.message); }
+                const cleanedAi = aiQuestions.map(q => ({
+                    id: q.id,
+                    question_text: q.question_text,
+                    option_a: q.option_a,
+                    option_b: q.option_b,
+                    option_c: q.option_c,
+                    option_d: q.option_d,
+                    subject: q.subject,
+                    topic: q.topic,
+                    difficulty: q.difficulty,
+                    is_ai_generated: true
+                }));
+                finalQuestions.push(...cleanedAi);
+            } catch (aiError) {
+                console.error('AI generation failed:', aiError.message);
+            }
+        }
+
+        for (let i = finalQuestions.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [finalQuestions[i], finalQuestions[j]] = [finalQuestions[j], finalQuestions[i]];
         }
 
         res.json(finalQuestions);
-    } catch (error) { res.status(500).json({ error: 'Server error loading questions' }); }
+    } catch (error) {
+        console.error('Practice questions error:', error);
+        res.status(500).json({ error: 'Failed to fetch/generate questions' });
+    }
 });
 
-// 2. CHECK ANSWER ON-DEMAND (Fetches answer + explanation for one question ID)
+// POST /api/practice/check – validate a single answer
 router.post('/check', async (req, res) => {
     try {
         const { questionId, selectedAnswer } = req.body;
-        if (!questionId || !selectedAnswer) return res.status(400).json({ error: 'Missing parameters' });
-
-        let correctAnswer = 'A';
-        let explanation = 'No explanation available.';
-
-        if (typeof questionId === 'string' && questionId.startsWith('ai_')) {
-            const cached = aiMemoryCache.get(questionId);
-            if (cached) {
-                correctAnswer = cached.correct_answer;
-                explanation = cached.explanation;
-            }
-        } else {
-            const dbResult = await pool.query('SELECT correct_answer, explanation FROM questions WHERE id = $1', [parseInt(questionId, 10)]);
-            if (dbResult.rows.length > 0) {
-                correctAnswer = dbResult.rows[0].correct_answer;
-                explanation = dbResult.rows[0].explanation;
-            }
+        if (!questionId || !selectedAnswer) {
+            return res.status(400).json({ error: 'Missing questionId or selectedAnswer' });
         }
 
+        const result = await pool.query(
+            `SELECT correct_answer, explanation FROM questions WHERE id = $1`,
+            [questionId]
+        );
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Question not found' });
+        }
+        const { correct_answer, explanation } = result.rows[0];
+        const isCorrect = (selectedAnswer === correct_answer);
+
         res.json({
-            success: true,
-            isCorrect: selectedAnswer.trim().toUpperCase() === correctAnswer,
-            correct_answer: correctAnswer,
-            explanation
+            isCorrect,
+            explanation: explanation || 'No explanation available.'
         });
-    } catch (error) { res.status(500).json({ error: 'Server error checking answer' }); }
+    } catch (error) {
+        console.error('Check answer error:', error);
+        res.status(500).json({ error: 'Failed to check answer' });
+    }
+});
+
+// POST /api/practice/generate – dedicated AI endpoint (optional)
+router.post('/generate', async (req, res) => {
+    try {
+        const { subject, topic, count = 10, difficulty = 'medium' } = req.body;
+        if (!subject) return res.status(400).json({ error: 'Subject is required' });
+        const aiQuestions = await generateAIQuestions(subject, topic, difficulty, count);
+        const cleaned = aiQuestions.map(q => ({
+            id: q.id,
+            question_text: q.question_text,
+            option_a: q.option_a,
+            option_b: q.option_b,
+            option_c: q.option_c,
+            option_d: q.option_d,
+            subject: q.subject,
+            topic: q.topic,
+            difficulty: q.difficulty,
+            is_ai_generated: true
+        }));
+        res.json({ success: true, count: cleaned.length, questions: cleaned });
+    } catch (error) {
+        console.error('AI generation error:', error.message);
+        res.status(500).json({ error: 'Failed to generate questions', details: error.message });
+    }
 });
 
 module.exports = router;
