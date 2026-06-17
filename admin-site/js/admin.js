@@ -664,26 +664,104 @@ function searchExams() {
     examsData = originalExams;
 }
 
+// Function to fetch and display exams for a specific user
 async function viewUserDetails(userId) {
+    showLoading('Loading user exam history...');
+    
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE}/api/admin/users/${userId}/exams`, {
+        
+        // 1. Fetch user profile details to display their name/email
+        const userResponse = await fetch(`${API_BASE}/api/admin/users/${userId}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        
-        const exams = await response.json();
-        
-        let message = `User ID: ${userId}\n`;
-        message += `Total Exams: ${exams.length}\n\n`;
-        exams.forEach((exam, i) => {
-            message += `${i+1}. ${new Date(exam.started_at).toLocaleDateString()} - Score: ${exam.score || 0}/${exam.total_questions || 180}\n`;
+        if (!userResponse.ok) throw new Error('Failed to load user details');
+        const user = await userResponse.json();
+
+        // 2. Fetch the exam history for this user
+        const examsResponse = await fetch(`${API_BASE}/api/admin/users/${userId}/exams`, {
+            headers: { 'Authorization': `Bearer ${token}` }
         });
+        if (!examsResponse.ok) throw new Error('Failed to load user exams');
+        const exams = await examsResponse.json();
+
+        // 3. Render user details and their personal exam table
+        const panel = document.getElementById('adminPanel');
         
-        alert(message);
+        let html = `
+            <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <button onclick="loadUsers()" class="tab-btn" style="padding: 8px 20px; margin-bottom: 10px;">← Back to Users</button>
+                    <h2>Exam History for ${user.full_name || 'N/A'}</h2>
+                    <p style="color: #64748b;">Email: ${user.email} | Total Exams Taken: ${exams.length}</p>
+                </div>
+            </div>
+        `;
+
+        if (exams.length === 0) {
+            html += `<p class="no-data">This user hasn't taken any exams yet.</p>`;
+            panel.innerHTML = html;
+            return;
+        }
+
+        html += `
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date Completed</th>
+                            <th>Subjects</th>
+                            <th>Score</th>
+                            <th>Percentage</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        exams.forEach(exam => {
+            const date = new Date(exam.completed_at || exam.started_at).toLocaleString();
+            const subjects = exam.subjects ? exam.subjects.join(', ') : 'JAMB Exam';
+            const score = exam.score || 0;
+            const total = exam.total_questions || 180;
+            const percentage = exam.percentage ? exam.percentage.toFixed(1) : ((score / total) * 100).toFixed(1);
+            const percentClass = percentage >= 70 ? 'score-high' : (percentage >= 50 ? 'score-medium' : 'score-low');
+            
+            html += `
+                <tr>
+                    <td>${date}</td>
+                    <td><strong>${subjects}</strong></td>
+                    <td>${score}/${total}</td>
+                    <td class="${percentClass}">${percentage}%</td>
+                    <td><span class="badge ${exam.status === 'completed' ? 'badge-admin' : 'badge-user'}">${exam.status}</span></td>
+                    <td>
+                        <button class="action-btn" onclick="viewExamDetails('${exam.id}')">👁️ View script</button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        html += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+
+        panel.innerHTML = html;
+
     } catch (error) {
-        alert('Could not load user details');
+        console.error('Error loading user history:', error);
+        document.getElementById('adminPanel').innerHTML = `
+            <div class="error-message">
+                <p>❌ Failed to load user's exam records.</p>
+                <p style="font-size: 0.9rem; color: #666;">${error.message}</p>
+                <button onclick="loadUsers()">Return to Users</button>
+            </div>
+        `;
     }
 }
+
 
 async function viewExamDetails(examId) {
     try {

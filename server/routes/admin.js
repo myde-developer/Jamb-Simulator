@@ -138,23 +138,30 @@ router.get('/users/:id/exams', adminAuth, async (req, res) => {
 // Get all exams with user details
 router.get('/exams', adminAuth, async (req, res) => {
     try {
+        const columnsCheck = await db.query(`
+            SELECT column_name FROM information_schema.columns 
+            WHERE table_name = 'exam_sessions' AND column_name IN ('subjects_selected', 'subjects', 'subject_ids')
+        `);
+        
+        let colName = columnsCheck.rows.length > 0 ? columnsCheck.rows[0].column_name : null;
+        let subjectsSubquery = colName 
+            ? `(SELECT array_agg(s.name) FROM subjects s WHERE s.id = ANY(es.${colName}))`
+            : `ARRAY['JAMB Exam']`;
+
         const result = await db.query(
-            `SELECT es.*, u.full_name as user_name,
-                    (SELECT array_agg(s.name) 
-                     FROM subjects s 
-                     WHERE s.id = ANY(es.subjects_selected)) as subjects
+            `SELECT es.*, u.full_name as user_name, ${subjectsSubquery} as subjects
              FROM exam_sessions es
              JOIN users u ON u.id = es.user_id
              ORDER BY es.started_at DESC`
         );
         
         res.json(result.rows);
-        
     } catch (error) {
         console.error('Error fetching exams:', error);
         res.status(500).json({ error: 'Failed to fetch exams' });
     }
 });
+
 
 // Get single exam details with answers
 router.get('/exams/:id', adminAuth, async (req, res) => {
