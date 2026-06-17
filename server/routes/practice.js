@@ -6,10 +6,13 @@ const { pool } = require('../config/database');
 // Helper: Convert plain-text matrices to LaTeX
 function convertMatrixToLatexInText(text) {
     if (!text || typeof text !== 'string') return text;
-    return text.replace(/\[\[([^\]]+)\],\s*\[([^\]]+)\]\]/g, (match, row1, row2) => {
-        const cleanRow1 = row1.split(',').map(s => s.trim()).join(' & ');
-        const cleanRow2 = row2.split(',').map(s => s.trim()).join(' & ');
-        return `\\(\\begin{bmatrix} ${cleanRow1} \\\\ ${cleanRow2} \\end{bmatrix}\\)`;
+    return text.replace(/\[\[\s*([^\]]+)\]\](?:\s*,\s*\[\s*([^\]]+)\]\])*/g, (match) => {
+        const innerMatches = match.match(/\[\s*([^\]]+)\s*\]/g);
+        if (!innerMatches || innerMatches.length < 2) return match; // not a matrix
+        const rows = innerMatches.map(row => {
+            return row.replace(/^\[\s*|\s*\]$/g, '').split(',').map(s => s.trim()).join(' & ');
+        });
+        return `\\(\\begin{bmatrix} ${rows.join(' \\\\ ')} \\end{bmatrix}\\)`;
     });
 }
 

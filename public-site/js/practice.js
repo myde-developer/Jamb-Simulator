@@ -1,5 +1,6 @@
-// client/js/practice.js – final version with secure answer checking
+// client/js/practice.js – final version with MathJax re-render
 const API_BASE = 'https://jamb-simulator-api.onrender.com';
+
 let practiceState = {
     questions: [],
     currentIndex: 0,
@@ -124,19 +125,46 @@ function renderQuestion() {
     const q = practiceState.questions[practiceState.currentIndex];
     document.getElementById('currentSubject').innerText = q.subject;
     document.getElementById('progressText').innerText = `Question ${practiceState.currentIndex + 1}/${practiceState.questions.length}`;
+    
+    // Set question text as innerHTML (contains LaTeX)
     document.getElementById('questionText').innerHTML = q.question_text;
 
     const saved = practiceState.answers[q.id];
     let optsHtml = '';
     for (let l of ['A', 'B', 'C', 'D']) {
+        const optText = q[`option_${l.toLowerCase()}`] || '';
         optsHtml += `<div class="practice-option ${saved === l ? 'selected' : ''}" onclick="selectOption('${q.id}','${l}')">
-            <span class="option-letter">${l}</span> ${q[`option_${l.toLowerCase()}`]}
+            <span class="option-letter">${l}</span> ${optText}
         </div>`;
     }
     document.getElementById('optionsContainer').innerHTML = optsHtml;
+
+    // Reset feedback
     document.getElementById('feedbackBox').classList.remove('show');
     document.getElementById('checkBtn').disabled = !!saved;
     document.getElementById('nextBtn').disabled = true;
+
+    // Trigger MathJax to re-render the new LaTeX content
+    renderMath();
+}
+
+// ========== MATHJAX RENDER ==========
+function renderMath() {
+    if (window.MathJax && MathJax.typesetPromise) {
+        MathJax.typesetPromise().catch(err => console.warn('MathJax error:', err));
+    } else {
+        // If MathJax is still loading, wait for it
+        if (window.MathJax) {
+            MathJax.typesetPromise().catch(err => console.warn('MathJax error:', err));
+        } else {
+            // Fallback: try again after a short delay
+            setTimeout(() => {
+                if (window.MathJax && MathJax.typesetPromise) {
+                    MathJax.typesetPromise().catch(err => console.warn('MathJax error:', err));
+                }
+            }, 500);
+        }
+    }
 }
 
 function selectOption(qid, letter) {
@@ -189,10 +217,14 @@ async function checkAnswer() {
         document.getElementById('feedbackMessage').innerHTML = isCorrect
             ? '<div class="feedback-correct">✓ Correct!</div>'
             : `<div class="feedback-wrong">✗ Wrong. Correct answer is ${correctAnswer}.</div>`;
-        document.getElementById('explanation').innerText = explanation;
+        document.getElementById('explanation').innerHTML = explanation; // may contain LaTeX
         fb.classList.add('show');
         document.getElementById('nextBtn').disabled = false;
         document.getElementById('streakCount').innerText = practiceState.streak;
+
+        // Re-render MathJax for the explanation if it contains LaTeX
+        renderMath();
+
     } catch (err) {
         console.error(err);
         alert('Failed to check answer. Please try again.');
