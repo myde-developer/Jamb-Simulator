@@ -81,8 +81,7 @@ Return ONLY a valid JSON array of ${countNeeded} questions. No extra text.`;
         explanation: convertMatrixToLatexInText(q.explanation || 'No explanation available.'),
         subject: subjectName,
         topic: topic || 'General',
-        difficulty: difficulty || 'medium',
-        is_ai_generated: true
+        difficulty: difficulty || 'medium'
     }));
 }
 
@@ -157,8 +156,7 @@ router.post('/questions', async (req, res) => {
             option_d: convertMatrixToLatexInText(row.option_d),
             subject: row.subject_name,
             topic: row.topic,
-            difficulty: row.difficulty,
-            is_ai_generated: false
+            difficulty: row.difficulty
         }));
 
         let finalQuestions = [...dbQuestions];
@@ -243,7 +241,6 @@ router.post('/generate', async (req, res) => {
             subject: q.subject,
             topic: q.topic,
             difficulty: q.difficulty,
-            is_ai_generated: true
         }));
         res.json({ success: true, count: cleaned.length, questions: cleaned });
     } catch (error) {
