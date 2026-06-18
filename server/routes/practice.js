@@ -176,7 +176,6 @@ router.post('/questions', async (req, res) => {
                     subject: q.subject,
                     topic: q.topic,
                     difficulty: q.difficulty,
-                    is_ai_generated: true
                 }));
                 finalQuestions.push(...cleanedAi);
             } catch (aiError) {
