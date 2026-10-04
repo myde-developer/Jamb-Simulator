@@ -21,7 +21,7 @@ function redirectBasedOnRole() {
     if (user.is_admin) {
         window.location.href = '/admin.html';
     } else {
-        window.location.href = '/home.html';
+        window.location.href = '/auth.html';
     }
 }
 
