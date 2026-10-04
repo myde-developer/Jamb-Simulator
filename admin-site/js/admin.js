@@ -24,7 +24,7 @@ function checkAdminAuth() {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const adminFlag = localStorage.getItem('is_admin');
     if (!token || !user.is_admin || adminFlag !== 'true') {
-        window.location.href = '/home.html';
+        window.location.href = '/index.html';
         return false;
     }
     return true;
